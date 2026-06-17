@@ -2,13 +2,59 @@
 
 Repositori ini adalah basis pengembangan **SID Premium Enterprise**.
 
-Dokumen acuan utama:
+Dokumen acuan wajib:
 
 ```txt
+AGENTS.md
 docs/SID_ENTERPRISE_BLUEPRINT.md
+.ai/README.md
+.ai/skills/00-master-orchestrator.md
 ```
 
 AI CLI, coding agent, atau automation agent yang bekerja di repositori ini wajib membaca dan mengikuti dokumen tersebut sebelum melakukan implementasi besar.
+
+---
+
+## AI Skill Pack
+
+Skill spesialis tersedia di:
+
+```txt
+.ai/skills/
+```
+
+Daftar skill:
+
+```txt
+00-master-orchestrator.md
+01-audit-skill.md
+02-planning-skill.md
+03-frontend-ui-skill.md
+04-backend-api-skill.md
+05-database-prisma-skill.md
+06-security-rbac-skill.md
+07-testing-validation-skill.md
+08-devops-ci-skill.md
+09-documentation-skill.md
+10-pr-review-skill.md
+```
+
+Workflow operasional tersedia di:
+
+```txt
+.ai/workflows/
+```
+
+Daftar workflow:
+
+```txt
+feature-workflow.md
+bugfix-workflow.md
+audit-workflow.md
+release-workflow.md
+```
+
+Setiap agent wajib memilih skill dan workflow yang sesuai dengan jenis tugas sebelum bekerja.
 
 ---
 
