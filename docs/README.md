@@ -12,13 +12,13 @@ Dokumen ini menjadi index paket spesifikasi SIDPRO.
 - `UI_SCREEN_MAP.md`
 - `PRODUCT_BACKLOG.md`
 - `SECURITY.md`
-- `DEPLOYMENT.md`
+- `OPERATIONS.md`
 
 ## Module Documents
 
 - `modules/population.md`
 - `modules/families.md`
-- `modules/letters.md`
+- `modules/surat.md`
 - `modules/complaints.md`
 - `modules/social-assistance.md`
 - `modules/finance.md`
@@ -30,3 +30,15 @@ Dokumen ini menjadi index paket spesifikasi SIDPRO.
 ## Work Rule
 
 Start from blueprint, read the relevant module document, create a plan, implement, validate, test, and document the result.
+
+## Coverage Target
+
+- Strategic direction: complete
+- Architecture: complete
+- Modules: complete
+- Database: complete for v1 implementation
+- API contract: complete for v1 implementation
+- UI map: complete for v1 implementation
+- DevOps and operations: complete for v1 implementation
+- AI CLI readiness: complete
+- Coding readiness: complete for Phase 0 to Phase 5
