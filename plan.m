@@ -943,4 +943,21 @@ Planning skill     : .ai/skills/02-planning-skill.md
 
 ---
 
+## 11. Execution Log (2026-06-18)
+
+| Point | Scope | PR | Tag |
+|-------|-------|-----|-----|
+| 1 | Opsi A — Smoke test | #2 | `mvp-smoke-green-v1` |
+| 2 | B1 — Territories & address | #3 | — |
+| 3 | B2 — Family operations | #4 | — |
+| 4 | B3 — Resident mutation | #6 | `mvp-population-v1` |
+| 5 | Opsi C — Complaint tracking | #5 | `mvp-complaint-tracking-v1` |
+| 6 | Surat hardening | #7 | `mvp-letters-v1` |
+| 7 | Backup & restore | #8 | `mvp-backup-v1` |
+| 8 | Portal publik | #9 | `mvp-portal-v1` |
+| 9 | Pengaduan v2 | #10 | `mvp-complaints-v2` |
+| 10 | Dashboard & laporan | #11 | `mvp-dashboard-v1` |
+
+---
+
 *Dokumen ini adalah living plan. Update versi dan tanggal setiap kali scope berubah.*
