@@ -10,6 +10,7 @@ import { Plus, UserPlus } from 'lucide-react';
 import { PageHeader } from '@/components/enterprise/page-header';
 import { DataTable, FilterBar } from '@/components/enterprise/data-table';
 import { DetailDrawer } from '@/components/enterprise/detail-drawer';
+import { AddressFields } from '@/components/enterprise/address-fields';
 import { useAuth } from '@/hooks/use-auth';
 import {
   useFamilies,
@@ -31,6 +32,11 @@ export default function KeluargaPage() {
   const [detailId, setDetailId] = useState<string | null>(null);
   const [memberOpen, setMemberOpen] = useState(false);
   const [residentSearch, setResidentSearch] = useState('');
+  const [address, setAddress] = useState({
+    hamletId: '',
+    neighborhoodUnitId: '',
+    street: '',
+  });
 
   const { data, isLoading, error, refetch } = useFamilies({ page, limit: 20, search });
   const { data: familyDetail, isLoading: detailLoading } = useFamily(detailId);
@@ -53,9 +59,23 @@ export default function KeluargaPage() {
   });
 
   async function onCreateSubmit(values: CreateFamilyForm) {
-    await createMutation.mutateAsync(values);
+    const payload = {
+      ...values,
+      ...(address.hamletId && address.neighborhoodUnitId
+        ? {
+            address: {
+              hamletId: address.hamletId,
+              neighborhoodUnitId: address.neighborhoodUnitId,
+              street: address.street || undefined,
+            },
+          }
+        : {}),
+    };
+    const parsed = createFamilySchema.parse(payload);
+    await createMutation.mutateAsync(parsed);
     setCreateOpen(false);
     createForm.reset();
+    setAddress({ hamletId: '', neighborhoodUnitId: '', street: '' });
   }
 
   async function onAddMemberSubmit(values: AddMemberForm) {
@@ -191,6 +211,14 @@ export default function KeluargaPage() {
             </label>
             <Input id="houseStatus" {...createForm.register('houseStatus')} />
           </div>
+          <AddressFields
+            hamletId={address.hamletId}
+            neighborhoodUnitId={address.neighborhoodUnitId}
+            street={address.street}
+            onHamletChange={(id) => setAddress((a) => ({ ...a, hamletId: id, neighborhoodUnitId: '' }))}
+            onNeighborhoodUnitChange={(id) => setAddress((a) => ({ ...a, neighborhoodUnitId: id }))}
+            onStreetChange={(street) => setAddress((a) => ({ ...a, street }))}
+          />
         </form>
       </DetailDrawer>
 

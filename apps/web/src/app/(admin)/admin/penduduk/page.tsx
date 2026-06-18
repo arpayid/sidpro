@@ -12,6 +12,7 @@ import { DataTable, FilterBar } from '@/components/enterprise/data-table';
 import { DetailDrawer } from '@/components/enterprise/detail-drawer';
 import { ConfirmDialog } from '@/components/enterprise/confirm-dialog';
 import { FileUpload } from '@/components/enterprise/file-upload';
+import { AddressFields } from '@/components/enterprise/address-fields';
 import { useAuth } from '@/hooks/use-auth';
 import {
   useResidents,
@@ -153,6 +154,11 @@ export default function PendudukPage() {
   const [selected, setSelected] = useState<Resident | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Resident | null>(null);
   const [importError, setImportError] = useState('');
+  const [address, setAddress] = useState({
+    hamletId: '',
+    neighborhoodUnitId: '',
+    street: '',
+  });
 
   const { data, isLoading, error, refetch } = useResidents({ page, limit: 20, search });
   const createMutation = useCreateResident();
@@ -175,6 +181,7 @@ export default function PendudukPage() {
 
   function openCreate() {
     createForm.reset(defaultValues);
+    setAddress({ hamletId: '', neighborhoodUnitId: '', street: '' });
     setSelected(null);
     setDrawerMode('create');
   }
@@ -196,14 +203,38 @@ export default function PendudukPage() {
   }
 
   async function onCreateSubmit(values: CreateForm) {
-    const parsed = createResidentSchema.parse(values);
+    const payload = {
+      ...values,
+      ...(address.hamletId && address.neighborhoodUnitId
+        ? {
+            address: {
+              hamletId: address.hamletId,
+              neighborhoodUnitId: address.neighborhoodUnitId,
+              street: address.street || undefined,
+            },
+          }
+        : {}),
+    };
+    const parsed = createResidentSchema.parse(payload);
     await createMutation.mutateAsync(parsed);
     setDrawerMode(null);
   }
 
   async function onEditSubmit(values: EditForm) {
     if (!selected) return;
-    await updateMutation.mutateAsync({ id: selected.id, body: values });
+    const payload = {
+      ...values,
+      ...(address.hamletId && address.neighborhoodUnitId
+        ? {
+            address: {
+              hamletId: address.hamletId,
+              neighborhoodUnitId: address.neighborhoodUnitId,
+              street: address.street || undefined,
+            },
+          }
+        : {}),
+    };
+    await updateMutation.mutateAsync({ id: selected.id, body: payload });
     setDrawerMode(null);
     setSelected(null);
   }
@@ -364,6 +395,16 @@ export default function PendudukPage() {
             register={createForm.register}
             errors={createForm.formState.errors}
           />
+          <div className="mt-4">
+            <AddressFields
+              hamletId={address.hamletId}
+              neighborhoodUnitId={address.neighborhoodUnitId}
+              street={address.street}
+              onHamletChange={(id) => setAddress((a) => ({ ...a, hamletId: id, neighborhoodUnitId: '' }))}
+              onNeighborhoodUnitChange={(id) => setAddress((a) => ({ ...a, neighborhoodUnitId: id }))}
+              onStreetChange={(street) => setAddress((a) => ({ ...a, street }))}
+            />
+          </div>
         </form>
       </DetailDrawer>
 
@@ -400,6 +441,16 @@ export default function PendudukPage() {
             errors={editForm.formState.errors}
             isEdit
           />
+          <div className="mt-4">
+            <AddressFields
+              hamletId={address.hamletId}
+              neighborhoodUnitId={address.neighborhoodUnitId}
+              street={address.street}
+              onHamletChange={(id) => setAddress((a) => ({ ...a, hamletId: id, neighborhoodUnitId: '' }))}
+              onNeighborhoodUnitChange={(id) => setAddress((a) => ({ ...a, neighborhoodUnitId: id }))}
+              onStreetChange={(street) => setAddress((a) => ({ ...a, street }))}
+            />
+          </div>
         </form>
       </DetailDrawer>
 

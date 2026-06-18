@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { nikSchema, kkNumberSchema } from './common';
+import { residentAddressSchema } from './territories';
 
 export const createResidentSchema = z.object({
   nik: nikSchema,
@@ -16,6 +17,7 @@ export const createResidentSchema = z.object({
   residentStatus: z.enum(['permanent', 'temporary', 'moved', 'deceased']).default('permanent'),
   familyId: z.string().uuid().optional(),
   addressId: z.string().uuid().optional(),
+  address: residentAddressSchema.optional(),
 });
 
 export const updateResidentSchema = createResidentSchema.partial();
@@ -24,6 +26,7 @@ export const createFamilySchema = z.object({
   kkNumber: kkNumberSchema,
   headResidentId: z.string().uuid().optional(),
   addressId: z.string().uuid().optional(),
+  address: residentAddressSchema.optional(),
   economicStatus: z.string().optional(),
   houseStatus: z.string().optional(),
 });
