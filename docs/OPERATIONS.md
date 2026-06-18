@@ -137,6 +137,30 @@ Restore singkat — lihat [`STAGING_DEPLOY.md`](./STAGING_DEPLOY.md#backup).
 
 - Health: `GET /api/v1/health`, web `GET /`
 - Audit log viewer (admin): `/admin/audit-logs` — requires `audit.read`; default filter last 7 days
-- Smoke test: `STAGING_ADMIN_PASSWORD=... ./scripts/smoke-test.sh` — set `SMOKE_RUN_SEED=0` to skip seed; optional `SMOKE_TEST_USER_PASSWORD` for RBAC user; **re-login required** after `prisma:seed` or permission changes (JWT does not auto-refresh permissions)
+- Smoke test: `STAGING_ADMIN_PASSWORD=... ./scripts/smoke-test.sh` (or `pnpm smoke`) — set `SMOKE_RUN_SEED=0` to skip seed; optional `SMOKE_TEST_USER_PASSWORD` for RBAC user; **re-login required** after `prisma:seed` or permission changes (JWT does not auto-refresh permissions)
+
+### Local development smoke test
+
+Prerequisites: PostgreSQL/Redis/MinIO running (`docker compose up -d`), API on `:4000`, web on `:3000`.
+
+```bash
+# 1. Seed admin (once, or after permission changes)
+SEED_ADMIN_PASSWORD='your-dev-password' pnpm prisma:seed
+
+# 2. Build & run API (must match latest code — stale build fails preflight)
+pnpm --filter @sidpro/api build
+node apps/api/dist/main.js &
+
+# 3. Build & run web (for admin redirect check)
+pnpm --filter @sidpro/web build
+cd apps/web && PORT=3000 pnpm start &
+
+# 4. Run smoke (dev fallback uses SEED_ADMIN_PASSWORD when STAGING unset)
+SMOKE_RUN_SEED=0 SEED_ADMIN_PASSWORD='your-dev-password' pnpm smoke
+```
+
+**Stale API detection:** smoke test exits early if `PATCH /complaints/:id/status` returns 404 (rebuild API).
+
+**API-only mode:** `SMOKE_SKIP_WEB=1` skips the admin redirect check when web is not running.
 - Monitoring: [`docs/MONITORING.md`](./MONITORING.md)
 - Security: [`docs/SECURITY.md`](./SECURITY.md), [`docs/SECURITY_CHECKLIST.md`](./SECURITY_CHECKLIST.md)

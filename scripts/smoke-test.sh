@@ -17,9 +17,18 @@ WEB="${APP_URL:-http://localhost:3000}"
 ADMIN_EMAIL="${STAGING_ADMIN_EMAIL:-admin@demo-desa.id}"
 ADMIN_PASSWORD="${STAGING_ADMIN_PASSWORD:-}"
 SMOKE_RUN_SEED="${SMOKE_RUN_SEED:-1}"
+SMOKE_SKIP_WEB="${SMOKE_SKIP_WEB:-0}"
+
+if [ -z "$ADMIN_PASSWORD" ] && [ -n "${SEED_ADMIN_PASSWORD:-}" ]; then
+  if [ "${NODE_ENV:-development}" != "production" ]; then
+    echo "[smoke-test] WARN: STAGING_ADMIN_PASSWORD unset — using SEED_ADMIN_PASSWORD (development only)."
+    ADMIN_PASSWORD="$SEED_ADMIN_PASSWORD"
+  fi
+fi
 
 if [ -z "$ADMIN_PASSWORD" ]; then
   echo "[smoke-test] ERROR: Set STAGING_ADMIN_PASSWORD (non-default staging admin password)."
+  echo "[smoke-test]        For local dev after seed, you may set SEED_ADMIN_PASSWORD in .env instead."
   exit 1
 fi
 
@@ -52,9 +61,28 @@ json_field() {
 HEALTH=$(curl -sf "$API/health" | grep -c healthy || true)
 check "GET /api/v1/health" "$([ "$HEALTH" -ge 1 ] && echo 1 || echo 0)"
 
+# 1b. Detect stale API build (missing complaints workflow routes)
+STALE_API=$(curl -s -o /dev/null -w "%{http_code}" -X PATCH "$API/complaints/00000000-0000-0000-0000-000000000000/status" \
+  -H 'Content-Type: application/json' -d '{"status":"verified"}' 2>/dev/null || echo "000")
+if [ "$STALE_API" = "404" ]; then
+  echo "[smoke-test] ERROR: API build appears stale (PATCH /complaints/:id/status → 404)."
+  echo "[smoke-test]        Rebuild and restart: pnpm --filter @sidpro/api build && node apps/api/dist/main.js"
+  exit 1
+fi
+
 # 2. Admin redirect without auth
-REDIRECT=$(curl -s -o /dev/null -w "%{http_code}:%{redirect_url}" "$WEB/admin/dashboard" 2>/dev/null || echo "000")
-check "/admin/* redirect without login" "$(echo "$REDIRECT" | grep -q '307\|302' && echo 1 || echo 0)"
+if [ "$SMOKE_SKIP_WEB" = "1" ]; then
+  echo "[SKIP] /admin/* redirect (SMOKE_SKIP_WEB=1)"
+  check "/admin/* redirect without login (skipped)" "1"
+else
+  REDIRECT=$(curl -s -o /dev/null -w "%{http_code}:%{redirect_url}" "$WEB/admin/dashboard" 2>/dev/null || echo "000")
+  if [ "$REDIRECT" = "000" ]; then
+    echo "[smoke-test] ERROR: Web not reachable at $WEB — start web or set SMOKE_SKIP_WEB=1"
+    check "/admin/* redirect without login" "0"
+  else
+    check "/admin/* redirect without login" "$(echo "$REDIRECT" | grep -q '307\|302' && echo 1 || echo 0)"
+  fi
+fi
 
 # 3. Login
 LOGIN_RESP=$(curl -sf -X POST "$API/auth/login" \
@@ -74,7 +102,7 @@ check "Dashboard fetch API" "$([ "$DASH" -ge 1 ] && echo 1 || echo 0)"
 # 5. CRUD Resident
 NIK="320101010618$(date +%H%M%S | tail -c 5)0001"
 CREATE_RES=$(curl -sf -X POST "$API/residents" -H "$AUTH" -H 'Content-Type: application/json' \
-  -d "{\"nik\":\"$NIK\",\"fullName\":\"Warga Staging Test\",\"gender\":\"male\",\"birthPlace\":\"Jakarta\",\"birthDate\":\"1990-01-01\",\"maritalStatus\":\"single\",\"residentStatus\":\"active\"}")
+  -d "{\"nik\":\"$NIK\",\"fullName\":\"Warga Staging Test\",\"gender\":\"male\",\"birthPlace\":\"Jakarta\",\"birthDate\":\"1990-01-01\",\"maritalStatus\":\"single\",\"residentStatus\":\"permanent\"}")
 RES_ID=$(echo "$CREATE_RES" | json_field "console.log(j.data?.id||'')")
 UPDATE_RES=$(curl -sf -X PATCH "$API/residents/$RES_ID" -H "$AUTH" -H 'Content-Type: application/json' \
   -d '{"fullName":"Warga Staging Updated"}' | grep -c success || true)
@@ -168,7 +196,7 @@ AUTH="Authorization: Bearer $ADMIN_ACCESS"
 
 # 12. Complaints workflow
 CREATE_CMP=$(curl -sf -X POST "$API/complaints/public?tenantCode=demo-desa" -H 'Content-Type: application/json' \
-  -d '{"title":"Smoke Test Pengaduan","description":"Pengaduan dari smoke test otomatis","category":"Lingkungan","priority":"medium","location":"RT 01"}')
+  -d '{"title":"Smoke Test Pengaduan","description":"Pengaduan dari smoke test otomatis","category":"Lingkungan","priority":"medium","location":"RT 01","reporterName":"Smoke Tester","reporterPhone":"08123456789"}')
 CMP_ID=$(echo "$CREATE_CMP" | json_field "console.log(j.data?.id||'')")
 check "Complaints public create" "$([ -n "$CMP_ID" ] && echo 1 || echo 0)"
 
