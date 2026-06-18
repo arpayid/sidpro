@@ -88,11 +88,18 @@ sudo chown root:root /etc/sidpro/sidpro.env
 ### 2. Install unit files
 
 ```bash
+sudo useradd -r -s /usr/sbin/nologin -d /var/lib/sidpro sidpro 2>/dev/null || true
 sudo cp scripts/systemd/sidpro-api.service.example /etc/systemd/system/sidpro-api.service
 sudo cp scripts/systemd/sidpro-web.service.example /etc/systemd/system/sidpro-web.service
-# Edit WorkingDirectory, User, and ExecStart paths if not using /opt/sidpro
+# Edit WorkingDirectory to deploy path (e.g. /root/sidpro or /opt/sidpro)
+# If deploy path is under /root: sudo chmod o+x /root
+sudo chown -R sidpro:sidpro <deploy-path>
+sudo mkdir -p <deploy-path>/.cache/corepack
+sudo chown -R sidpro:sidpro <deploy-path>/.cache
 sudo systemctl daemon-reload
 ```
+
+**Web service notes:** `HOME` and `COREPACK_HOME` must be writable by `sidpro` (see template). API uses `/usr/bin/node apps/api/dist/main.js`.
 
 ### 3. Enable and start
 
@@ -119,22 +126,49 @@ sudo systemctl restart sidpro-api sidpro-web
 ./scripts/healthcheck.sh
 ```
 
-## Nginx (recommended)
+## Nginx (placeholder — no domain yet)
 
-Reverse proxy:
+When a domain is available, add reverse proxy:
 
 - `/` → web `:3000`
 - `/api` → api `:4000`
 
-Enable HTTPS with Let's Encrypt before exposing publicly.
+Enable HTTPS with Let's Encrypt before exposing publicly. **Do not configure until domain is ready.**
 
 ## Backup
 
+Manual:
+
 ```bash
-DATABASE_URL=... ./scripts/backup.sh
+./scripts/staging-backup-cron.sh
 ```
 
-Schedule via cron (daily recommended).
+Or with explicit env:
+
+```bash
+SIDPRO_ENV_FILE=/etc/sidpro/sidpro.env BACKUP_DIR=/var/backups/sidpro ./scripts/staging-backup-cron.sh
+```
+
+### Daily cron (staging VPS)
+
+Install `/etc/cron.d/sidpro-backup`:
+
+```cron
+# SIDPRO staging daily database backup (02:00 UTC)
+0 2 * * * root /path/to/sidpro/scripts/staging-backup-cron.sh >> /var/log/sidpro-backup.log 2>&1
+```
+
+Backups stored in `/var/backups/sidpro/` (not in repo).
+
+### Restore (singkat)
+
+```bash
+gunzip -c /var/backups/sidpro/db_YYYYMMDD_HHMMSS.sql.gz | psql "$DATABASE_URL_WITHOUT_QUERY"
+sudo systemctl restart sidpro-api sidpro-web
+./scripts/healthcheck.sh
+```
+
+See `scripts/restore.sh` for scripted restore from `./backups/`.
 
 ## Rollback
 

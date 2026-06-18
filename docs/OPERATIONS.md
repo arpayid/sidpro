@@ -84,11 +84,24 @@ Detail instalasi: [`STAGING_DEPLOY.md`](./STAGING_DEPLOY.md#systemd-deployment).
 
 ## Backup
 
+Staging VPS (systemd):
+
+```bash
+./scripts/staging-backup-cron.sh          # manual
+cat /etc/cron.d/sidpro-backup             # daily 02:00 UTC
+ls -la /var/backups/sidpro/
+tail /var/log/sidpro-backup.log
+```
+
+Cron expression: `0 2 * * *` (daily 02:00 UTC).
+
+Restore singkat: gunzip backup → `psql`, lalu `systemctl restart sidpro-api sidpro-web`. Detail: [`STAGING_DEPLOY.md`](./STAGING_DEPLOY.md#backup).
+
+Manual dev:
+
 ```bash
 DATABASE_URL=... ./scripts/backup.sh
 ```
-
-Database (`pg_dump`) dan folder uploads (opsional). Jadwalkan harian via cron.
 
 ## Rollback
 

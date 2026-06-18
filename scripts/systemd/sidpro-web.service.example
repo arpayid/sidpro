@@ -13,6 +13,9 @@ User=sidpro
 Group=sidpro
 WorkingDirectory=/opt/sidpro
 EnvironmentFile=/etc/sidpro/sidpro.env
+Environment=PATH=/usr/bin:/bin
+Environment=HOME=/opt/sidpro
+Environment=COREPACK_HOME=/opt/sidpro/.cache/corepack
 Environment=PORT=3000
 ExecStart=/usr/bin/pnpm --filter @sidpro/web start
 Restart=on-failure

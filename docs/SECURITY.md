@@ -57,3 +57,4 @@ Record these events:
 - Logs are monitored (`journalctl` for systemd units).
 - Dependency checks are run regularly.
 - API/web managed by systemd with `Restart=on-failure` on VPS staging.
+- Daily backup cron to `/var/backups/sidpro` via `scripts/staging-backup-cron.sh`.
