@@ -45,6 +45,22 @@ Admin UI: `/admin/audit-logs` (permission `audit.read`).
 - NIK/KK in metadata are masked before response.
 - Reading audit logs does not create additional audit entries.
 
+## Users & RBAC Admin UI
+
+Admin UI:
+
+- `/admin/users` — `users.read` (create/update/disable via respective permissions)
+- `/admin/roles` — `roles.read` (permission matrix via `roles.assign_permissions`)
+
+Rules:
+
+- Password hash never returned in API responses.
+- Password only accepted on create or optional reset via PATCH user.
+- Users cannot disable/delete their own account.
+- Cannot disable the last active village admin in a tenant.
+- `superadmin_system` role assignment and mutation requires superadmin role.
+- User/role mutations write audit log entries (password fields never stored in metadata).
+
 ## Data Rules
 
 - Sensitive identity fields are masked in general UI.

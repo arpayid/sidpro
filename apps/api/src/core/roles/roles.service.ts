@@ -1,8 +1,19 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
+import {
+  assignRolePermissionsSchema,
+  createRoleSchema,
+  updateRoleSchema,
+} from '@sidpro/validators';
 import { PrismaService } from '../../database/prisma.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { JwtPayload } from '../../common/decorators/current-user.decorator';
 import { paginatedResponse, successResponse } from '../../common/utils/response.util';
+import { assertSuperadminRoleMutation } from '../../common/utils/rbac-security.util';
 
 @Injectable()
 export class RolesService {
@@ -16,7 +27,7 @@ export class RolesService {
     return { tenantId: user.tenantId };
   }
 
-  async findAll(user: JwtPayload, page = 1, limit = 20) {
+  async findAll(user: JwtPayload, page = 1, limit = 50) {
     const where = this.tenantWhere(user);
     const [data, total] = await Promise.all([
       this.prisma.role.findMany({
@@ -46,28 +57,31 @@ export class RolesService {
     return successResponse(role);
   }
 
-  async create(
-    user: JwtPayload,
-    body: { name: string; code: string; scope?: string; permissionIds?: string[] },
-    ipAddress?: string,
-  ) {
+  async create(user: JwtPayload, body: unknown, ipAddress?: string) {
+    const parsed = createRoleSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.flatten().fieldErrors);
+    }
+
+    assertSuperadminRoleMutation(user, parsed.data.code);
+
     const existing = await this.prisma.role.findFirst({
-      where: { code: body.code, ...this.tenantWhere(user) },
+      where: { code: parsed.data.code, ...this.tenantWhere(user) },
     });
     if (existing) throw new ConflictException('Kode role sudah digunakan');
 
     const role = await this.prisma.$transaction(async (tx) => {
       const created = await tx.role.create({
         data: {
-          name: body.name,
-          code: body.code,
-          scope: body.scope ?? 'tenant',
+          name: parsed.data.name,
+          code: parsed.data.code,
+          scope: parsed.data.scope ?? 'tenant',
           tenantId: user.tenantId,
         },
       });
-      if (body.permissionIds?.length) {
+      if (parsed.data.permissionIds?.length) {
         await tx.rolePermission.createMany({
-          data: body.permissionIds.map((permissionId) => ({
+          data: parsed.data.permissionIds.map((permissionId) => ({
             roleId: created.id,
             permissionId,
           })),
@@ -83,40 +97,29 @@ export class RolesService {
       module: 'roles',
       entityType: 'role',
       entityId: role.id,
+      metadata: { code: role.code, permissionIds: parsed.data.permissionIds ?? [] },
       ipAddress,
     });
 
-    return successResponse(role, 'Role berhasil dibuat');
+    return successResponse(role, 'Role berhasil dibuat — tercatat di audit log');
   }
 
-  async update(
-    user: JwtPayload,
-    id: string,
-    body: { name?: string; permissionIds?: string[] },
-    ipAddress?: string,
-  ) {
+  async update(user: JwtPayload, id: string, body: unknown, ipAddress?: string) {
+    const parsed = updateRoleSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.flatten().fieldErrors);
+    }
+
     const existing = await this.prisma.role.findFirst({
       where: { id, ...this.tenantWhere(user) },
     });
     if (!existing) throw new NotFoundException('Role tidak ditemukan');
 
-    const role = await this.prisma.$transaction(async (tx) => {
-      const updated = await tx.role.update({
-        where: { id },
-        data: { ...(body.name ? { name: body.name } : {}) },
-      });
-      if (body.permissionIds) {
-        await tx.rolePermission.deleteMany({ where: { roleId: id } });
-        if (body.permissionIds.length) {
-          await tx.rolePermission.createMany({
-            data: body.permissionIds.map((permissionId) => ({
-              roleId: id,
-              permissionId,
-            })),
-          });
-        }
-      }
-      return updated;
+    assertSuperadminRoleMutation(user, existing.code);
+
+    const role = await this.prisma.role.update({
+      where: { id },
+      data: { ...(parsed.data.name ? { name: parsed.data.name } : {}) },
     });
 
     await this.auditLogs.log({
@@ -126,9 +129,59 @@ export class RolesService {
       module: 'roles',
       entityType: 'role',
       entityId: id,
+      metadata: { name: parsed.data.name },
       ipAddress,
     });
 
-    return successResponse(role, 'Role berhasil diperbarui');
+    return successResponse(role, 'Role berhasil diperbarui — tercatat di audit log');
+  }
+
+  async assignPermissions(user: JwtPayload, id: string, body: unknown, ipAddress?: string) {
+    const parsed = assignRolePermissionsSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.flatten().fieldErrors);
+    }
+
+    const existing = await this.prisma.role.findFirst({
+      where: { id, ...this.tenantWhere(user) },
+    });
+    if (!existing) throw new NotFoundException('Role tidak ditemukan');
+
+    assertSuperadminRoleMutation(user, existing.code);
+
+    const role = await this.prisma.$transaction(async (tx) => {
+      await tx.rolePermission.deleteMany({ where: { roleId: id } });
+      if (parsed.data.permissionIds.length) {
+        await tx.rolePermission.createMany({
+          data: parsed.data.permissionIds.map((permissionId) => ({
+            roleId: id,
+            permissionId,
+          })),
+        });
+      }
+      return tx.role.findUnique({
+        where: { id },
+        include: {
+          rolePermissions: { include: { permission: true } },
+          _count: { select: { userRoles: true } },
+        },
+      });
+    });
+
+    await this.auditLogs.log({
+      tenantId: user.tenantId,
+      actorId: user.sub,
+      action: 'assign_permissions',
+      module: 'roles',
+      entityType: 'role',
+      entityId: id,
+      metadata: {
+        code: existing.code,
+        permissionCount: parsed.data.permissionIds.length,
+      },
+      ipAddress,
+    });
+
+    return successResponse(role, 'Permission role diperbarui — tercatat di audit log');
   }
 }

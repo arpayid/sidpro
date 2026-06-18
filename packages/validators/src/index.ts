@@ -3,3 +3,4 @@ export * from './common';
 export * from './population';
 export * from './complaints';
 export * from './letters';
+export * from './rbac';

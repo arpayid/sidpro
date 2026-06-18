@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Put,
   Delete,
   Body,
   Param,
@@ -29,12 +30,16 @@ export class UsersController {
     @Query('page') page = '1',
     @Query('limit') limit = '20',
     @Query('search') search?: string,
+    @Query('status') status?: string,
+    @Query('roleId') roleId?: string,
   ) {
     return this.usersService.findAll(
       user,
       parseInt(page, 10),
       parseInt(limit, 10),
       search,
+      status,
+      roleId,
     );
   }
 
@@ -46,18 +51,7 @@ export class UsersController {
 
   @Post()
   @RequirePermissions('users.create')
-  create(
-    @CurrentUser() user: JwtPayload,
-    @Body()
-    body: {
-      email: string;
-      name: string;
-      password: string;
-      phone?: string;
-      roleIds?: string[];
-    },
-    @Req() req: Request,
-  ) {
+  create(@CurrentUser() user: JwtPayload, @Body() body: unknown, @Req() req: Request) {
     return this.usersService.create(user, body, req.ip);
   }
 
@@ -66,17 +60,32 @@ export class UsersController {
   update(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
-    @Body()
-    body: {
-      name?: string;
-      phone?: string;
-      status?: string;
-      password?: string;
-      roleIds?: string[];
-    },
+    @Body() body: unknown,
     @Req() req: Request,
   ) {
     return this.usersService.update(user, id, body, req.ip);
+  }
+
+  @Patch(':id/status')
+  @RequirePermissions('users.disable', 'users.update')
+  updateStatus(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @Req() req: Request,
+  ) {
+    return this.usersService.updateStatus(user, id, body, req.ip);
+  }
+
+  @Put(':id/roles')
+  @RequirePermissions('users.update')
+  assignRoles(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @Req() req: Request,
+  ) {
+    return this.usersService.assignRoles(user, id, body, req.ip);
   }
 
   @Delete(':id')

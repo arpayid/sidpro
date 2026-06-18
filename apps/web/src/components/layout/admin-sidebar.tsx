@@ -43,6 +43,7 @@ const iconMap = {
   settings: Settings,
   'user-cog': UserCog,
   'scroll-text': ScrollText,
+  shield: Shield,
 } as const;
 
 interface AdminSidebarProps {

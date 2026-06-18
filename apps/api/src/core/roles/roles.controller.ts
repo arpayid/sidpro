@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Put,
   Body,
   Param,
   Query,
@@ -26,7 +27,7 @@ export class RolesController {
   findAll(
     @CurrentUser() user: JwtPayload,
     @Query('page') page = '1',
-    @Query('limit') limit = '20',
+    @Query('limit') limit = '50',
   ) {
     return this.rolesService.findAll(user, parseInt(page, 10), parseInt(limit, 10));
   }
@@ -39,12 +40,7 @@ export class RolesController {
 
   @Post()
   @RequirePermissions('roles.create')
-  create(
-    @CurrentUser() user: JwtPayload,
-    @Body()
-    body: { name: string; code: string; scope?: string; permissionIds?: string[] },
-    @Req() req: Request,
-  ) {
+  create(@CurrentUser() user: JwtPayload, @Body() body: unknown, @Req() req: Request) {
     return this.rolesService.create(user, body, req.ip);
   }
 
@@ -53,9 +49,20 @@ export class RolesController {
   update(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
-    @Body() body: { name?: string; permissionIds?: string[] },
+    @Body() body: unknown,
     @Req() req: Request,
   ) {
     return this.rolesService.update(user, id, body, req.ip);
+  }
+
+  @Put(':id/permissions')
+  @RequirePermissions('roles.assign_permissions')
+  assignPermissions(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @Req() req: Request,
+  ) {
+    return this.rolesService.assignPermissions(user, id, body, req.ip);
   }
 }

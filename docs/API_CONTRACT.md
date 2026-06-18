@@ -55,10 +55,14 @@ Base API style: REST JSON.
 | POST | /users | users.create |
 | GET | /users/:id | users.read |
 | PATCH | /users/:id | users.update |
+| PATCH | /users/:id/status | users.disable (nonaktif) / users.update (aktifkan) |
+| PUT | /users/:id/roles | users.update |
 | DELETE | /users/:id | users.delete |
 | GET | /roles | roles.read |
 | POST | /roles | roles.create |
+| GET | /roles/:id | roles.read |
 | PATCH | /roles/:id | roles.update |
+| PUT | /roles/:id/permissions | roles.assign_permissions |
 | GET | /permissions | permissions.read |
 
 ## Population

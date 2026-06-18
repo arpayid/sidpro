@@ -12,6 +12,7 @@ export const adminNavItems = [
   { href: '/admin/berita', label: 'CMS Berita', icon: 'newspaper', permission: 'cms.read' },
   { href: '/admin/laporan', label: 'Laporan', icon: 'file-bar-chart', permission: 'reports.read' },
   { href: '/admin/users', label: 'Pengguna', icon: 'user-cog', permission: 'users.read' },
+  { href: '/admin/roles', label: 'Peran & Hak Akses', icon: 'shield', permission: 'roles.read' },
   { href: '/admin/audit-logs', label: 'Audit Log', icon: 'scroll-text', permission: 'audit.read' },
   { href: '/admin/pengaturan', label: 'Pengaturan', icon: 'settings', permission: 'settings.manage' },
 ] as const;

@@ -71,6 +71,19 @@ export function auditActionVariant(action: string): keyof typeof variants {
     approve: 'success',
     reject: 'danger',
     upsert: 'warning',
+    enable: 'success',
+    disable: 'danger',
+    assign_role: 'warning',
+    assign_permissions: 'warning',
   };
   return map[normalized] ?? 'default';
+}
+
+export function userStatusVariant(status: string): keyof typeof variants {
+  const map: Record<string, keyof typeof variants> = {
+    active: 'success',
+    inactive: 'default',
+    suspended: 'danger',
+  };
+  return map[status] ?? 'default';
 }

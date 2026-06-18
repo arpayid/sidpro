@@ -24,10 +24,12 @@ RBAC SIDPRO memakai kombinasi role, permission, tenant scope, dan optional wilay
 users.read
 users.create
 users.update
+users.disable
 users.delete
 roles.read
 roles.create
 roles.update
+roles.assign_permissions
 permissions.read
 settings.manage
 audit.read
@@ -99,6 +101,10 @@ reports.export
 |---|---|---|---|---|---|---|
 | users.read | yes | yes | no | no | no | no |
 | users.create | yes | yes | no | no | no | no |
+| users.update | yes | yes | no | no | no | no |
+| users.disable | yes | yes | no | no | no | no |
+| roles.read | yes | yes | no | no | no | no |
+| roles.assign_permissions | yes | yes | no | no | no | no |
 | roles.update | yes | yes | no | no | no | no |
 | population.read | yes | yes | yes | yes | yes | no |
 | population.create | yes | yes | no | yes | yes | no |
