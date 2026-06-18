@@ -1,10 +1,11 @@
 'use client';
 
+import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { publicComplaintFormSchema, type PublicComplaintFormInput } from '@sidpro/validators';
 import { Button, Card, CardContent, CardHeader, CardTitle, Input } from '@sidpro/ui';
-import { MessageSquare, AlertCircle } from 'lucide-react';
+import { MessageSquare, AlertCircle, Search } from 'lucide-react';
 import { useSubmitPublicComplaint } from '@/features/complaints/use-public-complaint';
 import { getPublicTenantCode } from '@/lib/tenant';
 
@@ -65,6 +66,13 @@ export default function PengaduanPage() {
                 Simpan nomor ini untuk mengecek status pengaduan Anda.
               </p>
             </div>
+            <Link
+              href={`/pengaduan/cek?ticket=${encodeURIComponent(ticket)}`}
+              className="mt-6 inline-flex h-10 w-full items-center justify-center rounded-md bg-emerald-600 px-4 text-sm font-medium text-white transition-colors hover:bg-emerald-700 sm:w-auto"
+            >
+              <Search className="mr-2 h-4 w-4" />
+              Cek Status Pengaduan
+            </Link>
           </CardContent>
         </Card>
       </div>

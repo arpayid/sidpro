@@ -200,6 +200,13 @@ CREATE_CMP=$(curl -sf -X POST "$API/complaints/public?tenantCode=demo-desa" -H '
 CMP_ID=$(echo "$CREATE_CMP" | json_field "console.log(j.data?.id||'')")
 check "Complaints public create" "$([ -n "$CMP_ID" ] && echo 1 || echo 0)"
 
+CMP_PREFIX=$(echo "$CMP_ID" | cut -c1-8 | tr '[:lower:]' '[:upper:]')
+TRACK_CMP=$(curl -sf -X POST "$API/complaints/public/track?tenantCode=demo-desa" -H 'Content-Type: application/json' \
+  -d "{\"ticket\":\"PGD-$CMP_PREFIX\",\"reporterPhone\":\"08123456789\"}" 2>/dev/null || echo '{}')
+TRACK_OK=$(echo "$TRACK_CMP" | grep -c success || true)
+TRACK_TICKET=$(echo "$TRACK_CMP" | json_field "console.log(j.data?.ticket||'')")
+check "Complaints public track" "$([ "$TRACK_OK" -ge 1 ] && [ -n "$TRACK_TICKET" ] && echo 1 || echo 0)"
+
 VERIFY_CMP=$(curl -sf -X PATCH "$API/complaints/$CMP_ID/status" -H "$AUTH" -H 'Content-Type: application/json' \
   -d '{"status":"verified"}' | grep -c success || true)
 check "Complaints verify status" "$([ "$VERIFY_CMP" -ge 1 ] && echo 1 || echo 0)"

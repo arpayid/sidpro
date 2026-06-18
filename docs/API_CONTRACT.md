@@ -121,6 +121,7 @@ POST/PATCH `/residents` accepts optional `address` object: `{ hamletId, neighbor
 | Method | Path | Permission |
 |---|---|---|
 | POST | /complaints/public?tenantCode= | public |
+| POST | /complaints/public/track?tenantCode= | public |
 | GET | /complaints | complaints.read |
 | POST | /complaints | complaints.create |
 | GET | /complaints/:id | complaints.read |
@@ -131,6 +132,17 @@ POST/PATCH `/residents` accepts optional `address` object: `{ hamletId, neighbor
 | PATCH | /complaints/:id/close | complaints.close |
 
 Query filters (`GET /complaints`): `page`, `limit`, `status`, `priority`, `search`, `dateFrom`, `dateTo`.
+
+Public track body (`POST /complaints/public/track`):
+
+```json
+{
+  "ticket": "PGD-19F10A9D",
+  "reporterPhone": "08123456789"
+}
+```
+
+Returns sanitized complaint status (no email, assignee, or internal IDs). Returns generic 404 when ticket or phone does not match (anti-enumeration).
 
 Status workflow: `submitted` → `verified` → `assigned` → `in_progress` → `resolved` → `closed` (or `rejected`).
 

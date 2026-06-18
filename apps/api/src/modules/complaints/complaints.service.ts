@@ -8,6 +8,7 @@ import { Prisma } from '@prisma/client';
 import {
   assignComplaintSchema,
   createComplaintSchema,
+  publicComplaintTrackSchema,
   respondComplaintSchema,
   updateComplaintStatusSchema,
 } from '@sidpro/validators';
@@ -30,6 +31,16 @@ const STATUS_TRANSITIONS: Record<string, string[]> = {
   resolved: ['closed'],
   rejected: [],
   closed: [],
+};
+
+const COMPLAINT_STATUS_LABELS: Record<string, string> = {
+  submitted: 'Masuk',
+  verified: 'Diverifikasi',
+  assigned: 'Ditugaskan',
+  in_progress: 'Diproses',
+  resolved: 'Selesai',
+  rejected: 'Ditolak',
+  closed: 'Ditutup',
 };
 
 @Injectable()
@@ -55,6 +66,59 @@ export class ComplaintsService {
     if (!allowed.includes(to)) {
       throw new BadRequestException(`Transisi status ${from} → ${to} tidak diizinkan`);
     }
+  }
+
+  private normalizePhone(phone: string): string {
+    let normalized = phone.replace(/[\s-]/g, '');
+    if (normalized.startsWith('+62')) {
+      normalized = `0${normalized.slice(3)}`;
+    } else if (normalized.startsWith('62')) {
+      normalized = `0${normalized.slice(2)}`;
+    }
+    return normalized;
+  }
+
+  private formatTicketId(id: string): string {
+    return `PGD-${id.slice(0, 8).toUpperCase()}`;
+  }
+
+  private parseTicketPrefix(ticket: string): string {
+    return ticket.replace(/^PGD-/i, '').toUpperCase();
+  }
+
+  private buildPublicTimeline(
+    complaint: { status: string; createdAt: Date; updatedAt: Date },
+    responses: { status: string | null; createdAt: Date }[],
+  ) {
+    const timeline: { status: string; label: string; at: string }[] = [
+      {
+        status: 'submitted',
+        label: COMPLAINT_STATUS_LABELS.submitted,
+        at: complaint.createdAt.toISOString(),
+      },
+    ];
+
+    for (const response of responses) {
+      if (!response.status) continue;
+      const last = timeline[timeline.length - 1];
+      if (last?.status === response.status) continue;
+      timeline.push({
+        status: response.status,
+        label: COMPLAINT_STATUS_LABELS[response.status] ?? response.status,
+        at: response.createdAt.toISOString(),
+      });
+    }
+
+    const last = timeline[timeline.length - 1];
+    if (last?.status !== complaint.status) {
+      timeline.push({
+        status: complaint.status,
+        label: COMPLAINT_STATUS_LABELS[complaint.status] ?? complaint.status,
+        at: complaint.updatedAt.toISOString(),
+      });
+    }
+
+    return timeline;
   }
 
   private buildWhere(
@@ -174,6 +238,75 @@ export class ComplaintsService {
     });
 
     return successResponse(complaint, 'Pengaduan berhasil dikirim');
+  }
+
+  async trackPublic(tenantCode: string, body: unknown) {
+    const parsed = publicComplaintTrackSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.flatten().fieldErrors);
+    }
+
+    const tenantId = await this.resolveTenantId(tenantCode);
+    const prefix = this.parseTicketPrefix(parsed.data.ticket);
+    const normalizedPhone = this.normalizePhone(parsed.data.reporterPhone);
+
+    const complaints = await this.prisma.$queryRaw<
+      {
+        id: string;
+        title: string;
+        category: string;
+        priority: string;
+        status: string;
+        reporter_phone: string | null;
+        created_at: Date;
+        updated_at: Date;
+        closed_at: Date | null;
+      }[]
+    >`
+      SELECT id, title, category, priority, status, reporter_phone, created_at, updated_at, closed_at
+      FROM complaints
+      WHERE tenant_id = ${tenantId}
+        AND id::text ILIKE ${`${prefix}%`}
+      LIMIT 1
+    `;
+
+    const row = complaints[0];
+    if (!row || !row.reporter_phone) {
+      throw new NotFoundException('Pengaduan tidak ditemukan');
+    }
+
+    if (this.normalizePhone(row.reporter_phone) !== normalizedPhone) {
+      throw new NotFoundException('Pengaduan tidak ditemukan');
+    }
+
+    const responses = await this.prisma.complaintResponse.findMany({
+      where: { complaintId: row.id },
+      orderBy: { createdAt: 'asc' },
+      select: { response: true, status: true, createdAt: true },
+    });
+
+    const complaint = {
+      status: row.status,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+
+    return successResponse({
+      ticket: this.formatTicketId(row.id),
+      title: row.title,
+      category: row.category,
+      priority: row.priority,
+      status: row.status,
+      statusLabel: COMPLAINT_STATUS_LABELS[row.status] ?? row.status,
+      submittedAt: row.created_at.toISOString(),
+      updatedAt: row.updated_at.toISOString(),
+      closedAt: row.closed_at?.toISOString() ?? null,
+      timeline: this.buildPublicTimeline(complaint, responses),
+      responses: responses.map((r) => ({
+        message: r.response,
+        at: r.createdAt.toISOString(),
+      })),
+    });
   }
 
   async create(user: JwtPayload, body: unknown, ipAddress?: string) {
