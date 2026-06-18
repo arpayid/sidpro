@@ -47,6 +47,24 @@ export class CmsService {
     return paginatedResponse(data, page, limit, total);
   }
 
+  async findPublicPostBySlug(tenantCode: string, slug: string) {
+    const tenantId = await this.resolveTenantId(tenantCode);
+    const post = await this.prisma.post.findFirst({
+      where: { tenantId, slug, status: 'published' },
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        excerpt: true,
+        content: true,
+        category: true,
+        publishedAt: true,
+      },
+    });
+    if (!post) throw new NotFoundException('Berita tidak ditemukan');
+    return successResponse(post);
+  }
+
   async findPosts(user: JwtPayload, page = 1, limit = 20, status?: string) {
     const tenantId = this.requireTenant(user);
     const where = { tenantId, ...(status ? { status } : {}) };

@@ -1,6 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@sidpro/ui';
-import { apiFetchWithFallback } from '@/lib/api';
-import { demoAgenda, type AgendaItem } from '@/lib/demo-data';
+import { fetchPublicAgenda } from '@/lib/public-api';
 import { Calendar, MapPin } from 'lucide-react';
 import type { Metadata } from 'next';
 
@@ -9,10 +8,7 @@ export const metadata: Metadata = {
 };
 
 export default async function AgendaPage() {
-  const agenda = await apiFetchWithFallback<AgendaItem[]>(
-    '/api/v1/public/agenda',
-    demoAgenda,
-  );
+  const agenda = await fetchPublicAgenda();
 
   return (
     <div className="container-page py-10">

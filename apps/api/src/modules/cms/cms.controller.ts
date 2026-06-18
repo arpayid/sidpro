@@ -32,6 +32,12 @@ export class CmsController {
   }
 
   @Public()
+  @Get('posts/:slug')
+  findPublicPostBySlug(@Query('tenantCode') tenantCode: string, @Param('slug') slug: string) {
+    return this.cmsService.findPublicPostBySlug(tenantCode, slug);
+  }
+
+  @Public()
   @Get('agendas')
   findPublicAgendas(
     @Query('tenantCode') tenantCode: string,

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Badge, Card, CardContent } from '@sidpro/ui';
-import { apiFetchWithFallback } from '@/lib/api';
-import { demoNews, formatDate, type NewsItem } from '@/lib/demo-data';
+import { fetchPublicNews } from '@/lib/public-api';
+import { formatDate } from '@/lib/demo-data';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 };
 
 export default async function BeritaPage() {
-  const news = await apiFetchWithFallback<NewsItem[]>('/api/v1/public/news', demoNews);
+  const news = await fetchPublicNews();
 
   return (
     <div className="container-page py-10">

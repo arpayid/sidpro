@@ -1,8 +1,8 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Badge, Button } from '@sidpro/ui';
-import { apiFetchWithFallback } from '@/lib/api';
-import { demoNews, formatDate, getNewsBySlug, type NewsItem } from '@/lib/demo-data';
+import { fetchPublicNewsBySlug } from '@/lib/public-api';
+import { formatDate, getNewsBySlug } from '@/lib/demo-data';
 import type { Metadata } from 'next';
 
 interface PageProps {
@@ -11,14 +11,13 @@ interface PageProps {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-  const article = getNewsBySlug(slug);
+  const article = (await fetchPublicNewsBySlug(slug)) ?? getNewsBySlug(slug);
   return { title: article?.title ?? 'Berita' };
 }
 
 export default async function BeritaDetailPage({ params }: PageProps) {
   const { slug } = await params;
-  const news = await apiFetchWithFallback<NewsItem[]>('/api/v1/public/news', demoNews);
-  const article = news.find((item) => item.slug === slug) ?? getNewsBySlug(slug);
+  const article = (await fetchPublicNewsBySlug(slug)) ?? getNewsBySlug(slug);
 
   if (!article) {
     notFound();

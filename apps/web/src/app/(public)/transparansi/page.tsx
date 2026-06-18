@@ -1,6 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@sidpro/ui';
-import { apiFetchWithFallback } from '@/lib/api';
-import { demoTransparency } from '@/lib/demo-data';
+import { fetchPublicTransparency } from '@/lib/public-api';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -8,7 +7,7 @@ export const metadata: Metadata = {
 };
 
 export default async function TransparansiPage() {
-  const data = await apiFetchWithFallback('/api/v1/public/transparency', demoTransparency);
+  const data = await fetchPublicTransparency();
 
   return (
     <div className="container-page py-10">
