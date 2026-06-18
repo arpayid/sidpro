@@ -8,16 +8,14 @@ import {
 } from 'lucide-react';
 import { Button, Badge, Card, CardContent, CardHeader, CardTitle } from '@sidpro/ui';
 import { StatCard } from '@/components/shared/stat-card';
-import { apiFetchWithFallback } from '@/lib/api';
 import {
-  demoVillage,
-  demoStats,
+  fetchPublicVillage,
+  fetchPublicStats,
+  fetchPublicNews,
+} from '@/lib/public-api';
+import {
   demoServices,
-  demoNews,
   formatDate,
-  type VillageProfile,
-  type DashboardStat,
-  type NewsItem,
 } from '@/lib/demo-data';
 import { Users, Home, FileStack, AlertCircle } from 'lucide-react';
 
@@ -31,15 +29,11 @@ const serviceIcons = {
 const statIcons = [Users, Home, FileStack, AlertCircle];
 
 export default async function HomePage() {
-  const village = await apiFetchWithFallback<VillageProfile>(
-    '/api/v1/public/village',
-    demoVillage,
-  );
-  const stats = await apiFetchWithFallback<DashboardStat[]>(
-    '/api/v1/public/stats',
-    demoStats,
-  );
-  const news = await apiFetchWithFallback<NewsItem[]>('/api/v1/public/news', demoNews);
+  const [village, stats, news] = await Promise.all([
+    fetchPublicVillage(),
+    fetchPublicStats(),
+    fetchPublicNews(),
+  ]);
 
   return (
     <>

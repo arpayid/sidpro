@@ -1,6 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@sidpro/ui';
-import { apiFetchWithFallback } from '@/lib/api';
-import { demoVillage, type VillageProfile } from '@/lib/demo-data';
+import { fetchPublicVillage } from '@/lib/public-api';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -8,10 +7,7 @@ export const metadata: Metadata = {
 };
 
 export default async function ProfilDesaPage() {
-  const village = await apiFetchWithFallback<VillageProfile>(
-    '/api/v1/public/village',
-    demoVillage,
-  );
+  const village = await fetchPublicVillage();
 
   return (
     <div className="container-page py-10">

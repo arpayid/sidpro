@@ -1,6 +1,5 @@
 import { Card, CardContent } from '@sidpro/ui';
-import { apiFetchWithFallback } from '@/lib/api';
-import { demoGallery, type GalleryItem } from '@/lib/demo-data';
+import { fetchPublicGallery } from '@/lib/public-api';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -8,10 +7,7 @@ export const metadata: Metadata = {
 };
 
 export default async function GaleriPage() {
-  const gallery = await apiFetchWithFallback<GalleryItem[]>(
-    '/api/v1/public/gallery',
-    demoGallery,
-  );
+  const gallery = await fetchPublicGallery();
 
   return (
     <div className="container-page py-10">
