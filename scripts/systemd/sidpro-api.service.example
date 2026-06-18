@@ -1,0 +1,28 @@
+# SIDPRO API — systemd unit template (staging/production)
+# Copy to /etc/systemd/system/sidpro-api.service and adjust paths.
+# Do NOT commit real secrets — use EnvironmentFile outside the repository.
+
+[Unit]
+Description=SIDPRO NestJS API
+After=network.target docker.service
+Wants=docker.service
+
+[Service]
+Type=simple
+User=sidpro
+Group=sidpro
+WorkingDirectory=/opt/sidpro
+EnvironmentFile=/etc/sidpro/sidpro.env
+ExecStart=/usr/bin/node apps/api/dist/main.js
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=sidpro-api
+
+# Hardening (optional)
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

@@ -62,6 +62,33 @@ const LETTER_TYPES = [
   { code: 'SKM', name: 'Surat Keterangan Kematian' },
 ];
 
+const DEV_DEFAULT_ADMIN_EMAIL = 'admin@demo-desa.id';
+const DEV_DEFAULT_ADMIN_PASSWORD = 'Admin123!';
+
+function resolveAdminSeedCredentials(): {
+  email: string;
+  password: string | null;
+  usingDevFallback: boolean;
+} {
+  const email = process.env.SEED_ADMIN_EMAIL ?? DEV_DEFAULT_ADMIN_EMAIL;
+  const explicitPassword = process.env.SEED_ADMIN_PASSWORD;
+  const nodeEnv = process.env.NODE_ENV ?? 'development';
+
+  if (explicitPassword) {
+    return { email, password: explicitPassword, usingDevFallback: false };
+  }
+
+  if (nodeEnv === 'production') {
+    return { email, password: null, usingDevFallback: false };
+  }
+
+  console.warn(
+    '[seed] WARN: SEED_ADMIN_PASSWORD is not set. Using development-only default credentials.',
+    'DO NOT use this in staging or production. Set SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD instead.',
+  );
+  return { email, password: DEV_DEFAULT_ADMIN_PASSWORD, usingDevFallback: true };
+}
+
 async function main() {
   console.log('Seeding SIDPRO database...');
 
@@ -151,26 +178,41 @@ async function main() {
     where: { code: 'admin_desa', tenantId: tenant.id },
   });
 
-  const passwordHash = await bcrypt.hash('Admin123!', 12);
+  const { email: adminEmail, password: adminPassword, usingDevFallback } =
+    resolveAdminSeedCredentials();
 
-  const adminUser = await prisma.user.upsert({
-    where: { email: 'admin@demo-desa.id' },
-    update: {},
-    create: {
-      email: 'admin@demo-desa.id',
-      name: 'Admin Desa Demo',
-      passwordHash,
-      tenantId: tenant.id,
-      status: 'active',
-    },
-  });
+  if (!adminPassword) {
+    console.warn(
+      '[seed] WARN: Skipping admin user seed. Set SEED_ADMIN_PASSWORD before running seed in staging/production.',
+    );
+  } else {
+    const passwordHash = await bcrypt.hash(adminPassword, 12);
 
-  if (adminRole) {
-    await prisma.userRole.upsert({
-      where: { userId_roleId: { userId: adminUser.id, roleId: adminRole.id } },
-      update: {},
-      create: { userId: adminUser.id, roleId: adminRole.id },
+    const adminUser = await prisma.user.upsert({
+      where: { email: adminEmail },
+      update: { passwordHash },
+      create: {
+        email: adminEmail,
+        name: 'Admin Desa Demo',
+        passwordHash,
+        tenantId: tenant.id,
+        status: 'active',
+      },
     });
+
+    if (adminRole) {
+      await prisma.userRole.upsert({
+        where: { userId_roleId: { userId: adminUser.id, roleId: adminRole.id } },
+        update: {},
+        create: { userId: adminUser.id, roleId: adminRole.id },
+      });
+    }
+
+    if (usingDevFallback) {
+      console.log(`[seed] Dev admin ready: ${adminEmail} (development-only — see warning above)`);
+    } else {
+      console.log(`[seed] Admin user seeded: ${adminEmail}`);
+    }
   }
 
   for (const lt of LETTER_TYPES) {
@@ -197,7 +239,6 @@ async function main() {
   });
 
   console.log('Seed completed!');
-  console.log('Default admin: admin@demo-desa.id / Admin123!');
 }
 
 main()

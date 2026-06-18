@@ -23,8 +23,11 @@ docker compose up -d postgres redis minio
 echo "[staging] Waiting for containers..."
 sleep 5
 
+# MinIO bucket is auto-created by API on startup (StorageService.onModuleInit).
+# The mc step below is an optional fallback if API is not yet running.
+
 if docker ps --format '{{.Names}}' | grep -q '^sidpro-minio$'; then
-  echo "[staging] Ensuring MinIO bucket exists..."
+  echo "[staging] Ensuring MinIO bucket exists (fallback)..."
   docker run --rm --network container:sidpro-minio \
     -e MINIO_ROOT_USER -e MINIO_ROOT_PASSWORD -e MINIO_BUCKET \
     --entrypoint /bin/sh minio/mc -c \

@@ -1,15 +1,18 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   S3Client,
   PutObjectCommand,
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadBucketCommand,
+  CreateBucketCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 @Injectable()
-export class StorageService {
+export class StorageService implements OnModuleInit {
+  private readonly logger = new Logger(StorageService.name);
   private readonly client: S3Client;
   private readonly bucket: string;
 
@@ -29,6 +32,32 @@ export class StorageService {
       forcePathStyle: true,
     });
     this.bucket = this.config.get<string>('MINIO_BUCKET', 'sidpro-files');
+  }
+
+  async onModuleInit(): Promise<void> {
+    await this.ensureBucket();
+  }
+
+  private async ensureBucket(): Promise<void> {
+    try {
+      await this.client.send(new HeadBucketCommand({ Bucket: this.bucket }));
+      this.logger.log(`Storage bucket ready: ${this.bucket}`);
+    } catch (error: unknown) {
+      const err = error as { name?: string; $metadata?: { httpStatusCode?: number } };
+      const notFound =
+        err.name === 'NotFound' ||
+        err.name === 'NoSuchBucket' ||
+        err.$metadata?.httpStatusCode === 404;
+
+      if (notFound) {
+        await this.client.send(new CreateBucketCommand({ Bucket: this.bucket }));
+        this.logger.log(`Storage bucket created: ${this.bucket}`);
+        return;
+      }
+
+      this.logger.error(`Failed to verify storage bucket: ${this.bucket}`);
+      throw error;
+    }
   }
 
   async uploadFile(buffer: Buffer, key: string, mimeType: string): Promise<void> {

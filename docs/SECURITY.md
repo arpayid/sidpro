@@ -51,7 +51,9 @@ Record these events:
 ## Production Checklist
 
 - HTTPS enabled.
-- Environment values are outside repository.
+- Environment values are outside repository (`/etc/sidpro/sidpro.env` or `.env` gitignored).
+- Staging/production seed uses `SEED_ADMIN_PASSWORD` — never default dev password.
 - Database backup active.
-- Logs are monitored.
+- Logs are monitored (`journalctl` for systemd units).
 - Dependency checks are run regularly.
+- API/web managed by systemd with `Restart=on-failure` on VPS staging.
