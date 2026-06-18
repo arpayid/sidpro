@@ -26,6 +26,12 @@ export class ComplaintsController {
     return this.complaintsService.createPublic(tenantCode, body);
   }
 
+  @Public()
+  @Post('public/track')
+  trackPublic(@Query('tenantCode') tenantCode: string, @Body() body: unknown) {
+    return this.complaintsService.trackPublic(tenantCode, body);
+  }
+
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Get()
   @RequirePermissions('complaints.read')

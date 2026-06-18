@@ -8,6 +8,8 @@ Admin UI: `/admin/pengaduan` (permission `complaints.read`).
 
 Public form: `/pengaduan` → `POST /complaints/public?tenantCode={NEXT_PUBLIC_TENANT_CODE|demo-desa}`.
 
+Public tracking: `/pengaduan/cek` → `POST /complaints/public/track?tenantCode={tenantCode}` with ticket (`PGD-{8 char UUID prefix}`) + reporter phone.
+
 Response includes complaint `id` — shown to citizen as ticket reference (`PGD-{id prefix}`).
 
 ## End-to-end flow
@@ -15,9 +17,10 @@ Response includes complaint `id` — shown to citizen as ticket reference (`PGD-
 ```txt
 1. Warga mengisi form di /pengaduan
 2. API membuat complaint status=submitted
-3. Admin melihat di /admin/pengaduan
-4. Admin verifikasi → assign petugas → tanggapan → selesai → tutup
-5. Lampiran dapat diunggah admin via POST /files/upload (ownerType=complaint)
+3. Warga menyimpan nomor tiket PGD-* dan dapat cek status di /pengaduan/cek
+4. Admin melihat di /admin/pengaduan
+5. Admin verifikasi → assign petugas → tanggapan → selesai → tutup
+6. Lampiran dapat diunggah admin via POST /files/upload (ownerType=complaint)
 ```
 
 ## Workflow

@@ -69,3 +69,14 @@ export function toPublicComplaintPayload(values: PublicComplaintFormValues) {
     reporterEmail: values.reporterEmail || undefined,
   };
 }
+
+/** Public track form — maps to POST /complaints/public/track body */
+export const publicComplaintTrackSchema = z.object({
+  ticket: z
+    .string()
+    .min(8, 'Nomor tiket tidak valid')
+    .regex(/^PGD-[A-Z0-9]+$/i, 'Format tiket: PGD-XXXXXXXX'),
+  reporterPhone: z.string().min(8, 'Nomor telepon tidak valid'),
+});
+
+export type PublicComplaintTrackInput = z.infer<typeof publicComplaintTrackSchema>;
