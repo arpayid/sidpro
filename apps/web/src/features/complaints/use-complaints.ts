@@ -2,7 +2,8 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { CreateComplaintInput, RespondComplaintInput } from '@sidpro/validators';
-import { apiClient, apiUpload, buildQuery } from '@/lib/api-client';
+import { apiClient, apiUpload, buildQuery, API_BASE, API_PREFIX } from '@/lib/api-client';
+import { getAccessToken } from '@/lib/auth';
 import type { PaginationMeta } from '@sidpro/types';
 
 export interface ComplaintUser {
@@ -215,6 +216,25 @@ export function useUploadComplaintAttachment() {
     onSuccess: (_, { complaintId }) => {
       qc.invalidateQueries({ queryKey: ['complaints', complaintId] });
       qc.invalidateQueries({ queryKey: ['complaints'] });
+    },
+  });
+}
+
+export function useExportComplaints() {
+  return useMutation({
+    mutationFn: async () => {
+      const token = getAccessToken();
+      const response = await fetch(`${API_BASE}${API_PREFIX}/complaints/export`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!response.ok) throw new Error('Export gagal');
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = 'pengaduan-export.csv';
+      anchor.click();
+      URL.revokeObjectURL(url);
     },
   });
 }

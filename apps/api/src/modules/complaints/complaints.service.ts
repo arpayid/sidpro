@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   BadRequestException,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { Prisma } from '@prisma/client';
 import {
   assignComplaintSchema,
@@ -525,5 +526,55 @@ export class ComplaintsService {
       { status: 'closed', note: 'Pengaduan ditutup' },
       ipAddress,
     );
+  }
+
+  async exportCsv(user: JwtPayload, ipAddress: string | undefined, res: Response) {
+    const tenantId = this.requireTenant(user);
+    const complaints = await this.prisma.complaint.findMany({
+      where: { tenantId },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        title: true,
+        category: true,
+        priority: true,
+        status: true,
+        reporterName: true,
+        reporterPhone: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    const header = 'id,title,category,priority,status,reporter_name,reporter_phone,created_at,updated_at';
+    const rows = complaints.map((c) =>
+      [
+        c.id,
+        `"${c.title.replace(/"/g, '""')}"`,
+        c.category,
+        c.priority,
+        c.status,
+        `"${(c.reporterName ?? '').replace(/"/g, '""')}"`,
+        c.reporterPhone ?? '',
+        c.createdAt.toISOString(),
+        c.updatedAt.toISOString(),
+      ].join(','),
+    );
+
+    const csv = [header, ...rows].join('\n');
+
+    await this.auditLogs.log({
+      tenantId,
+      actorId: user.sub,
+      action: 'export',
+      module: 'complaints',
+      entityType: 'complaint',
+      metadata: { format: 'csv', count: complaints.length },
+      ipAddress,
+    });
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="complaints-export.csv"');
+    res.send(csv);
   }
 }
