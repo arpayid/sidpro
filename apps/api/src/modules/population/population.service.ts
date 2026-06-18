@@ -4,6 +4,8 @@ import {
   ConflictException,
   ForbiddenException,
 } from '@nestjs/common';
+import { Response } from 'express';
+import * as XLSX from 'xlsx';
 import { PrismaService } from '../../database/prisma.service';
 import { AuditLogsService } from '../../core/audit-logs/audit-logs.service';
 import { JwtPayload } from '../../common/decorators/current-user.decorator';
@@ -12,6 +14,26 @@ import {
   successResponse,
   maskNik,
 } from '../../common/utils/response.util';
+
+interface ResidentImportRow {
+  nik: string;
+  fullName: string;
+  gender: string;
+  birthPlace: string;
+  birthDate: string;
+  religion?: string;
+  education?: string;
+  occupation?: string;
+  maritalStatus?: string;
+  bloodType?: string;
+  disabilityStatus?: string;
+  residentStatus?: string;
+}
+
+export interface RowValidationError {
+  row: number;
+  errors: string[];
+}
 
 @Injectable()
 export class PopulationService {
@@ -194,5 +216,188 @@ export class PopulationService {
     });
 
     return successResponse(null, 'Penduduk berhasil dihapus');
+  }
+
+  async exportResidents(user: JwtPayload, ipAddress: string | undefined, res: Response) {
+    const tenantId = this.requireTenant(user);
+
+    const residents = await this.prisma.resident.findMany({
+      where: { tenantId, deletedAt: null },
+      orderBy: { fullName: 'asc' },
+    });
+
+    const rows = residents.map((r) => ({
+      nik: r.nik,
+      fullName: r.fullName,
+      gender: r.gender,
+      birthPlace: r.birthPlace,
+      birthDate: r.birthDate.toISOString().split('T')[0],
+      religion: r.religion ?? '',
+      education: r.education ?? '',
+      occupation: r.occupation ?? '',
+      maritalStatus: r.maritalStatus ?? '',
+      bloodType: r.bloodType ?? '',
+      disabilityStatus: r.disabilityStatus ?? '',
+      residentStatus: r.residentStatus,
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Penduduk');
+    const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+
+    await this.auditLogs.log({
+      tenantId,
+      actorId: user.sub,
+      action: 'export',
+      module: 'population',
+      entityType: 'resident',
+      metadata: { count: residents.length },
+      ipAddress,
+    });
+
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader('Content-Disposition', 'attachment; filename="residents-export.xlsx"');
+    res.send(buffer);
+  }
+
+  private validateImportRow(row: Record<string, unknown>, rowNumber: number): RowValidationError | null {
+    const errors: string[] = [];
+    const nik = String(row.nik ?? '').trim();
+    const fullName = String(row.fullName ?? '').trim();
+    const gender = String(row.gender ?? '').trim();
+    const birthPlace = String(row.birthPlace ?? '').trim();
+    const birthDate = String(row.birthDate ?? '').trim();
+
+    if (!nik) errors.push('NIK wajib diisi');
+    else if (!/^\d{16}$/.test(nik)) errors.push('NIK harus 16 digit angka');
+
+    if (!fullName) errors.push('Nama lengkap wajib diisi');
+    if (!gender) errors.push('Jenis kelamin wajib diisi');
+    if (!birthPlace) errors.push('Tempat lahir wajib diisi');
+    if (!birthDate) errors.push('Tanggal lahir wajib diisi');
+    else if (Number.isNaN(Date.parse(birthDate))) errors.push('Format tanggal lahir tidak valid');
+
+    if (errors.length === 0) return null;
+    return { row: rowNumber, errors };
+  }
+
+  private parseImportRows(buffer: Buffer): Record<string, unknown>[] {
+    const workbook = XLSX.read(buffer, { type: 'buffer' });
+    const sheetName = workbook.SheetNames[0];
+    if (!sheetName) return [];
+    const sheet = workbook.Sheets[sheetName];
+    return XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
+  }
+
+  async importResidents(
+    user: JwtPayload,
+    buffer: Buffer,
+    preview: boolean,
+    ipAddress?: string,
+  ) {
+    const tenantId = this.requireTenant(user);
+    const rawRows = this.parseImportRows(buffer);
+
+    if (rawRows.length === 0) {
+      return successResponse({ totalRows: 0, validRows: 0, errors: [], imported: 0 }, 'Tidak ada data');
+    }
+
+    const validationErrors: RowValidationError[] = [];
+    const validRows: { rowNumber: number; data: ResidentImportRow }[] = [];
+
+    rawRows.forEach((row, index) => {
+      const rowNumber = index + 2;
+      const error = this.validateImportRow(row, rowNumber);
+      if (error) {
+        validationErrors.push(error);
+        return;
+      }
+
+      validRows.push({
+        rowNumber,
+        data: {
+          nik: String(row.nik).trim(),
+          fullName: String(row.fullName).trim(),
+          gender: String(row.gender).trim(),
+          birthPlace: String(row.birthPlace).trim(),
+          birthDate: String(row.birthDate).trim(),
+          religion: String(row.religion ?? '').trim() || undefined,
+          education: String(row.education ?? '').trim() || undefined,
+          occupation: String(row.occupation ?? '').trim() || undefined,
+          maritalStatus: String(row.maritalStatus ?? '').trim() || undefined,
+          bloodType: String(row.bloodType ?? '').trim() || undefined,
+          disabilityStatus: String(row.disabilityStatus ?? '').trim() || undefined,
+          residentStatus: String(row.residentStatus ?? 'permanent').trim() || 'permanent',
+        },
+      });
+    });
+
+    if (preview) {
+      return successResponse({
+        totalRows: rawRows.length,
+        validRows: validRows.length,
+        errors: validationErrors,
+        imported: 0,
+      });
+    }
+
+    let imported = 0;
+    const importErrors: RowValidationError[] = [...validationErrors];
+
+    for (const { rowNumber, data } of validRows) {
+      const existing = await this.prisma.resident.findUnique({
+        where: { tenantId_nik: { tenantId, nik: data.nik } },
+      });
+
+      if (existing && existing.deletedAt === null) {
+        importErrors.push({ row: rowNumber, errors: ['NIK sudah terdaftar'] });
+        continue;
+      }
+
+      if (existing?.deletedAt) {
+        await this.prisma.resident.update({
+          where: { id: existing.id },
+          data: {
+            ...data,
+            birthDate: new Date(data.birthDate),
+            deletedAt: null,
+          },
+        });
+      } else {
+        await this.prisma.resident.create({
+          data: {
+            tenantId,
+            ...data,
+            birthDate: new Date(data.birthDate),
+          },
+        });
+      }
+      imported++;
+    }
+
+    await this.auditLogs.log({
+      tenantId,
+      actorId: user.sub,
+      action: 'import',
+      module: 'population',
+      entityType: 'resident',
+      metadata: {
+        totalRows: rawRows.length,
+        imported,
+        errors: importErrors.length,
+      },
+      ipAddress,
+    });
+
+    return successResponse({
+      totalRows: rawRows.length,
+      validRows: validRows.length,
+      errors: importErrors,
+      imported,
+    }, `Import selesai: ${imported} penduduk berhasil diimpor`);
   }
 }

@@ -8,9 +8,15 @@ import {
   Param,
   Query,
   Req,
+  Res,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
 } from '@nestjs/common';
-import { Request } from 'express';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Request, Response } from 'express';
+import { memoryStorage } from 'multer';
 import { PopulationService } from './population.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
@@ -38,6 +44,44 @@ export class PopulationController {
       search,
       viewSensitive,
     );
+  }
+
+  @Get('export')
+  @RequirePermissions('population.export')
+  exportResidents(@CurrentUser() user: JwtPayload, @Req() req: Request, @Res() res: Response) {
+    return this.populationService.exportResidents(user, req.ip, res);
+  }
+
+  @Post('import')
+  @RequirePermissions('population.import')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: 10 * 1024 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        const allowed = [
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'application/vnd.ms-excel',
+        ];
+        if (!allowed.includes(file.mimetype)) {
+          cb(new BadRequestException('File harus berformat Excel (.xlsx)'), false);
+          return;
+        }
+        cb(null, true);
+      },
+    }),
+  )
+  importResidents(
+    @CurrentUser() user: JwtPayload,
+    @UploadedFile() file: { buffer: Buffer; mimetype: string },
+    @Query('preview') preview?: string,
+    @Req() req?: Request,
+  ) {
+    if (!file) {
+      throw new BadRequestException('File wajib diunggah');
+    }
+    const isPreview = preview === 'true';
+    return this.populationService.importResidents(user, file.buffer, isPreview, req?.ip);
   }
 
   @Get(':id')

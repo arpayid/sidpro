@@ -24,6 +24,9 @@ export class ReportsService {
       assets,
       developmentProjects,
       budgetYears,
+      recentAuditLogs,
+      recentPendingLetters,
+      recentOpenComplaints,
     ] = await Promise.all([
       this.prisma.resident.count({ where: { tenantId, deletedAt: null } }),
       this.prisma.family.count({ where: { tenantId, deletedAt: null } }),
@@ -33,6 +36,26 @@ export class ReportsService {
       this.prisma.asset.count({ where: { tenantId } }),
       this.prisma.developmentProject.count({ where: { tenantId } }),
       this.prisma.budgetYear.count({ where: { tenantId } }),
+      this.prisma.auditLog.findMany({
+        where: { tenantId },
+        take: 5,
+        orderBy: { createdAt: 'desc' },
+        include: { actor: { select: { name: true, email: true } } },
+      }),
+      this.prisma.letterRequest.findMany({
+        where: { tenantId, status: { in: ['submitted', 'verified'] } },
+        take: 5,
+        orderBy: { submittedAt: 'desc' },
+        include: {
+          letterType: { select: { name: true } },
+          resident: { select: { fullName: true } },
+        },
+      }),
+      this.prisma.complaint.findMany({
+        where: { tenantId, status: { notIn: ['closed', 'rejected'] } },
+        take: 5,
+        orderBy: { createdAt: 'desc' },
+      }),
     ]);
 
     const [pendingLetters, openComplaints] = await Promise.all([
@@ -55,6 +78,11 @@ export class ReportsService {
       assets,
       developmentProjects,
       budgetYears,
+      recentActivity: {
+        auditLogs: recentAuditLogs,
+        pendingLetters: recentPendingLetters,
+        openComplaints: recentOpenComplaints,
+      },
     });
   }
 

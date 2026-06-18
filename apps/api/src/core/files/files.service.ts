@@ -1,6 +1,13 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
+import { createHash, randomUUID } from 'crypto';
 import { PrismaService } from '../../database/prisma.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
+import { StorageService } from '../storage/storage.service';
 import { JwtPayload } from '../../common/decorators/current-user.decorator';
 import { paginatedResponse, successResponse } from '../../common/utils/response.util';
 
@@ -9,6 +16,7 @@ export class FilesService {
   constructor(
     private prisma: PrismaService,
     private auditLogs: AuditLogsService,
+    private storage: StorageService,
   ) {}
 
   private requireTenant(user: JwtPayload): string {
@@ -48,6 +56,54 @@ export class FilesService {
     const file = await this.prisma.file.findFirst({ where: { id, tenantId } });
     if (!file) throw new NotFoundException('File tidak ditemukan');
     return successResponse(file);
+  }
+
+  async upload(
+    user: JwtPayload,
+    file: { buffer: Buffer; originalname: string; mimetype: string; size: number },
+    body: { ownerType?: string; ownerId?: string },
+    ipAddress?: string,
+  ) {
+    const tenantId = this.requireTenant(user);
+    const ownerType = body.ownerType ?? 'upload';
+    const key = `${tenantId}/${ownerType}/${randomUUID()}-${file.originalname}`;
+    const checksum = createHash('sha256').update(file.buffer).digest('hex');
+
+    await this.storage.uploadFile(file.buffer, key, file.mimetype);
+
+    const record = await this.prisma.file.create({
+      data: {
+        tenantId,
+        ownerType,
+        ownerId: body.ownerId,
+        path: key,
+        mimeType: file.mimetype,
+        size: file.size,
+        checksum,
+      },
+    });
+
+    await this.auditLogs.log({
+      tenantId,
+      actorId: user.sub,
+      action: 'upload',
+      module: 'files',
+      entityType: 'file',
+      entityId: record.id,
+      metadata: { path: key, mimeType: file.mimetype, size: file.size },
+      ipAddress,
+    });
+
+    return successResponse(record, 'File berhasil diunggah');
+  }
+
+  async getDownloadUrl(user: JwtPayload, id: string) {
+    const tenantId = this.requireTenant(user);
+    const file = await this.prisma.file.findFirst({ where: { id, tenantId } });
+    if (!file) throw new NotFoundException('File tidak ditemukan');
+
+    const url = await this.storage.getSignedUrl(file.path);
+    return successResponse({ url, expiresIn: 3600 });
   }
 
   async create(
@@ -110,6 +166,12 @@ export class FilesService {
     const existing = await this.prisma.file.findFirst({ where: { id, tenantId } });
     if (!existing) throw new NotFoundException('File tidak ditemukan');
 
+    try {
+      await this.storage.deleteFile(existing.path);
+    } catch {
+      throw new BadRequestException('Gagal menghapus file dari storage');
+    }
+
     await this.prisma.file.delete({ where: { id } });
 
     await this.auditLogs.log({
@@ -122,6 +184,6 @@ export class FilesService {
       ipAddress,
     });
 
-    return successResponse(null, 'Metadata file berhasil dihapus');
+    return successResponse(null, 'File berhasil dihapus');
   }
 }

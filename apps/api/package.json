@@ -13,6 +13,8 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1071.0",
+    "@aws-sdk/s3-request-presigner": "^3.1071.0",
     "@nestjs/common": "^11.1.3",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.1.3",
@@ -20,17 +22,20 @@
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.1.3",
     "@nestjs/swagger": "^11.2.0",
+    "@nestjs/throttler": "^6.5.0",
     "@prisma/client": "^6.8.2",
     "@sidpro/types": "workspace:*",
     "@sidpro/validators": "workspace:*",
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
+    "multer": "^2.2.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "uuid": "^11.1.0",
+    "xlsx": "^0.18.5",
     "zod": "^3.25.51"
   },
   "devDependencies": {
@@ -39,6 +44,7 @@
     "@sidpro/config": "workspace:*",
     "@types/bcrypt": "^5.0.2",
     "@types/express": "^5.0.2",
+    "@types/multer": "^2.1.0",
     "@types/node": "^22.15.30",
     "@types/passport-jwt": "^4.0.1",
     "eslint": "^9.28.0",

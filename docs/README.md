@@ -13,7 +13,8 @@ Dokumen ini menjadi index paket spesifikasi SIDPRO.
 - `PRODUCT_BACKLOG.md`
 - `SECURITY.md`
 - `OPERATIONS.md`
-- `COMPLETENESS_SCORECARD.md`
+- `DESIGN_SYSTEM.md`
+- `STAGING_DEPLOY.md`
 
 ## Module Documents
 

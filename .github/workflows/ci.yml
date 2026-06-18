@@ -63,5 +63,9 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Dependency audit
+        run: pnpm audit --audit-level=high
+        continue-on-error: true
+
       - name: Docker Compose config
         run: docker compose config
