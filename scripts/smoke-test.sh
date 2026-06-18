@@ -89,7 +89,13 @@ VERIFY=$(curl -sf -X PATCH "$API/letter-requests/$LR_ID/verify" -H "$AUTH" -H 'C
   -d '{"approved":true}' | grep -c success || true)
 APPROVE=$(curl -sf -X PATCH "$API/letter-requests/$LR_ID/approve" -H "$AUTH" -H 'Content-Type: application/json' \
   -d '{"approved":true}' | grep -c success || true)
-check "Workflow surat (create/verify/approve)" "$([ -n "$LR_ID" ] && [ "$VERIFY" -ge 1 ] && [ "$APPROVE" -ge 1 ] && echo 1 || echo 0)"
+GEN=$(curl -sf -X POST "$API/letter-requests/$LR_ID/generate-pdf" -H "$AUTH" -H 'Content-Type: application/json' 2>/dev/null || echo '{}')
+GEN_OK=$(echo "$GEN" | grep -c success || true)
+QR=$(echo "$GEN" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{console.log(JSON.parse(d).data.qrCode||'')}catch{console.log('')}})")
+DOWNLOAD=$(curl -sf -H "$AUTH" "$API/letter-requests/$LR_ID/download" 2>/dev/null || echo '{}')
+DOWNLOAD_OK=$(echo "$DOWNLOAD" | grep -c '"url"' || true)
+VERIFY_QR=$(curl -sf "$API/letters/verify/$QR" 2>/dev/null | grep -c '"valid":true' || true)
+check "Workflow surat (create/verify/approve/generate/download/verify QR)" "$([ -n "$LR_ID" ] && [ "$VERIFY" -ge 1 ] && [ "$APPROVE" -ge 1 ] && [ "$GEN_OK" -ge 1 ] && [ "$DOWNLOAD_OK" -ge 1 ] && [ "$VERIFY_QR" -ge 1 ] && echo 1 || echo 0)"
 
 printf '\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde\x00\x00\x00\x0cIDATx\x9cc\xf8\x0f\x00\x00\x01\x01\x00\x05\x18\xd8N\x00\x00\x00\x00IEND\xaeB`\x82' > /tmp/sidpro-smoke-test.png
 

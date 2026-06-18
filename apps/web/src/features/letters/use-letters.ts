@@ -153,13 +153,30 @@ export function useGenerateLetterPdf() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) =>
-      apiClient<{ letterNumber: string; qrCode: string }>(
-        `/letter-requests/${id}/generate-pdf`,
-        { method: 'POST' },
-      ),
+      apiClient<{
+        letterNumber: string;
+        qrCode: string;
+        outputId: string;
+        fileId: string;
+        verificationUrl: string;
+      }>(`/letter-requests/${id}/generate-pdf`, { method: 'POST' }),
     onSuccess: (_, id) => {
       qc.invalidateQueries({ queryKey: ['letters', 'requests'] });
       qc.invalidateQueries({ queryKey: ['letters', 'requests', id] });
+    },
+  });
+}
+
+export function useDownloadLetterPdf() {
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiClient<{
+        url: string;
+        fileName: string;
+        letterNumber?: string;
+      }>(`/letter-requests/${id}/download`);
+      if (!res.data?.url) throw new Error('URL unduhan tidak tersedia');
+      return res.data;
     },
   });
 }

@@ -62,6 +62,16 @@ const LETTER_TYPES = [
   { code: 'SKM', name: 'Surat Keterangan Kematian' },
 ];
 
+const DEFAULT_LETTER_TEMPLATE = `Yang bertanda tangan di bawah ini, Kepala {{nama_desa}}, menerangkan bahwa:
+
+Nama        : {{nama_pemohon}}
+NIK         : {{nik}}
+Alamat      : {{alamat_pemohon}}
+
+Keperluan   : {{keperluan}}
+
+Demikian surat keterangan ini dibuat untuk dipergunakan sebagaimana mestinya.`;
+
 const DEV_DEFAULT_ADMIN_EMAIL = 'admin@demo-desa.id';
 const DEV_DEFAULT_ADMIN_PASSWORD = 'Admin123!';
 
@@ -216,7 +226,7 @@ async function main() {
   }
 
   for (const lt of LETTER_TYPES) {
-    await prisma.letterType.upsert({
+    const letterType = await prisma.letterType.upsert({
       where: { tenantId_code: { tenantId: tenant.id, code: lt.code } },
       update: {},
       create: {
@@ -226,7 +236,32 @@ async function main() {
         isActive: true,
       },
     });
+
+    const existingTemplate = await prisma.letterTemplate.findFirst({
+      where: { tenantId: tenant.id, letterTypeId: letterType.id, isActive: true },
+    });
+    if (!existingTemplate) {
+      await prisma.letterTemplate.create({
+        data: {
+          tenantId: tenant.id,
+          letterTypeId: letterType.id,
+          name: `Template ${lt.name}`,
+          content: DEFAULT_LETTER_TEMPLATE,
+          isActive: true,
+        },
+      });
+    }
   }
+
+  await prisma.setting.upsert({
+    where: { tenantId_key: { tenantId: tenant.id, key: 'letters.signatory' } },
+    update: {},
+    create: {
+      tenantId: tenant.id,
+      key: 'letters.signatory',
+      value: { name: 'Kepala Desa Demo', title: 'Kepala Desa' },
+    },
+  });
 
   await prisma.setting.upsert({
     where: { tenantId_key: { tenantId: tenant.id, key: 'app.theme' } },

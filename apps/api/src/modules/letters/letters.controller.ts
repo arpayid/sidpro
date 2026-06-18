@@ -145,13 +145,13 @@ export class LettersController {
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Get('letter-requests/:id/download')
   @RequirePermissions('letters.download')
-  download(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
-    return this.lettersService.download(user, id);
+  download(@CurrentUser() user: JwtPayload, @Param('id') id: string, @Req() req: Request) {
+    return this.lettersService.download(user, id, req.ip);
   }
 
   @Public()
   @Get('letters/verify/:qrCode')
-  verifyByQr(@Param('qrCode') qrCode: string) {
-    return this.lettersService.verifyByQr(qrCode);
+  verifyByQr(@Param('qrCode') qrCode: string, @Req() req: Request) {
+    return this.lettersService.verifyByQr(qrCode, req.ip);
   }
 }

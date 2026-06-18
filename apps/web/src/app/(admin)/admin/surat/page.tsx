@@ -22,6 +22,7 @@ import {
   useApproveLetterRequest,
   useRejectLetterRequest,
   useGenerateLetterPdf,
+  useDownloadLetterPdf,
   LETTER_STATUS_LABELS,
   type LetterRequest,
 } from '@/features/letters/use-letters';
@@ -65,6 +66,7 @@ export default function SuratPage() {
   const approveMutation = useApproveLetterRequest();
   const rejectMutation = useRejectLetterRequest();
   const generateMutation = useGenerateLetterPdf();
+  const downloadMutation = useDownloadLetterPdf();
 
   const createForm = useForm<CreateForm>({
     resolver: zodResolver(createLetterRequestSchema),
@@ -92,7 +94,8 @@ export default function SuratPage() {
     verifyMutation.isPending ||
     approveMutation.isPending ||
     rejectMutation.isPending ||
-    generateMutation.isPending;
+    generateMutation.isPending ||
+    downloadMutation.isPending;
 
   return (
     <div>
@@ -348,9 +351,18 @@ export default function SuratPage() {
               )}
             </div>
           ) : detail?.status === 'completed' && can('letters.download') ? (
-            <Button size="sm" variant="outline">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={downloadMutation.isPending}
+              onClick={async () => {
+                if (!detailId) return;
+                const data = await downloadMutation.mutateAsync(detailId);
+                window.open(data.url, '_blank', 'noopener,noreferrer');
+              }}
+            >
               <Download className="mr-1 h-4 w-4" />
-              Unduh Surat
+              {downloadMutation.isPending ? 'Menyiapkan...' : 'Unduh Surat PDF'}
             </Button>
           ) : undefined
         }
@@ -412,7 +424,21 @@ export default function SuratPage() {
 
             {generateMutation.isSuccess && generateMutation.data?.data && (
               <div className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-                Surat berhasil digenerate: {generateMutation.data.data.letterNumber}
+                Surat PDF berhasil digenerate: {generateMutation.data.data.letterNumber}
+                {detail.outputs?.[0]?.qrCode && (
+                  <p className="mt-1 font-mono text-xs text-emerald-700">
+                    Kode verifikasi: {detail.outputs[0].qrCode.slice(0, 8).toUpperCase()}…
+                  </p>
+                )}
+              </div>
+            )}
+
+            {detail.outputs && detail.outputs.length > 0 && detail.status === 'completed' && (
+              <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+                <p className="font-medium text-slate-800">Surat siap diunduh</p>
+                <p className="mt-1 text-xs text-slate-600">
+                  Gunakan tombol &quot;Unduh Surat PDF&quot; untuk mendapatkan file resmi.
+                </p>
               </div>
             )}
 

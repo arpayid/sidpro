@@ -4,22 +4,52 @@ import {
   BadRequestException,
   ForbiddenException,
 } from '@nestjs/common';
-import { randomUUID } from 'crypto';
+import { ConfigService } from '@nestjs/config';
+import { createHash, randomUUID } from 'crypto';
 import { PrismaService } from '../../database/prisma.service';
 import { AuditLogsService } from '../../core/audit-logs/audit-logs.service';
+import { StorageService } from '../../core/storage/storage.service';
 import { JwtPayload } from '../../common/decorators/current-user.decorator';
 import { paginatedResponse, successResponse } from '../../common/utils/response.util';
+import {
+  DEFAULT_LETTER_TEMPLATE,
+  LetterPdfService,
+} from './letter-pdf.service';
+
+interface SignatoryConfig {
+  name?: string;
+  title?: string;
+}
 
 @Injectable()
 export class LettersService {
   constructor(
     private prisma: PrismaService,
     private auditLogs: AuditLogsService,
+    private storage: StorageService,
+    private letterPdf: LetterPdfService,
+    private config: ConfigService,
   ) {}
 
   private requireTenant(user: JwtPayload): string {
     if (!user.tenantId) throw new ForbiddenException('Tenant scope required');
     return user.tenantId;
+  }
+
+  private buildVerificationUrl(qrCode: string): string {
+    const appUrl = this.config.get<string>('APP_URL', 'http://localhost:3000').replace(/\/$/, '');
+    return `${appUrl}/verifikasi-surat?code=${encodeURIComponent(qrCode)}`;
+  }
+
+  private async getSignatory(tenantId: string): Promise<{ name: string; title: string }> {
+    const setting = await this.prisma.setting.findUnique({
+      where: { tenantId_key: { tenantId, key: 'letters.signatory' } },
+    });
+    const value = (setting?.value ?? {}) as SignatoryConfig;
+    return {
+      name: value.name ?? 'Kepala Desa',
+      title: value.title ?? 'Kepala Desa',
+    };
   }
 
   // ─── Letter Types ─────────────────────────────────────────────────────────
@@ -123,7 +153,7 @@ export class LettersService {
         letterType: true,
         resident: true,
         approvals: { orderBy: { createdAt: 'asc' } },
-        outputs: true,
+        outputs: { select: { id: true, qrCode: true, fileId: true, signedAt: true, createdAt: true } },
       },
     });
     if (!request) throw new NotFoundException('Permohonan surat tidak ditemukan');
@@ -279,11 +309,22 @@ export class LettersService {
     const tenantId = this.requireTenant(user);
     const request = await this.prisma.letterRequest.findFirst({
       where: { id, tenantId },
-      include: { letterType: true },
+      include: {
+        letterType: true,
+        resident: { include: { address: true } },
+        requester: { select: { name: true } },
+      },
     });
     if (!request) throw new NotFoundException('Permohonan surat tidak ditemukan');
     if (request.status !== 'approved') {
       throw new BadRequestException('Surat harus disetujui sebelum digenerate');
+    }
+
+    const existingOutput = await this.prisma.letterOutput.findFirst({
+      where: { letterRequestId: id, tenantId },
+    });
+    if (existingOutput?.fileId) {
+      throw new BadRequestException('PDF surat sudah pernah digenerate');
     }
 
     const year = new Date().getFullYear();
@@ -301,14 +342,89 @@ export class LettersService {
 
     const letterNumber = `${request.letterType.code}/${year}/${String(sequence.lastNumber).padStart(4, '0')}`;
     const qrCode = randomUUID();
+    const issuedAt = new Date();
+
+    const [village, template, signatory] = await Promise.all([
+      this.prisma.village.findFirst({ where: { tenantId } }),
+      this.prisma.letterTemplate.findFirst({
+        where: { tenantId, letterTypeId: request.letterTypeId, isActive: true },
+        orderBy: { version: 'desc' },
+      }),
+      this.getSignatory(tenantId),
+    ]);
+
+    if (!village) {
+      throw new BadRequestException('Profil desa belum dikonfigurasi');
+    }
+
+    const applicantName =
+      request.resident?.fullName ?? request.requester?.name ?? 'Pemohon';
+    const applicantAddress = request.resident?.address
+      ? [
+          request.resident.address.street,
+          request.resident.address.rt ? `RT ${request.resident.address.rt}` : null,
+          request.resident.address.rw ? `RW ${request.resident.address.rw}` : null,
+        ]
+          .filter(Boolean)
+          .join(', ')
+      : null;
+
+    const verificationUrl = this.buildVerificationUrl(qrCode);
+    const pdfBuffer = await this.letterPdf.generate({
+      village: {
+        name: village.name,
+        address: village.address,
+        regency: village.regency,
+        district: village.district,
+        province: village.province,
+      },
+      letterTypeName: request.letterType.name,
+      letterNumber,
+      purpose: request.purpose,
+      templateContent: template?.content ?? DEFAULT_LETTER_TEMPLATE,
+      applicant: {
+        fullName: applicantName,
+        nik: request.resident?.nik,
+        address: applicantAddress,
+      },
+      signatory,
+      issuedAt,
+      verificationUrl,
+      qrCode,
+    });
+
+    const safeNumber = letterNumber.replace(/\//g, '-');
+    const storageKey = `${tenantId}/letters/${id}/${safeNumber}.pdf`;
+    const checksum = createHash('sha256').update(pdfBuffer).digest('hex');
+
+    await this.storage.uploadFile(pdfBuffer, storageKey, 'application/pdf');
 
     const output = await this.prisma.$transaction(async (tx) => {
+      const file = await tx.file.create({
+        data: {
+          tenantId,
+          ownerType: 'letter_output',
+          ownerId: id,
+          path: storageKey,
+          mimeType: 'application/pdf',
+          size: pdfBuffer.length,
+          checksum,
+        },
+      });
+
       await tx.letterRequest.update({
         where: { id },
-        data: { letterNumber, status: 'completed', completedAt: new Date() },
+        data: { letterNumber, status: 'completed', completedAt: issuedAt },
       });
+
       return tx.letterOutput.create({
-        data: { tenantId, letterRequestId: id, qrCode, signedAt: new Date() },
+        data: {
+          tenantId,
+          letterRequestId: id,
+          qrCode,
+          fileId: file.id,
+          signedAt: issuedAt,
+        },
       });
     });
 
@@ -319,7 +435,7 @@ export class LettersService {
       module: 'letters',
       entityType: 'letter_output',
       entityId: output.id,
-      metadata: { letterNumber, qrCode },
+      metadata: { letterNumber, qrCode: qrCode.slice(0, 8), fileSize: pdfBuffer.length },
       ipAddress,
     });
 
@@ -328,30 +444,53 @@ export class LettersService {
         letterNumber,
         qrCode,
         outputId: output.id,
-        pdfUrl: null,
-        message: 'PDF placeholder — QR code generated for verification',
+        fileId: output.fileId,
+        verificationUrl,
       },
-      'Surat berhasil digenerate',
+      'Surat PDF berhasil digenerate',
     );
   }
 
-  async download(user: JwtPayload, id: string) {
+  async download(user: JwtPayload, id: string, ipAddress?: string) {
     const tenantId = this.requireTenant(user);
     const output = await this.prisma.letterOutput.findFirst({
       where: { letterRequestId: id, tenantId },
       include: { letterRequest: { include: { letterType: true } } },
     });
     if (!output) throw new NotFoundException('Output surat tidak ditemukan');
+    if (!output.fileId) {
+      throw new BadRequestException('PDF surat belum tersedia. Generate terlebih dahulu.');
+    }
+
+    const file = await this.prisma.file.findFirst({
+      where: { id: output.fileId, tenantId },
+    });
+    if (!file) throw new NotFoundException('File PDF tidak ditemukan');
+
+    const url = await this.storage.getSignedUrl(file.path);
+
+    await this.auditLogs.log({
+      tenantId,
+      actorId: user.sub,
+      action: 'download',
+      module: 'letters',
+      entityType: 'letter_output',
+      entityId: output.id,
+      metadata: { letterNumber: output.letterRequest.letterNumber },
+      ipAddress,
+    });
 
     return successResponse({
+      url,
+      expiresIn: 3600,
       qrCode: output.qrCode,
       letterNumber: output.letterRequest.letterNumber,
-      pdfUrl: null,
-      message: 'PDF download placeholder',
+      mimeType: file.mimeType,
+      fileName: `${output.letterRequest.letterType.code}-${output.letterRequest.letterNumber?.replace(/\//g, '-')}.pdf`,
     });
   }
 
-  async verifyByQr(qrCode: string) {
+  async verifyByQr(qrCode: string, ipAddress?: string) {
     const output = await this.prisma.letterOutput.findUnique({
       where: { qrCode },
       include: {
@@ -363,16 +502,33 @@ export class LettersService {
         },
       },
     });
-    if (!output) throw new NotFoundException('Surat tidak ditemukan atau QR tidak valid');
+    if (!output) throw new NotFoundException('Surat tidak ditemukan atau kode tidak valid');
+
+    const valid = output.letterRequest.status === 'completed';
+
+    await this.auditLogs.log({
+      tenantId: output.tenantId,
+      action: 'verify',
+      module: 'letters',
+      entityType: 'letter_output',
+      entityId: output.id,
+      metadata: {
+        valid,
+        letterNumber: output.letterRequest.letterNumber,
+        qrCodePrefix: qrCode.slice(0, 8),
+      },
+      ipAddress,
+    });
 
     return successResponse({
-      valid: true,
+      valid,
       qrCode: output.qrCode,
       letterNumber: output.letterRequest.letterNumber,
       letterType: output.letterRequest.letterType.name,
       residentName: output.letterRequest.resident?.fullName,
       signedAt: output.signedAt,
       status: output.letterRequest.status,
+      issuedAt: output.signedAt,
     });
   }
 }
