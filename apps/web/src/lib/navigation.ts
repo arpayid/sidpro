@@ -1,0 +1,16 @@
+export const adminNavItems = [
+  { href: '/admin/dashboard', label: 'Dashboard', icon: 'layout-dashboard' },
+  { href: '/admin/penduduk', label: 'Penduduk', icon: 'users', permission: 'population.read' },
+  { href: '/admin/keluarga', label: 'Keluarga / KK', icon: 'home', permission: 'families.read' },
+  { href: '/admin/surat', label: 'Layanan Surat', icon: 'file-text', permission: 'letters.read' },
+  { href: '/admin/pengaduan', label: 'Pengaduan', icon: 'message-square', permission: 'complaints.read' },
+  { href: '/admin/bantuan-sosial', label: 'Bantuan Sosial', icon: 'heart-handshake', permission: 'aid.read' },
+  { href: '/admin/aset', label: 'Aset Desa', icon: 'building', permission: 'assets.read' },
+  { href: '/admin/pembangunan', label: 'Pembangunan', icon: 'hard-hat', permission: 'development.read' },
+  { href: '/admin/keuangan', label: 'Keuangan', icon: 'wallet', permission: 'finance.read' },
+  { href: '/admin/berita', label: 'CMS Berita', icon: 'newspaper', permission: 'cms.read' },
+  { href: '/admin/laporan', label: 'Laporan', icon: 'file-bar-chart', permission: 'reports.read' },
+  { href: '/admin/users', label: 'Pengguna', icon: 'user-cog', permission: 'users.read' },
+  { href: '/admin/audit-logs', label: 'Audit Log', icon: 'scroll-text', permission: 'audit.read' },
+  { href: '/admin/pengaturan', label: 'Pengaturan', icon: 'settings', permission: 'settings.manage' },
+] as const;

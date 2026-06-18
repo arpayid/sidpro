@@ -1,15 +1,19 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useState, type FormEvent, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Shield } from 'lucide-react';
 import { Button, Card, CardContent, CardHeader, CardTitle, Input } from '@sidpro/ui';
 import { setAuthSession } from '@/lib/auth';
+import { apiClient } from '@/lib/api-client';
 import type { LoginResponse } from '@sidpro/types';
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get('callbackUrl') ?? '/admin/dashboard';
+
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -23,74 +27,85 @@ export default function LoginPage() {
     const password = form.get('password') as string;
 
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000'}/api/v1/auth/login`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password }),
-        },
-      );
-
-      if (res.ok) {
-        const body = (await res.json()) as { data: LoginResponse };
-        setAuthSession(body.data.accessToken, body.data.refreshToken, body.data.user);
-        router.push('/admin/dashboard');
-        return;
-      }
-
-      throw new Error('Login failed');
-    } catch {
-      setAuthSession('demo-token', 'demo-refresh', {
-        id: '1',
-        email,
-        name: 'Administrator Desa',
-        tenantId: 'demo',
-        roles: ['admin'],
-        permissions: ['*'],
+      const body = await apiClient<LoginResponse>('/auth/login', {
+        method: 'POST',
+        body: { email, password },
+        skipAuth: true,
       });
-      router.push('/admin/dashboard');
+
+      if (!body.data) throw new Error('Respons login tidak valid');
+
+      setAuthSession(body.data.accessToken, body.data.refreshToken, body.data.user);
+      router.push(callbackUrl.startsWith('/admin') ? callbackUrl : '/admin/dashboard');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Email atau password salah');
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-slate-50 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-600 text-white">
-            <Shield className="h-6 w-6" />
+    <Card className="w-full max-w-md border-slate-200/80 shadow-sm">
+      <CardHeader className="text-center">
+        <div className="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-lg bg-emerald-600 text-white">
+          <Shield className="h-5 w-5" />
+        </div>
+        <CardTitle className="text-lg">Masuk Admin SIDPRO</CardTitle>
+        <p className="text-sm text-slate-500">Platform pemerintahan desa enterprise</p>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="email" className="form-label">
+              Email
+            </label>
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              required
+              autoComplete="email"
+              placeholder="admin@demo-desa.id"
+            />
           </div>
-          <CardTitle>Masuk Admin SIDPRO</CardTitle>
-          <p className="text-sm text-slate-500">Dashboard pemerintahan desa</p>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label htmlFor="email" className="mb-1 block text-sm font-medium text-slate-700">
-                Email
-              </label>
-              <Input id="email" name="email" type="email" required placeholder="admin@desa.go.id" />
-            </div>
-            <div>
-              <label htmlFor="password" className="mb-1 block text-sm font-medium text-slate-700">
-                Password
-              </label>
-              <Input id="password" name="password" type="password" required placeholder="••••••••" />
-            </div>
-            {error && <p className="text-sm text-red-600">{error}</p>}
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Memproses...' : 'Masuk'}
-            </Button>
-          </form>
-          <p className="mt-4 text-center text-sm text-slate-500">
-            <Link href="/" className="text-emerald-600 hover:underline">
-              Kembali ke portal publik
-            </Link>
-          </p>
-        </CardContent>
-      </Card>
+          <div>
+            <label htmlFor="password" className="form-label">
+              Password
+            </label>
+            <Input
+              id="password"
+              name="password"
+              type="password"
+              required
+              autoComplete="current-password"
+              placeholder="••••••••"
+            />
+          </div>
+          {error && (
+            <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
+              {error}
+            </p>
+          )}
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? 'Memverifikasi...' : 'Masuk'}
+          </Button>
+        </form>
+        <p className="mt-4 text-center text-sm text-slate-500">
+          <Link href="/" className="text-emerald-600 hover:underline">
+            Kembali ke portal publik
+          </Link>
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-[hsl(var(--background))] p-4">
+      <Suspense fallback={<div className="h-96 w-full max-w-md animate-pulse rounded-lg bg-slate-200" />}>
+        <LoginForm />
+      </Suspense>
     </div>
   );
 }
