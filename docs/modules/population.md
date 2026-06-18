@@ -28,6 +28,8 @@ Resident list, detail, create form, edit form, import, export, statistics.
 
 population.read, population.create, population.update, population.delete, population.import, population.export, population.view_sensitive.
 
+POST /families accepts optional `address` object (same shape as residents).
+
 ## Acceptance Criteria
 
 List supports search, filter, pagination. Create and update validate required fields. Data is scoped by tenant. Export requires permission. Important changes are logged.

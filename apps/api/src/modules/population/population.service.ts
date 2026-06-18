@@ -4,6 +4,7 @@ import {
   ConflictException,
   ForbiddenException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { Response } from 'express';
 import * as XLSX from 'xlsx';
 import { PrismaService } from '../../database/prisma.service';
@@ -35,6 +36,12 @@ export interface RowValidationError {
   errors: string[];
 }
 
+export interface ResidentAddressInput {
+  hamletId?: string;
+  neighborhoodUnitId?: string;
+  street?: string;
+}
+
 @Injectable()
 export class PopulationService {
   constructor(
@@ -50,6 +57,70 @@ export class PopulationService {
   private maskResident<T extends { nik: string }>(resident: T, viewSensitive: boolean) {
     if (viewSensitive) return resident;
     return { ...resident, nik: maskNik(resident.nik) };
+  }
+
+  async resolveAddress(
+    tenantId: string,
+    input: ResidentAddressInput,
+  ): Promise<string> {
+    const { hamletId, neighborhoodUnitId, street } = input;
+
+    if (neighborhoodUnitId) {
+      const unit = await this.prisma.neighborhoodUnit.findFirst({
+        where: { id: neighborhoodUnitId, tenantId },
+      });
+      if (!unit) throw new NotFoundException('RT/RW tidak ditemukan');
+
+      if (hamletId && hamletId !== unit.hamletId) {
+        throw new ConflictException('RT/RW tidak sesuai dengan dusun yang dipilih');
+      }
+
+      const address = await this.prisma.address.create({
+        data: {
+          tenantId,
+          hamletId: hamletId ?? unit.hamletId,
+          neighborhoodUnitId: unit.id,
+          rt: unit.rt,
+          rw: unit.rw,
+          street,
+        },
+      });
+      return address.id;
+    }
+
+    if (hamletId) {
+      const hamlet = await this.prisma.hamlet.findFirst({
+        where: { id: hamletId, tenantId },
+      });
+      if (!hamlet) throw new NotFoundException('Dusun tidak ditemukan');
+
+      const address = await this.prisma.address.create({
+        data: { tenantId, hamletId, street },
+      });
+      return address.id;
+    }
+
+    const address = await this.prisma.address.create({
+      data: { tenantId, street },
+    });
+    return address.id;
+  }
+
+  private async resolveResidentAddressId(
+    tenantId: string,
+    body: { addressId?: string; address?: ResidentAddressInput },
+  ): Promise<string | undefined> {
+    if (body.address) {
+      return this.resolveAddress(tenantId, body.address);
+    }
+    if (body.addressId) {
+      const existing = await this.prisma.address.findFirst({
+        where: { id: body.addressId, tenantId },
+      });
+      if (!existing) throw new NotFoundException('Alamat tidak ditemukan');
+      return body.addressId;
+    }
+    return undefined;
   }
 
   async findAll(
@@ -115,6 +186,7 @@ export class PopulationService {
       residentStatus?: string;
       familyId?: string;
       addressId?: string;
+      address?: ResidentAddressInput;
     },
     ipAddress?: string,
   ) {
@@ -124,6 +196,8 @@ export class PopulationService {
       where: { tenantId_nik: { tenantId, nik: body.nik } },
     });
     if (existing) throw new ConflictException('NIK sudah terdaftar');
+
+    const addressId = await this.resolveResidentAddressId(tenantId, body);
 
     const resident = await this.prisma.resident.create({
       data: {
@@ -141,7 +215,7 @@ export class PopulationService {
         disabilityStatus: body.disabilityStatus,
         residentStatus: body.residentStatus ?? 'permanent',
         familyId: body.familyId,
-        addressId: body.addressId,
+        addressId,
       },
     });
 
@@ -161,7 +235,10 @@ export class PopulationService {
   async update(
     user: JwtPayload,
     id: string,
-    body: Record<string, unknown>,
+    body: Record<string, unknown> & {
+      addressId?: string;
+      address?: ResidentAddressInput;
+    },
     ipAddress?: string,
   ) {
     const tenantId = this.requireTenant(user);
@@ -170,9 +247,19 @@ export class PopulationService {
     });
     if (!existing) throw new NotFoundException('Penduduk tidak ditemukan');
 
-    const data = { ...body };
-    if (typeof data.birthDate === 'string') {
-      data.birthDate = new Date(data.birthDate);
+    const { address, addressId: inputAddressId, ...rest } = body;
+    const data: Prisma.ResidentUpdateInput = { ...rest };
+
+    if (typeof rest.birthDate === 'string') {
+      data.birthDate = new Date(rest.birthDate);
+    }
+
+    const addressId = await this.resolveResidentAddressId(tenantId, {
+      addressId: inputAddressId,
+      address,
+    });
+    if (addressId !== undefined) {
+      data.address = { connect: { id: addressId } };
     }
 
     const resident = await this.prisma.resident.update({

@@ -6,7 +6,9 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { AuditLogsService } from '../../core/audit-logs/audit-logs.service';
+import { PopulationService } from '../population/population.service';
 import { JwtPayload } from '../../common/decorators/current-user.decorator';
+import type { ResidentAddressInput } from '@sidpro/validators';
 import {
   paginatedResponse,
   successResponse,
@@ -18,6 +20,7 @@ export class FamiliesService {
   constructor(
     private prisma: PrismaService,
     private auditLogs: AuditLogsService,
+    private populationService: PopulationService,
   ) {}
 
   private requireTenant(user: JwtPayload): string {
@@ -83,6 +86,7 @@ export class FamiliesService {
       kkNumber: string;
       headResidentId?: string;
       addressId?: string;
+      address?: ResidentAddressInput;
       economicStatus?: string;
       houseStatus?: string;
       waterSource?: string;
@@ -98,8 +102,23 @@ export class FamiliesService {
     });
     if (existing) throw new ConflictException('Nomor KK sudah terdaftar');
 
+    let addressId = body.addressId;
+    if (body.address) {
+      addressId = await this.populationService.resolveAddress(tenantId, body.address);
+    }
+
     const family = await this.prisma.family.create({
-      data: { tenantId, ...body },
+      data: {
+        tenantId,
+        kkNumber: body.kkNumber,
+        headResidentId: body.headResidentId,
+        economicStatus: body.economicStatus,
+        houseStatus: body.houseStatus,
+        waterSource: body.waterSource,
+        electricity: body.electricity,
+        sanitation: body.sanitation,
+        addressId,
+      },
     });
 
     await this.auditLogs.log({

@@ -1,6 +1,7 @@
 export * from './auth';
 export * from './common';
 export * from './population';
+export * from './territories';
 export * from './complaints';
 export * from './letters';
 export * from './rbac';

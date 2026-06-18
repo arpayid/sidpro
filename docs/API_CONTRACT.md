@@ -77,6 +77,19 @@ Base API style: REST JSON.
 | POST | /residents/import | population.import |
 | GET | /residents/export | population.export |
 
+POST/PATCH `/residents` accepts optional `address` object: `{ hamletId, neighborhoodUnitId, street? }` — creates linked `addresses` row.
+
+## Territories (Dusun / RT-RW)
+
+| Method | Path | Permission |
+|---|---|---|
+| GET | /hamlets | population.read |
+| POST | /hamlets | population.update |
+| PATCH | /hamlets/:id | population.update |
+| GET | /hamlets/:hamletId/neighborhood-units | population.read |
+| POST | /neighborhood-units | population.update |
+| PATCH | /neighborhood-units/:id | population.update |
+
 ## Families
 
 | Method | Path | Permission |

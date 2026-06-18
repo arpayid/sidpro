@@ -15,6 +15,7 @@ import { NotificationsModule } from './core/notifications/notifications.module';
 import { VillageProfileModule } from './modules/village-profile/village-profile.module';
 import { PopulationModule } from './modules/population/population.module';
 import { FamiliesModule } from './modules/families/families.module';
+import { TerritoriesModule } from './modules/territories/territories.module';
 import { CivilEventsModule } from './modules/civil-events/civil-events.module';
 import { LettersModule } from './modules/letters/letters.module';
 import { ComplaintsModule } from './modules/complaints/complaints.module';
@@ -48,6 +49,7 @@ import { StorageModule } from './core/storage/storage.module';
     VillageProfileModule,
     PopulationModule,
     FamiliesModule,
+    TerritoriesModule,
     CivilEventsModule,
     LettersModule,
     ComplaintsModule,

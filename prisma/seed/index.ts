@@ -144,6 +144,39 @@ async function main() {
     },
   });
 
+  const hamlet = await prisma.hamlet.upsert({
+    where: { tenantId_code: { tenantId: tenant.id, code: 'KRJ' } },
+    update: {},
+    create: {
+      tenantId: tenant.id,
+      name: 'Dusun Krajan',
+      code: 'KRJ',
+    },
+  });
+
+  for (const unit of [
+    { rt: '01', rw: '01' },
+    { rt: '02', rw: '01' },
+  ]) {
+    await prisma.neighborhoodUnit.upsert({
+      where: {
+        tenantId_hamletId_rt_rw: {
+          tenantId: tenant.id,
+          hamletId: hamlet.id,
+          rt: unit.rt,
+          rw: unit.rw,
+        },
+      },
+      update: {},
+      create: {
+        tenantId: tenant.id,
+        hamletId: hamlet.id,
+        rt: unit.rt,
+        rw: unit.rw,
+      },
+    });
+  }
+
   const roles = [
     { code: 'superadmin_system', name: 'Superadmin Sistem', scope: 'system', tenantId: null },
     { code: 'admin_desa', name: 'Admin Desa', scope: 'tenant', tenantId: tenant.id },

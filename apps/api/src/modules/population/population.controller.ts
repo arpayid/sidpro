@@ -111,6 +111,7 @@ export class PopulationController {
       residentStatus?: string;
       familyId?: string;
       addressId?: string;
+      address?: { hamletId?: string; neighborhoodUnitId?: string; street?: string };
     },
     @Req() req: Request,
   ) {
@@ -122,7 +123,11 @@ export class PopulationController {
   update(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
-    @Body() body: Record<string, unknown>,
+    @Body()
+    body: Record<string, unknown> & {
+      addressId?: string;
+      address?: { hamletId?: string; neighborhoodUnitId?: string; street?: string };
+    },
     @Req() req: Request,
   ) {
     return this.populationService.update(user, id, body, req.ip);
