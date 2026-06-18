@@ -35,6 +35,7 @@ export class PopulationController {
     @Query('page') page = '1',
     @Query('limit') limit = '20',
     @Query('search') search?: string,
+    @Query('residentStatus') residentStatus?: string,
   ) {
     const viewSensitive = user.permissions.includes('population.view_sensitive');
     return this.populationService.findAll(
@@ -42,6 +43,7 @@ export class PopulationController {
       parseInt(page, 10),
       parseInt(limit, 10),
       search,
+      residentStatus,
       viewSensitive,
     );
   }
@@ -131,6 +133,17 @@ export class PopulationController {
     @Req() req: Request,
   ) {
     return this.populationService.update(user, id, body, req.ip);
+  }
+
+  @Post(':id/mutate')
+  @RequirePermissions('population.update')
+  mutate(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Body() body: { residentStatus: 'moved' | 'deceased'; eventDate: string; notes?: string },
+    @Req() req: Request,
+  ) {
+    return this.populationService.recordMutation(user, id, body, req.ip);
   }
 
   @Delete(':id')

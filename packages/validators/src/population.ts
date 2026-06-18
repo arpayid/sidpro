@@ -22,6 +22,14 @@ export const createResidentSchema = z.object({
 
 export const updateResidentSchema = createResidentSchema.partial();
 
+export const residentMutationSchema = z.object({
+  residentStatus: z.enum(['moved', 'deceased']),
+  eventDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  notes: z.string().max(2000).optional(),
+});
+
+export type ResidentMutationInput = z.infer<typeof residentMutationSchema>;
+
 export const createFamilySchema = z.object({
   kkNumber: kkNumberSchema,
   headResidentId: z.string().uuid().optional(),
