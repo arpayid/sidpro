@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { createResidentSchema, updateResidentSchema } from '@sidpro/validators';
+import { createResidentSchema, updateResidentSchema, residentMutationSchema } from '@sidpro/validators';
 import type { z } from 'zod';
 import { Button, Input } from '@sidpro/ui';
 import { Plus, Pencil, Trash2, Download, Upload } from 'lucide-react';
@@ -21,11 +21,13 @@ import {
   useDeleteResident,
   useExportResidents,
   useImportResidents,
+  useMutateResident,
   type Resident,
 } from '@/features/residents/use-residents';
 
 type CreateForm = z.input<typeof createResidentSchema>;
 type EditForm = z.input<typeof updateResidentSchema>;
+type MutateForm = z.input<typeof residentMutationSchema>;
 
 const STATUS_LABELS: Record<string, string> = {
   permanent: 'Tetap',
@@ -150,7 +152,8 @@ export default function PendudukPage() {
   const { can } = useAuth();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
-  const [drawerMode, setDrawerMode] = useState<'create' | 'edit' | 'import' | null>(null);
+  const [statusFilter, setStatusFilter] = useState('');
+  const [drawerMode, setDrawerMode] = useState<'create' | 'edit' | 'import' | 'mutate' | null>(null);
   const [selected, setSelected] = useState<Resident | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Resident | null>(null);
   const [importError, setImportError] = useState('');
@@ -160,15 +163,22 @@ export default function PendudukPage() {
     street: '',
   });
 
-  const { data, isLoading, error, refetch } = useResidents({ page, limit: 20, search });
+  const { data, isLoading, error, refetch } = useResidents({
+    page,
+    limit: 20,
+    search,
+    residentStatus: statusFilter || undefined,
+  });
   const createMutation = useCreateResident();
   const updateMutation = useUpdateResident();
+  const mutateMutation = useMutateResident();
   const deleteMutation = useDeleteResident();
   const exportMutation = useExportResidents();
   const importMutation = useImportResidents();
 
   const isCreate = drawerMode === 'create';
   const isEdit = drawerMode === 'edit';
+  const isMutate = drawerMode === 'mutate';
 
   const createForm = useForm<CreateForm>({
     resolver: zodResolver(createResidentSchema),
@@ -177,6 +187,11 @@ export default function PendudukPage() {
 
   const editForm = useForm<EditForm>({
     resolver: zodResolver(updateResidentSchema),
+  });
+
+  const mutateForm = useForm<MutateForm>({
+    resolver: zodResolver(residentMutationSchema),
+    defaultValues: { residentStatus: 'moved', eventDate: '', notes: '' },
   });
 
   function openCreate() {
@@ -200,6 +215,24 @@ export default function PendudukPage() {
       residentStatus: resident.residentStatus as CreateForm['residentStatus'],
     });
     setDrawerMode('edit');
+  }
+
+  function openMutate(resident: Resident) {
+    setSelected(resident);
+    mutateForm.reset({
+      residentStatus: 'moved',
+      eventDate: new Date().toISOString().slice(0, 10),
+      notes: '',
+    });
+    setDrawerMode('mutate');
+  }
+
+  async function onMutateSubmit(values: MutateForm) {
+    if (!selected) return;
+    const parsed = residentMutationSchema.parse(values);
+    await mutateMutation.mutateAsync({ id: selected.id, body: parsed });
+    setDrawerMode(null);
+    setSelected(null);
   }
 
   async function onCreateSubmit(values: CreateForm) {
@@ -338,23 +371,44 @@ export default function PendudukPage() {
         total={meta?.total}
         onPageChange={setPage}
         toolbar={
-          <FilterBar
-            search={search}
-            onSearchChange={(v) => {
-              setSearch(v);
-              setPage(1);
-            }}
-            searchPlaceholder="Cari nama atau NIK..."
-          />
+          <div className="flex flex-wrap items-center gap-3">
+            <FilterBar
+              search={search}
+              onSearchChange={(v) => {
+                setSearch(v);
+                setPage(1);
+              }}
+              searchPlaceholder="Cari nama atau NIK..."
+            />
+            <select
+              className="h-9 rounded-md border border-slate-300 bg-white px-3 text-sm"
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="">Semua status</option>
+              <option value="permanent">Tetap</option>
+              <option value="temporary">Sementara</option>
+              <option value="moved">Pindah</option>
+              <option value="deceased">Meninggal</option>
+            </select>
+          </div>
         }
         rowActions={
           can('population.update') || can('population.delete')
             ? (row) => (
                 <div className="flex justify-end gap-1">
                   {can('population.update') && (
-                    <Button variant="ghost" size="sm" onClick={() => openEdit(row)}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
+                    <>
+                      <Button variant="ghost" size="sm" onClick={() => openMutate(row)} title="Mutasi">
+                        M
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => openEdit(row)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    </>
                   )}
                   {can('population.delete') && (
                     <Button
@@ -449,6 +503,69 @@ export default function PendudukPage() {
               onHamletChange={(id) => setAddress((a) => ({ ...a, hamletId: id, neighborhoodUnitId: '' }))}
               onNeighborhoodUnitChange={(id) => setAddress((a) => ({ ...a, neighborhoodUnitId: id }))}
               onStreetChange={(street) => setAddress((a) => ({ ...a, street }))}
+            />
+          </div>
+        </form>
+      </DetailDrawer>
+
+      <DetailDrawer
+        open={isMutate}
+        onClose={() => {
+          setDrawerMode(null);
+          setSelected(null);
+        }}
+        title="Mutasi Penduduk"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setDrawerMode(null)}>
+              Batal
+            </Button>
+            <Button
+              disabled={mutateMutation.isPending}
+              onClick={mutateForm.handleSubmit(onMutateSubmit)}
+            >
+              {mutateMutation.isPending ? 'Menyimpan...' : 'Catat Mutasi'}
+            </Button>
+          </div>
+        }
+      >
+        {selected && (
+          <p className="mb-4 text-sm text-slate-600">
+            Mutasi untuk: <strong>{selected.fullName}</strong>
+          </p>
+        )}
+        <form className="space-y-4" onSubmit={mutateForm.handleSubmit(onMutateSubmit)}>
+          <div>
+            <label className="form-label" htmlFor="mutate-status">
+              Jenis Mutasi
+            </label>
+            <select
+              id="mutate-status"
+              className="h-10 w-full rounded-md border border-slate-300 px-3 text-sm"
+              {...mutateForm.register('residentStatus')}
+            >
+              <option value="moved">Pindah</option>
+              <option value="deceased">Meninggal</option>
+            </select>
+          </div>
+          <div>
+            <label className="form-label" htmlFor="mutate-date">
+              Tanggal Kejadian
+            </label>
+            <Input id="mutate-date" type="date" {...mutateForm.register('eventDate')} />
+            {mutateForm.formState.errors.eventDate && (
+              <p className="form-error">{mutateForm.formState.errors.eventDate.message}</p>
+            )}
+          </div>
+          <div>
+            <label className="form-label" htmlFor="mutate-notes">
+              Catatan
+            </label>
+            <textarea
+              id="mutate-notes"
+              rows={3}
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+              {...mutateForm.register('notes')}
             />
           </div>
         </form>

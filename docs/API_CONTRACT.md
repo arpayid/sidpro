@@ -74,6 +74,7 @@ Base API style: REST JSON.
 | GET | /residents/:id | population.read |
 | PATCH | /residents/:id | population.update |
 | DELETE | /residents/:id | population.delete |
+| POST | /residents/:id/mutate | population.update |
 | POST | /residents/import | population.import |
 | GET | /residents/export | population.export |
 

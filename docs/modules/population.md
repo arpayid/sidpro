@@ -18,11 +18,15 @@ tenant_id, nik, full_name, gender, birth_place, birth_date, religion, education,
 
 ## API
 
-GET /residents, POST /residents, GET /residents/:id, PATCH /residents/:id, DELETE /residents/:id, POST /residents/import, GET /residents/export.
+GET /residents, POST /residents, GET /residents/:id, PATCH /residents/:id, DELETE /residents/:id, POST /residents/:id/mutate, POST /residents/import, GET /residents/export.
+
+Query `residentStatus` on GET /residents filters by status (`permanent`, `temporary`, `moved`, `deceased`).
+
+POST /residents/:id/mutate records moved/deceased status and creates a `civil_events` row (audit action `mutate`).
 
 ## UI
 
-Resident list, detail, create form, edit form, import, export, statistics.
+Resident list, detail, create form, edit form, import, export, statistics, status filter, mutation drawer (moved/deceased).
 
 ## Permissions
 

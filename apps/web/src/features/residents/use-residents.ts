@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { CreateResidentInput } from '@sidpro/validators';
+import type { CreateResidentInput, ResidentMutationInput } from '@sidpro/validators';
 import {
   apiClient,
   apiUpload,
@@ -45,6 +45,7 @@ export interface ResidentsListParams {
   page?: number;
   limit?: number;
   search?: string;
+  residentStatus?: string;
 }
 
 function residentsKey(params: ResidentsListParams) {
@@ -91,12 +92,12 @@ function downloadCsv(rows: Resident[], filename: string) {
 }
 
 export function useResidents(params: ResidentsListParams = {}) {
-  const { page = 1, limit = 20, search } = params;
+  const { page = 1, limit = 20, search, residentStatus } = params;
   return useQuery({
-    queryKey: residentsKey({ page, limit, search }),
+    queryKey: residentsKey({ page, limit, search, residentStatus }),
     queryFn: async () => {
       const res = await apiClient<Resident[]>(
-        `/residents${buildQuery({ page, limit, search })}`,
+        `/residents${buildQuery({ page, limit, search, residentStatus })}`,
       );
       return { data: res.data ?? [], meta: res.meta as PaginationMeta | undefined };
     },
@@ -135,6 +136,19 @@ export function useUpdateResident() {
     onSuccess: (_, { id }) => {
       qc.invalidateQueries({ queryKey: ['residents'] });
       qc.invalidateQueries({ queryKey: ['residents', id] });
+    },
+  });
+}
+
+export function useMutateResident() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: ResidentMutationInput }) =>
+      apiClient<Resident>(`/residents/${id}/mutate`, { method: 'POST', body }),
+    onSuccess: (_, { id }) => {
+      qc.invalidateQueries({ queryKey: ['residents'] });
+      qc.invalidateQueries({ queryKey: ['residents', id] });
+      qc.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 }

@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ConflictException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { Response } from 'express';
@@ -128,12 +129,14 @@ export class PopulationService {
     page = 1,
     limit = 20,
     search?: string,
+    residentStatus?: string,
     viewSensitive = false,
   ) {
     const tenantId = this.requireTenant(user);
     const where = {
       tenantId,
       deletedAt: null,
+      ...(residentStatus ? { residentStatus } : {}),
       ...(search
         ? {
             OR: [
@@ -278,6 +281,55 @@ export class PopulationService {
     });
 
     return successResponse(resident, 'Penduduk berhasil diperbarui');
+  }
+
+  async recordMutation(
+    user: JwtPayload,
+    id: string,
+    body: { residentStatus: 'moved' | 'deceased'; eventDate: string; notes?: string },
+    ipAddress?: string,
+  ) {
+    const tenantId = this.requireTenant(user);
+    const existing = await this.prisma.resident.findFirst({
+      where: { id, tenantId, deletedAt: null },
+    });
+    if (!existing) throw new NotFoundException('Penduduk tidak ditemukan');
+
+    if (!['moved', 'deceased'].includes(body.residentStatus)) {
+      throw new BadRequestException('Mutasi hanya untuk status pindah atau meninggal');
+    }
+
+    const resident = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.resident.update({
+        where: { id },
+        data: { residentStatus: body.residentStatus },
+      });
+
+      await tx.civilEvent.create({
+        data: {
+          tenantId,
+          residentId: id,
+          eventType: body.residentStatus,
+          eventDate: new Date(body.eventDate),
+          notes: body.notes,
+        },
+      });
+
+      return updated;
+    });
+
+    await this.auditLogs.log({
+      tenantId,
+      actorId: user.sub,
+      action: 'mutate',
+      module: 'population',
+      entityType: 'resident',
+      entityId: id,
+      metadata: { residentStatus: body.residentStatus, eventDate: body.eventDate },
+      ipAddress,
+    });
+
+    return successResponse(resident, 'Mutasi penduduk berhasil dicatat');
   }
 
   async remove(user: JwtPayload, id: string, ipAddress?: string) {
