@@ -1,0 +1,55 @@
+import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { DatabaseModule } from './database/database.module';
+import { AuthModule } from './core/auth/auth.module';
+import { UsersModule } from './core/users/users.module';
+import { RolesModule } from './core/roles/roles.module';
+import { PermissionsModule } from './core/permissions/permissions.module';
+import { TenantsModule } from './core/tenants/tenants.module';
+import { AuditLogsModule } from './core/audit-logs/audit-logs.module';
+import { FilesModule } from './core/files/files.module';
+import { SettingsModule } from './core/settings/settings.module';
+import { NotificationsModule } from './core/notifications/notifications.module';
+import { VillageProfileModule } from './modules/village-profile/village-profile.module';
+import { PopulationModule } from './modules/population/population.module';
+import { FamiliesModule } from './modules/families/families.module';
+import { CivilEventsModule } from './modules/civil-events/civil-events.module';
+import { LettersModule } from './modules/letters/letters.module';
+import { ComplaintsModule } from './modules/complaints/complaints.module';
+import { CmsModule } from './modules/cms/cms.module';
+import { SocialAssistanceModule } from './modules/social-assistance/social-assistance.module';
+import { AssetsModule } from './modules/assets/assets.module';
+import { DevelopmentModule } from './modules/development/development.module';
+import { FinanceModule } from './modules/finance/finance.module';
+import { ReportsModule } from './modules/reports/reports.module';
+import { HealthModule } from './health/health.module';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    DatabaseModule,
+    HealthModule,
+    AuthModule,
+    UsersModule,
+    RolesModule,
+    PermissionsModule,
+    TenantsModule,
+    AuditLogsModule,
+    FilesModule,
+    SettingsModule,
+    NotificationsModule,
+    VillageProfileModule,
+    PopulationModule,
+    FamiliesModule,
+    CivilEventsModule,
+    LettersModule,
+    ComplaintsModule,
+    CmsModule,
+    SocialAssistanceModule,
+    AssetsModule,
+    DevelopmentModule,
+    FinanceModule,
+    ReportsModule,
+  ],
+})
+export class AppModule {}

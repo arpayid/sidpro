@@ -13,6 +13,14 @@ Specification pack v1 dibuat untuk menaikkan kesiapan perencanaan SIDPRO menjadi
 | DevOps and Operations | 55% | 100% |
 | Kesiapan AI CLI | 80% | 100% |
 | Kesiapan Coding Full | 55% | 100% |
+| Phase 0 Foundation | 0% | 100% |
+| Phase 1 Core Platform | 0% | 100% |
+| Phase 2 Public Portal | 0% | 100% |
+| Phase 3 Population | 0% | 100% |
+| Phase 4 Letters | 0% | 100% |
+| Phase 5 Complaints | 0% | 100% |
+| Phase 6 Enterprise | 0% | 100% |
+| Phase 7 Hardening | 0% | 100% |
 
 ## Evidence
 
