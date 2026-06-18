@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-API_URL="${API_URL:-http://localhost:4000/api/v1/health}"
+API_URL="${API_URL:-http://localhost:4000}"
+API_HEALTH_URL="${API_HEALTH_URL:-${API_URL%/}/api/v1/health}"
 WEB_URL="${WEB_URL:-http://localhost:3000}"
 
 check_endpoint() {
@@ -21,11 +22,12 @@ check_endpoint() {
 
 FAILED=0
 
-check_endpoint "API" "$API_URL" || FAILED=1
+check_endpoint "API" "$API_HEALTH_URL" || FAILED=1
 check_endpoint "Web" "$WEB_URL" || FAILED=1
 
 if [ -n "${DATABASE_URL:-}" ]; then
-  if pg_isready -d "$DATABASE_URL" > /dev/null 2>&1; then
+  DB_CHECK_URL="${DATABASE_URL%%\?*}"
+  if psql "$DB_CHECK_URL" -c 'SELECT 1' > /dev/null 2>&1; then
     echo "[healthcheck] Database: OK"
   else
     echo "[healthcheck] Database: FAIL"
