@@ -137,5 +137,6 @@ Restore singkat — lihat [`STAGING_DEPLOY.md`](./STAGING_DEPLOY.md#backup).
 
 - Health: `GET /api/v1/health`, web `GET /`
 - Audit log viewer (admin): `/admin/audit-logs` — requires `audit.read`; default filter last 7 days
+- Smoke test: `STAGING_ADMIN_PASSWORD=... ./scripts/smoke-test.sh` — set `SMOKE_RUN_SEED=0` to skip seed; optional `SMOKE_TEST_USER_PASSWORD` for RBAC user; **re-login required** after `prisma:seed` or permission changes (JWT does not auto-refresh permissions)
 - Monitoring: [`docs/MONITORING.md`](./MONITORING.md)
 - Security: [`docs/SECURITY.md`](./SECURITY.md), [`docs/SECURITY_CHECKLIST.md`](./SECURITY_CHECKLIST.md)

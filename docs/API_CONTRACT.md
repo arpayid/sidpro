@@ -107,11 +107,19 @@ Base API style: REST JSON.
 
 | Method | Path | Permission |
 |---|---|---|
+| POST | /complaints/public?tenantCode= | public |
 | GET | /complaints | complaints.read |
 | POST | /complaints | complaints.create |
+| GET | /complaints/:id | complaints.read |
+| PATCH | /complaints/:id/status | complaints.update / complaints.close |
 | PATCH | /complaints/:id/assign | complaints.assign |
-| PATCH | /complaints/:id/respond | complaints.respond |
+| POST | /complaints/:id/responses | complaints.respond |
+| PATCH | /complaints/:id/respond | complaints.respond (legacy) |
 | PATCH | /complaints/:id/close | complaints.close |
+
+Query filters (`GET /complaints`): `page`, `limit`, `status`, `priority`, `search`, `dateFrom`, `dateTo`.
+
+Status workflow: `submitted` → `verified` → `assigned` → `in_progress` → `resolved` → `closed` (or `rejected`).
 
 ## Reports
 

@@ -16,10 +16,16 @@ API="${API_BASE%/}/api/v1"
 WEB="${APP_URL:-http://localhost:3000}"
 ADMIN_EMAIL="${STAGING_ADMIN_EMAIL:-admin@demo-desa.id}"
 ADMIN_PASSWORD="${STAGING_ADMIN_PASSWORD:-}"
+SMOKE_RUN_SEED="${SMOKE_RUN_SEED:-1}"
 
 if [ -z "$ADMIN_PASSWORD" ]; then
   echo "[smoke-test] ERROR: Set STAGING_ADMIN_PASSWORD (non-default staging admin password)."
   exit 1
+fi
+
+if [ "$SMOKE_RUN_SEED" = "1" ]; then
+  echo "[smoke-test] Running prisma seed (permissions sync). Re-login required after permission changes."
+  pnpm prisma:seed
 fi
 
 PASS=0
@@ -37,20 +43,26 @@ check() {
   fi
 }
 
+json_field() {
+  local expr="$1"
+  node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{const j=JSON.parse(d);${expr}}catch{console.log('')}})"
+}
+
 # 1. Health
 HEALTH=$(curl -sf "$API/health" | grep -c healthy || true)
 check "GET /api/v1/health" "$([ "$HEALTH" -ge 1 ] && echo 1 || echo 0)"
 
 # 2. Admin redirect without auth
-REDIRECT=$(curl -s -o /dev/null -w "%{http_code}:%{redirect_url}" "$WEB/admin/dashboard")
+REDIRECT=$(curl -s -o /dev/null -w "%{http_code}:%{redirect_url}" "$WEB/admin/dashboard" 2>/dev/null || echo "000")
 check "/admin/* redirect without login" "$(echo "$REDIRECT" | grep -q '307\|302' && echo 1 || echo 0)"
 
 # 3. Login
 LOGIN_RESP=$(curl -sf -X POST "$API/auth/login" \
   -H 'Content-Type: application/json' \
   -d "{\"email\":\"$ADMIN_EMAIL\",\"password\":\"$ADMIN_PASSWORD\"}")
-ACCESS=$(echo "$LOGIN_RESP" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{console.log(JSON.parse(d).data.accessToken||'')}catch{console.log('')}})")
-REFRESH=$(echo "$LOGIN_RESP" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{console.log(JSON.parse(d).data.refreshToken||'')}catch{console.log('')}})")
+ACCESS=$(echo "$LOGIN_RESP" | json_field "console.log(j.data?.accessToken||'')")
+REFRESH=$(echo "$LOGIN_RESP" | json_field "console.log(j.data?.refreshToken||'')")
+ADMIN_ACCESS="$ACCESS"
 check "Login admin" "$([ -n "$ACCESS" ] && echo 1 || echo 0)"
 
 AUTH="Authorization: Bearer $ACCESS"
@@ -63,7 +75,7 @@ check "Dashboard fetch API" "$([ "$DASH" -ge 1 ] && echo 1 || echo 0)"
 NIK="320101010618$(date +%H%M%S | tail -c 5)0001"
 CREATE_RES=$(curl -sf -X POST "$API/residents" -H "$AUTH" -H 'Content-Type: application/json' \
   -d "{\"nik\":\"$NIK\",\"fullName\":\"Warga Staging Test\",\"gender\":\"male\",\"birthPlace\":\"Jakarta\",\"birthDate\":\"1990-01-01\",\"maritalStatus\":\"single\",\"residentStatus\":\"active\"}")
-RES_ID=$(echo "$CREATE_RES" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{console.log(JSON.parse(d).data.id||'')}catch{console.log('')}})")
+RES_ID=$(echo "$CREATE_RES" | json_field "console.log(j.data?.id||'')")
 UPDATE_RES=$(curl -sf -X PATCH "$API/residents/$RES_ID" -H "$AUTH" -H 'Content-Type: application/json' \
   -d '{"fullName":"Warga Staging Updated"}' | grep -c success || true)
 GET_RES=$(curl -sf -H "$AUTH" "$API/residents/$RES_ID" | grep -c "Warga Staging Updated" || true)
@@ -73,7 +85,7 @@ check "CRUD penduduk (create/update/read)" "$([ -n "$RES_ID" ] && [ "$UPDATE_RES
 KK="320101$(date +%H%M%S | tail -c 6)0001"
 CREATE_FAM=$(curl -sf -X POST "$API/families" -H "$AUTH" -H 'Content-Type: application/json' \
   -d "{\"kkNumber\":\"$KK\",\"economicStatus\":\"middle\"}")
-FAM_ID=$(echo "$CREATE_FAM" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{console.log(JSON.parse(d).data.id||'')}catch{console.log('')}})")
+FAM_ID=$(echo "$CREATE_FAM" | json_field "console.log(j.data?.id||'')")
 PATCH_FAM=$(curl -sf -X PATCH "$API/families/$FAM_ID" -H "$AUTH" -H 'Content-Type: application/json' \
   -d '{"houseStatus":"owned"}' | grep -c success || true)
 GET_FAM=$(curl -sf -H "$AUTH" "$API/families/$FAM_ID" | grep -c owned || true)
@@ -81,17 +93,17 @@ check "CRUD KK (create/update/read)" "$([ -n "$FAM_ID" ] && [ "$PATCH_FAM" -ge 1
 
 # 7. Letter workflow
 LT=$(curl -sf -H "$AUTH" "$API/letter-types?limit=1")
-LT_ID=$(echo "$LT" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{const j=JSON.parse(d);const items=j.data?.items||j.data||[];console.log(items[0]?.id||'')}catch{console.log('')}})")
+LT_ID=$(echo "$LT" | json_field "const items=j.data?.items||j.data||[];console.log(items[0]?.id||'')")
 CREATE_LR=$(curl -sf -X POST "$API/letter-requests" -H "$AUTH" -H 'Content-Type: application/json' \
   -d "{\"letterTypeId\":\"$LT_ID\",\"residentId\":\"$RES_ID\",\"purpose\":\"Staging test\"}")
-LR_ID=$(echo "$CREATE_LR" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{console.log(JSON.parse(d).data.id||'')}catch{console.log('')}})")
+LR_ID=$(echo "$CREATE_LR" | json_field "console.log(j.data?.id||'')")
 VERIFY=$(curl -sf -X PATCH "$API/letter-requests/$LR_ID/verify" -H "$AUTH" -H 'Content-Type: application/json' \
   -d '{"approved":true}' | grep -c success || true)
 APPROVE=$(curl -sf -X PATCH "$API/letter-requests/$LR_ID/approve" -H "$AUTH" -H 'Content-Type: application/json' \
   -d '{"approved":true}' | grep -c success || true)
 GEN=$(curl -sf -X POST "$API/letter-requests/$LR_ID/generate-pdf" -H "$AUTH" -H 'Content-Type: application/json' 2>/dev/null || echo '{}')
 GEN_OK=$(echo "$GEN" | grep -c success || true)
-QR=$(echo "$GEN" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{console.log(JSON.parse(d).data.qrCode||'')}catch{console.log('')}})")
+QR=$(echo "$GEN" | json_field "console.log(j.data?.qrCode||'')")
 DOWNLOAD=$(curl -sf -H "$AUTH" "$API/letter-requests/$LR_ID/download" 2>/dev/null || echo '{}')
 DOWNLOAD_OK=$(echo "$DOWNLOAD" | grep -c '"url"' || true)
 VERIFY_QR=$(curl -sf "$API/letters/verify/$QR" 2>/dev/null | grep -c '"valid":true' || true)
@@ -116,7 +128,64 @@ IMPORT=$(curl -sf -X POST "$API/residents/import?preview=true" -H "$AUTH" \
 IMPORT_OK=$(echo "$IMPORT" | grep -c success || true)
 check "Import Excel preview" "$([ "$IMPORT_OK" -ge 1 ] && echo 1 || echo 0)"
 
-# 11. Logout
+# 11. RBAC smoke
+SMOKE_TS=$(date +%s)
+SMOKE_USER_EMAIL="smoke-rbac-${SMOKE_TS}@smoke.test.local"
+SMOKE_USER_PASSWORD="${SMOKE_TEST_USER_PASSWORD:-}"
+if [ -z "$SMOKE_USER_PASSWORD" ]; then
+  SMOKE_USER_PASSWORD="SmokeTest_${SMOKE_TS}_Aa1"
+fi
+
+ROLES_RESP=$(curl -sf -H "$AUTH" "$API/roles?limit=50")
+OPERATOR_ROLE_ID=$(echo "$ROLES_RESP" | json_field "const items=j.data||[];const r=items.find(x=>x.code==='operator_desa');console.log(r?.id||'')")
+
+CREATE_USER=$(curl -sf -X POST "$API/users" -H "$AUTH" -H 'Content-Type: application/json' \
+  -d "{\"email\":\"$SMOKE_USER_EMAIL\",\"name\":\"Smoke RBAC User\",\"password\":\"$SMOKE_USER_PASSWORD\",\"roleIds\":[\"$OPERATOR_ROLE_ID\"]}")
+SMOKE_USER_ID=$(echo "$CREATE_USER" | json_field "console.log(j.data?.id||'')")
+check "RBAC create user" "$([ -n "$SMOKE_USER_ID" ] && echo 1 || echo 0)"
+
+ASSIGN_ROLES=$(curl -sf -X PUT "$API/users/$SMOKE_USER_ID/roles" -H "$AUTH" -H 'Content-Type: application/json' \
+  -d "{\"roleIds\":[\"$OPERATOR_ROLE_ID\"]}" | grep -c success || true)
+check "RBAC assign role" "$([ "$ASSIGN_ROLES" -ge 1 ] && echo 1 || echo 0)"
+
+SMOKE_LOGIN=$(curl -sf -X POST "$API/auth/login" -H 'Content-Type: application/json' \
+  -d "{\"email\":\"$SMOKE_USER_EMAIL\",\"password\":\"$SMOKE_USER_PASSWORD\"}")
+SMOKE_ACCESS=$(echo "$SMOKE_LOGIN" | json_field "console.log(j.data?.accessToken||'')")
+SMOKE_AUTH="Authorization: Bearer $SMOKE_ACCESS"
+COMPLAINTS_OK=$(curl -sf -H "$SMOKE_AUTH" "$API/complaints?limit=1" | grep -c success || true)
+check "RBAC smoke user permission (complaints.read)" "$([ -n "$SMOKE_ACCESS" ] && [ "$COMPLAINTS_OK" -ge 1 ] && echo 1 || echo 0)"
+
+DISABLE_USER=$(curl -sf -X PATCH "$API/users/$SMOKE_USER_ID/status" -H "$AUTH" -H 'Content-Type: application/json' \
+  -d '{"status":"inactive"}' | grep -c success || true)
+check "RBAC disable user" "$([ "$DISABLE_USER" -ge 1 ] && echo 1 || echo 0)"
+
+DISABLED_LOGIN_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$API/auth/login" \
+  -H 'Content-Type: application/json' \
+  -d "{\"email\":\"$SMOKE_USER_EMAIL\",\"password\":\"$SMOKE_USER_PASSWORD\"}")
+check "RBAC disabled user cannot login" "$([ "$DISABLED_LOGIN_CODE" != "200" ] && echo 1 || echo 0)"
+
+AUTH="Authorization: Bearer $ADMIN_ACCESS"
+
+# 12. Complaints workflow
+CREATE_CMP=$(curl -sf -X POST "$API/complaints/public?tenantCode=demo-desa" -H 'Content-Type: application/json' \
+  -d '{"title":"Smoke Test Pengaduan","description":"Pengaduan dari smoke test otomatis","category":"Lingkungan","priority":"medium","location":"RT 01"}')
+CMP_ID=$(echo "$CREATE_CMP" | json_field "console.log(j.data?.id||'')")
+check "Complaints public create" "$([ -n "$CMP_ID" ] && echo 1 || echo 0)"
+
+VERIFY_CMP=$(curl -sf -X PATCH "$API/complaints/$CMP_ID/status" -H "$AUTH" -H 'Content-Type: application/json' \
+  -d '{"status":"verified"}' | grep -c success || true)
+check "Complaints verify status" "$([ "$VERIFY_CMP" -ge 1 ] && echo 1 || echo 0)"
+
+ADMIN_ID=$(echo "$LOGIN_RESP" | json_field "console.log(j.data?.user?.id||'')")
+ASSIGN_CMP=$(curl -sf -X PATCH "$API/complaints/$CMP_ID/assign" -H "$AUTH" -H 'Content-Type: application/json' \
+  -d "{\"assigneeId\":\"$ADMIN_ID\"}" | grep -c success || true)
+check "Complaints assign" "$([ "$ASSIGN_CMP" -ge 1 ] && echo 1 || echo 0)"
+
+RESP_CMP=$(curl -sf -X POST "$API/complaints/$CMP_ID/responses" -H "$AUTH" -H 'Content-Type: application/json' \
+  -d '{"response":"Ditindaklanjuti oleh smoke test","status":"resolved"}' | grep -c success || true)
+check "Complaints add response" "$([ "$RESP_CMP" -ge 1 ] && echo 1 || echo 0)"
+
+# 13. Logout
 LOGOUT=$(curl -sf -X POST "$API/auth/logout" -H "$AUTH" -H 'Content-Type: application/json' \
   -d "{\"refreshToken\":\"$REFRESH\"}" | grep -c success || true)
 check "Logout" "$([ "$LOGOUT" -ge 1 ] && echo 1 || echo 0)"
@@ -127,4 +196,5 @@ curl -sf -X DELETE -H "$AUTH" "$API/families/$FAM_ID" >/dev/null 2>&1 || true
 
 echo ""
 echo "Smoke test summary: PASS=$PASS FAIL=$FAIL"
+echo "Note: after prisma:seed or RBAC changes, admin must re-login to refresh JWT permissions."
 exit $([ "$FAIL" -eq 0 ] && echo 0 || echo 1)

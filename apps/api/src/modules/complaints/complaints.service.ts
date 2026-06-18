@@ -4,10 +4,33 @@ import {
   ForbiddenException,
   BadRequestException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+import {
+  assignComplaintSchema,
+  createComplaintSchema,
+  respondComplaintSchema,
+  updateComplaintStatusSchema,
+} from '@sidpro/validators';
 import { PrismaService } from '../../database/prisma.service';
 import { AuditLogsService } from '../../core/audit-logs/audit-logs.service';
 import { JwtPayload } from '../../common/decorators/current-user.decorator';
 import { paginatedResponse, successResponse } from '../../common/utils/response.util';
+
+const COMPLAINT_INCLUDE_LIST = {
+  reporter: { select: { id: true, name: true } },
+  assignee: { select: { id: true, name: true } },
+  _count: { select: { responses: true } },
+} as const;
+
+const STATUS_TRANSITIONS: Record<string, string[]> = {
+  submitted: ['verified', 'rejected'],
+  verified: ['assigned', 'rejected'],
+  assigned: ['in_progress', 'rejected'],
+  in_progress: ['resolved', 'rejected'],
+  resolved: ['closed'],
+  rejected: [],
+  closed: [],
+};
 
 @Injectable()
 export class ComplaintsService {
@@ -27,9 +50,64 @@ export class ComplaintsService {
     return tenant.id;
   }
 
-  async findAll(user: JwtPayload, page = 1, limit = 20, status?: string) {
+  private assertTransition(from: string, to: string) {
+    const allowed = STATUS_TRANSITIONS[from] ?? [];
+    if (!allowed.includes(to)) {
+      throw new BadRequestException(`Transisi status ${from} → ${to} tidak diizinkan`);
+    }
+  }
+
+  private buildWhere(
+    tenantId: string,
+    filters: {
+      status?: string;
+      priority?: string;
+      search?: string;
+      dateFrom?: string;
+      dateTo?: string;
+    },
+  ): Prisma.ComplaintWhereInput {
+    const where: Prisma.ComplaintWhereInput = {
+      tenantId,
+      ...(filters.status ? { status: filters.status } : {}),
+      ...(filters.priority ? { priority: filters.priority } : {}),
+    };
+
+    if (filters.dateFrom || filters.dateTo) {
+      where.createdAt = {
+        ...(filters.dateFrom ? { gte: new Date(`${filters.dateFrom}T00:00:00.000Z`) } : {}),
+        ...(filters.dateTo ? { lte: new Date(`${filters.dateTo}T23:59:59.999Z`) } : {}),
+      };
+    }
+
+    const search = filters.search?.trim();
+    if (search) {
+      where.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+        { category: { contains: search, mode: 'insensitive' } },
+        { location: { contains: search, mode: 'insensitive' } },
+        { reporterName: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    return where;
+  }
+
+  async findAll(
+    user: JwtPayload,
+    page = 1,
+    limit = 20,
+    filters: {
+      status?: string;
+      priority?: string;
+      search?: string;
+      dateFrom?: string;
+      dateTo?: string;
+    } = {},
+  ) {
     const tenantId = this.requireTenant(user);
-    const where = { tenantId, ...(status ? { status } : {}) };
+    const where = this.buildWhere(tenantId, filters);
 
     const [data, total] = await Promise.all([
       this.prisma.complaint.findMany({
@@ -37,11 +115,7 @@ export class ComplaintsService {
         skip: (page - 1) * limit,
         take: limit,
         orderBy: { createdAt: 'desc' },
-        include: {
-          reporter: { select: { id: true, name: true } },
-          assignee: { select: { id: true, name: true } },
-          _count: { select: { responses: true } },
-        },
+        include: COMPLAINT_INCLUDE_LIST,
       }),
       this.prisma.complaint.count({ where }),
     ]);
@@ -55,40 +129,46 @@ export class ComplaintsService {
       where: { id, tenantId },
       include: {
         reporter: { select: { id: true, name: true, email: true } },
-        assignee: { select: { id: true, name: true } },
+        assignee: { select: { id: true, name: true, email: true } },
         responses: { orderBy: { createdAt: 'asc' } },
       },
     });
     if (!complaint) throw new NotFoundException('Pengaduan tidak ditemukan');
-    return successResponse(complaint);
+
+    const attachments = await this.prisma.file.findMany({
+      where: { tenantId, ownerType: 'complaint', ownerId: id },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        path: true,
+        mimeType: true,
+        size: true,
+        createdAt: true,
+      },
+    });
+
+    return successResponse({ ...complaint, attachments });
   }
 
-  async createPublic(
-    tenantCode: string,
-    body: {
-      title: string;
-      description: string;
-      category: string;
-      priority?: string;
-      location?: string;
-      reporterName?: string;
-      reporterPhone?: string;
-      reporterEmail?: string;
-    },
-  ) {
+  async createPublic(tenantCode: string, body: unknown) {
+    const parsed = createComplaintSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.flatten().fieldErrors);
+    }
+
     const tenantId = await this.resolveTenantId(tenantCode);
 
     const complaint = await this.prisma.complaint.create({
       data: {
         tenantId,
-        title: body.title,
-        description: body.description,
-        category: body.category,
-        priority: body.priority ?? 'medium',
-        location: body.location,
-        reporterName: body.reporterName,
-        reporterPhone: body.reporterPhone,
-        reporterEmail: body.reporterEmail,
+        title: parsed.data.title,
+        description: parsed.data.description,
+        category: parsed.data.category,
+        priority: parsed.data.priority ?? 'medium',
+        location: parsed.data.location,
+        reporterName: parsed.data.reporterName,
+        reporterPhone: parsed.data.reporterPhone,
+        reporterEmail: parsed.data.reporterEmail,
         status: 'submitted',
       },
     });
@@ -96,28 +176,23 @@ export class ComplaintsService {
     return successResponse(complaint, 'Pengaduan berhasil dikirim');
   }
 
-  async create(
-    user: JwtPayload,
-    body: {
-      title: string;
-      description: string;
-      category: string;
-      priority?: string;
-      location?: string;
-    },
-    ipAddress?: string,
-  ) {
+  async create(user: JwtPayload, body: unknown, ipAddress?: string) {
+    const parsed = createComplaintSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.flatten().fieldErrors);
+    }
+
     const tenantId = this.requireTenant(user);
 
     const complaint = await this.prisma.complaint.create({
       data: {
         tenantId,
         reporterId: user.sub,
-        title: body.title,
-        description: body.description,
-        category: body.category,
-        priority: body.priority ?? 'medium',
-        location: body.location,
+        title: parsed.data.title,
+        description: parsed.data.description,
+        category: parsed.data.category,
+        priority: parsed.data.priority ?? 'medium',
+        location: parsed.data.location,
         status: 'submitted',
       },
     });
@@ -135,20 +210,107 @@ export class ComplaintsService {
     return successResponse(complaint, 'Pengaduan berhasil dibuat');
   }
 
-  async assign(
-    user: JwtPayload,
-    id: string,
-    assigneeId: string,
-    ipAddress?: string,
-  ) {
+  async updateStatus(user: JwtPayload, id: string, body: unknown, ipAddress?: string) {
+    const parsed = updateComplaintStatusSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.flatten().fieldErrors);
+    }
+
     const tenantId = this.requireTenant(user);
     const existing = await this.prisma.complaint.findFirst({ where: { id, tenantId } });
     if (!existing) throw new NotFoundException('Pengaduan tidak ditemukan');
 
+    const { status: nextStatus, note } = parsed.data;
+
+    if (['rejected', 'closed'].includes(nextStatus) && !user.permissions.includes('complaints.close')) {
+      throw new ForbiddenException('Missing permission: complaints.close');
+    }
+    if (!['rejected', 'closed'].includes(nextStatus) && !user.permissions.includes('complaints.update')) {
+      throw new ForbiddenException('Missing permission: complaints.update');
+    }
+
+    this.assertTransition(existing.status, nextStatus);
+
+    const complaint = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.complaint.update({
+        where: { id },
+        data: {
+          status: nextStatus,
+          ...(nextStatus === 'closed' || nextStatus === 'rejected'
+            ? { closedAt: new Date() }
+            : {}),
+        },
+        include: COMPLAINT_INCLUDE_LIST,
+      });
+
+      if (note) {
+        await tx.complaintResponse.create({
+          data: {
+            complaintId: id,
+            responderId: user.sub,
+            response: note,
+            status: nextStatus,
+          },
+        });
+      }
+
+      return updated;
+    });
+
+    const action =
+      nextStatus === 'verified'
+        ? 'verify'
+        : nextStatus === 'rejected'
+          ? 'reject'
+          : nextStatus === 'closed'
+            ? 'close'
+            : 'update_status';
+
+    await this.auditLogs.log({
+      tenantId,
+      actorId: user.sub,
+      action,
+      module: 'complaints',
+      entityType: 'complaint',
+      entityId: id,
+      metadata: { from: existing.status, to: nextStatus },
+      ipAddress,
+    });
+
+    return successResponse(complaint, 'Status pengaduan diperbarui');
+  }
+
+  async assign(user: JwtPayload, id: string, body: unknown, ipAddress?: string) {
+    const parsed = assignComplaintSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.flatten().fieldErrors);
+    }
+
+    const tenantId = this.requireTenant(user);
+    const existing = await this.prisma.complaint.findFirst({ where: { id, tenantId } });
+    if (!existing) throw new NotFoundException('Pengaduan tidak ditemukan');
+
+    if (existing.status === 'submitted') {
+      throw new BadRequestException('Verifikasi pengaduan terlebih dahulu');
+    }
+    if (!['verified', 'assigned', 'in_progress'].includes(existing.status)) {
+      throw new BadRequestException('Pengaduan tidak dapat ditugaskan pada status ini');
+    }
+
+    const assignee = await this.prisma.user.findFirst({
+      where: { id: parsed.data.assigneeId, tenantId, deletedAt: null, status: 'active' },
+    });
+    if (!assignee) throw new NotFoundException('Petugas tidak ditemukan');
+
+    const nextStatus = existing.status === 'verified' ? 'assigned' : existing.status;
+
     const complaint = await this.prisma.complaint.update({
       where: { id },
-      data: { assigneeId, status: 'assigned' },
-      include: { assignee: { select: { id: true, name: true } } },
+      data: {
+        assigneeId: parsed.data.assigneeId,
+        status: nextStatus,
+      },
+      include: COMPLAINT_INCLUDE_LIST,
     });
 
     await this.auditLogs.log({
@@ -158,35 +320,45 @@ export class ComplaintsService {
       module: 'complaints',
       entityType: 'complaint',
       entityId: id,
-      metadata: { assigneeId },
+      metadata: { assigneeId: parsed.data.assigneeId },
       ipAddress,
     });
 
     return successResponse(complaint, 'Pengaduan berhasil ditugaskan');
   }
 
-  async respond(
-    user: JwtPayload,
-    id: string,
-    body: { response: string; status?: string },
-    ipAddress?: string,
-  ) {
+  async addResponse(user: JwtPayload, id: string, body: unknown, ipAddress?: string) {
+    const parsed = respondComplaintSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.flatten().fieldErrors);
+    }
+
     const tenantId = this.requireTenant(user);
     const existing = await this.prisma.complaint.findFirst({ where: { id, tenantId } });
     if (!existing) throw new NotFoundException('Pengaduan tidak ditemukan');
+
+    const nextStatus = parsed.data.status ?? 'in_progress';
 
     const [response] = await this.prisma.$transaction([
       this.prisma.complaintResponse.create({
         data: {
           complaintId: id,
           responderId: user.sub,
-          response: body.response,
-          status: body.status,
+          response: parsed.data.response,
+          status: nextStatus,
         },
       }),
       this.prisma.complaint.update({
         where: { id },
-        data: { status: body.status ?? 'in_progress' },
+        data: {
+          status:
+            nextStatus === 'resolved' && existing.status !== 'closed'
+              ? 'resolved'
+              : existing.status === 'assigned'
+                ? 'in_progress'
+                : existing.status,
+          ...(nextStatus === 'resolved' ? { closedAt: null } : {}),
+        },
       }),
     ]);
 
@@ -197,35 +369,28 @@ export class ComplaintsService {
       module: 'complaints',
       entityType: 'complaint',
       entityId: id,
+      metadata: { status: nextStatus },
       ipAddress,
     });
 
     return successResponse(response, 'Tanggapan berhasil dikirim');
   }
 
+  async respond(
+    user: JwtPayload,
+    id: string,
+    body: unknown,
+    ipAddress?: string,
+  ) {
+    return this.addResponse(user, id, body, ipAddress);
+  }
+
   async close(user: JwtPayload, id: string, ipAddress?: string) {
-    const tenantId = this.requireTenant(user);
-    const existing = await this.prisma.complaint.findFirst({ where: { id, tenantId } });
-    if (!existing) throw new NotFoundException('Pengaduan tidak ditemukan');
-    if (existing.status === 'closed') {
-      throw new BadRequestException('Pengaduan sudah ditutup');
-    }
-
-    const complaint = await this.prisma.complaint.update({
-      where: { id },
-      data: { status: 'closed', closedAt: new Date() },
-    });
-
-    await this.auditLogs.log({
-      tenantId,
-      actorId: user.sub,
-      action: 'close',
-      module: 'complaints',
-      entityType: 'complaint',
-      entityId: id,
+    return this.updateStatus(
+      user,
+      id,
+      { status: 'closed', note: 'Pengaduan ditutup' },
       ipAddress,
-    });
-
-    return successResponse(complaint, 'Pengaduan berhasil ditutup');
+    );
   }
 }

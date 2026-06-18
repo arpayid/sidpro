@@ -36,7 +36,7 @@ export class FilesController {
   constructor(private filesService: FilesService) {}
 
   @Get()
-  @RequirePermissions('settings.manage')
+  @RequirePermissions('settings.manage', 'complaints.read')
   findAll(
     @CurrentUser() user: JwtPayload,
     @Query('page') page = '1',
@@ -57,6 +57,7 @@ export class FilesController {
   @RequirePermissions(
     'settings.manage',
     'complaints.create',
+    'complaints.update',
     'letters.create',
     'population.import',
   )
@@ -88,6 +89,7 @@ export class FilesController {
   @Get(':id/download')
   @RequirePermissions(
     'settings.manage',
+    'complaints.read',
     'complaints.create',
     'letters.create',
     'population.import',

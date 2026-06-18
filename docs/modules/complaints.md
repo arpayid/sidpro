@@ -1,17 +1,45 @@
-# Module: Complaints
+# Module: Complaints (Pengaduan)
 
-Purpose: manage public complaints, assignment, response, status tracking, and service quality.
+Purpose: manage citizen complaints from submission to resolution.
 
-Users: warga, operator_desa, admin_desa, kepala_desa, perangkat_desa.
+Users: admin_desa, operator_desa, sekretaris_desa, kepala_desa.
 
-Tables: complaints, complaint_categories, complaint_files, complaint_responses, complaint_assignments.
+Admin UI: `/admin/pengaduan` (permission `complaints.read`).
 
-API: GET /complaints, POST /complaints, GET /complaints/:id, PATCH /complaints/:id/assign, PATCH /complaints/:id/respond, PATCH /complaints/:id/close.
+Public form: `/pengaduan` → `POST /complaints/public?tenantCode={NEXT_PUBLIC_TENANT_CODE|demo-desa}`.
 
-Workflow: submitted, verified, assigned, in_progress, resolved, closed, rejected.
+Response includes complaint `id` — shown to citizen as ticket reference (`PGD-{id prefix}`).
 
-UI: complaint list, complaint detail, public complaint form, response timeline, status badge, assignment panel.
+## End-to-end flow
 
-Permissions: complaints.read, complaints.create, complaints.assign, complaints.respond, complaints.close.
+```txt
+1. Warga mengisi form di /pengaduan
+2. API membuat complaint status=submitted
+3. Admin melihat di /admin/pengaduan
+4. Admin verifikasi → assign petugas → tanggapan → selesai → tutup
+5. Lampiran dapat diunggah admin via POST /files/upload (ownerType=complaint)
+```
 
-Done when: complaint can be submitted, verified, assigned, responded to, closed, tracked, and logged.
+## Workflow
+
+```txt
+submitted (Masuk)
+→ verified (Diverifikasi)
+→ assigned (Ditugaskan)
+→ in_progress (Diproses)
+→ resolved (Selesai)
+→ closed (Ditutup)
+
+Alternative: rejected (Ditolak) from most active states
+```
+
+## Permissions
+
+- `complaints.read` — list, detail, download attachments
+- `complaints.create` — create admin / upload files
+- `complaints.update` — verify, status transitions (non-close)
+- `complaints.assign` — assign petugas
+- `complaints.respond` — add response / timeline notes
+- `complaints.close` — reject or close
+
+Done when: admin can filter, assign, respond, update status, view timeline, and actions are audit-logged.

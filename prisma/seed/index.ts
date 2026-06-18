@@ -38,6 +38,7 @@ const PERMISSIONS = [
   { code: 'letters.manage', name: 'Manage Letter Types', module: 'letters' },
   { code: 'complaints.read', name: 'Read Complaints', module: 'complaints' },
   { code: 'complaints.create', name: 'Create Complaints', module: 'complaints' },
+  { code: 'complaints.update', name: 'Update Complaints', module: 'complaints' },
   { code: 'complaints.assign', name: 'Assign Complaints', module: 'complaints' },
   { code: 'complaints.respond', name: 'Respond Complaints', module: 'complaints' },
   { code: 'complaints.close', name: 'Close Complaints', module: 'complaints' },

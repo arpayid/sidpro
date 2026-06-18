@@ -8,6 +8,56 @@ const STEPS = [
   { key: 'completed', label: 'Selesai' },
 ];
 
+export function ComplaintStepper({ currentStatus }: { currentStatus: string }) {
+  const steps = [
+    { key: 'submitted', label: 'Masuk' },
+    { key: 'verified', label: 'Diverifikasi' },
+    { key: 'assigned', label: 'Ditugaskan' },
+    { key: 'in_progress', label: 'Diproses' },
+    { key: 'resolved', label: 'Selesai' },
+  ];
+  const statusOrder = steps.map((s) => s.key);
+  const currentIndex =
+    currentStatus === 'rejected' || currentStatus === 'closed'
+      ? statusOrder.indexOf('resolved')
+      : statusOrder.indexOf(currentStatus);
+
+  return (
+    <ol className="flex flex-wrap items-center gap-2">
+      {steps.map((step, i) => {
+        const done = currentIndex > i || currentStatus === 'resolved' || currentStatus === 'closed';
+        const active = statusOrder[currentIndex] === step.key && currentStatus !== 'closed';
+        return (
+          <li key={step.key} className="flex items-center gap-2">
+            {i > 0 && <span className="hidden h-px w-6 bg-slate-200 sm:block" />}
+            <span
+              className={cn(
+                'flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium',
+                done && 'bg-emerald-50 text-emerald-700',
+                active && 'bg-emerald-100 text-emerald-800 ring-1 ring-emerald-200',
+                !done && !active && 'bg-slate-100 text-slate-500',
+              )}
+            >
+              {done && <Check className="h-3 w-3" />}
+              {step.label}
+            </span>
+          </li>
+        );
+      })}
+      {currentStatus === 'rejected' && (
+        <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-medium text-red-700">
+          Ditolak
+        </span>
+      )}
+      {currentStatus === 'closed' && (
+        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
+          Ditutup
+        </span>
+      )}
+    </ol>
+  );
+}
+
 export function ApprovalStepper({ currentStatus }: { currentStatus: string }) {
   const statusOrder = ['submitted', 'verified', 'approved', 'completed'];
   const currentIndex =

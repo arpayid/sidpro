@@ -1,43 +1,50 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { publicComplaintFormSchema, type PublicComplaintFormInput } from '@sidpro/validators';
 import { Button, Card, CardContent, CardHeader, CardTitle, Input } from '@sidpro/ui';
-import { MessageSquare } from 'lucide-react';
+import { MessageSquare, AlertCircle } from 'lucide-react';
+import { useSubmitPublicComplaint } from '@/features/complaints/use-public-complaint';
+import { getPublicTenantCode } from '@/lib/tenant';
+
+const CATEGORIES = [
+  { value: 'Infrastruktur', label: 'Infrastruktur' },
+  { value: 'Lingkungan', label: 'Lingkungan' },
+  { value: 'Pelayanan', label: 'Pelayanan' },
+  { value: 'Keamanan', label: 'Keamanan' },
+  { value: 'Sosial', label: 'Sosial' },
+  { value: 'Lainnya', label: 'Lainnya' },
+];
+
+function formatTicketId(id: string) {
+  return `PGD-${id.slice(0, 8).toUpperCase()}`;
+}
 
 export default function PengaduanPage() {
-  const [submitted, setSubmitted] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const submitMutation = useSubmitPublicComplaint();
+  const tenantCode = getPublicTenantCode();
 
-  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setLoading(true);
+  const form = useForm<PublicComplaintFormInput>({
+    resolver: zodResolver(publicComplaintFormSchema),
+    defaultValues: {
+      reporterName: '',
+      reporterPhone: '',
+      reporterEmail: '',
+      category: '',
+      title: '',
+      description: '',
+      priority: 'medium',
+      location: '',
+    },
+  });
 
-    const form = new FormData(e.currentTarget);
-    const payload = {
-      name: form.get('name'),
-      email: form.get('email'),
-      phone: form.get('phone'),
-      category: form.get('category'),
-      subject: form.get('subject'),
-      message: form.get('message'),
-    };
-
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000'}/api/v1/public/complaints`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) throw new Error('API unavailable');
-      setSubmitted(true);
-    } catch {
-      setSubmitted(true);
-    } finally {
-      setLoading(false);
-    }
+  async function onSubmit(values: PublicComplaintFormInput) {
+    await submitMutation.mutateAsync(values);
   }
 
-  if (submitted) {
+  if (submitMutation.isSuccess && submitMutation.data) {
+    const ticket = formatTicketId(submitMutation.data.id);
     return (
       <div className="container-page py-10">
         <Card className="mx-auto max-w-lg text-center">
@@ -49,6 +56,15 @@ export default function PengaduanPage() {
             <p className="mt-2 text-sm text-slate-600">
               Terima kasih. Pengaduan Anda telah diterima dan akan ditindaklanjuti oleh pemerintah desa.
             </p>
+            <div className="mt-6 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">
+                Nomor Tiket
+              </p>
+              <p className="mt-1 font-mono text-lg font-semibold text-emerald-900">{ticket}</p>
+              <p className="mt-2 text-xs text-emerald-700">
+                Simpan nomor ini untuk mengecek status pengaduan Anda.
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -65,67 +81,116 @@ export default function PengaduanPage() {
       <Card className="mx-auto mt-8 max-w-2xl">
         <CardHeader>
           <CardTitle>Formulir Pengaduan</CardTitle>
+          <p className="text-xs text-slate-500">Desa: {tenantCode}</p>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label htmlFor="name" className="mb-1 block text-sm font-medium text-slate-700">
+                <label className="form-label" htmlFor="reporterName">
                   Nama Lengkap
                 </label>
-                <Input id="name" name="name" required placeholder="Nama lengkap" />
+                <Input id="reporterName" {...form.register('reporterName')} />
+                {form.formState.errors.reporterName && (
+                  <p className="form-error">{form.formState.errors.reporterName.message}</p>
+                )}
               </div>
               <div>
-                <label htmlFor="phone" className="mb-1 block text-sm font-medium text-slate-700">
+                <label className="form-label" htmlFor="reporterPhone">
                   No. Telepon
                 </label>
-                <Input id="phone" name="phone" required placeholder="08xxxxxxxxxx" />
+                <Input id="reporterPhone" {...form.register('reporterPhone')} placeholder="08xxxxxxxxxx" />
+                {form.formState.errors.reporterPhone && (
+                  <p className="form-error">{form.formState.errors.reporterPhone.message}</p>
+                )}
               </div>
             </div>
             <div>
-              <label htmlFor="email" className="mb-1 block text-sm font-medium text-slate-700">
-                Email
+              <label className="form-label" htmlFor="reporterEmail">
+                Email <span className="text-slate-400">(opsional)</span>
               </label>
-              <Input id="email" name="email" type="email" placeholder="email@example.com" />
+              <Input id="reporterEmail" type="email" {...form.register('reporterEmail')} />
+              {form.formState.errors.reporterEmail && (
+                <p className="form-error">{form.formState.errors.reporterEmail.message}</p>
+              )}
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="form-label" htmlFor="category">
+                  Kategori
+                </label>
+                <select
+                  id="category"
+                  className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  {...form.register('category')}
+                >
+                  <option value="">Pilih kategori</option>
+                  {CATEGORIES.map((c) => (
+                    <option key={c.value} value={c.value}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+                {form.formState.errors.category && (
+                  <p className="form-error">{form.formState.errors.category.message}</p>
+                )}
+              </div>
+              <div>
+                <label className="form-label" htmlFor="priority">
+                  Prioritas
+                </label>
+                <select
+                  id="priority"
+                  className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  {...form.register('priority')}
+                >
+                  <option value="low">Rendah</option>
+                  <option value="medium">Sedang</option>
+                  <option value="high">Tinggi</option>
+                  <option value="urgent">Mendesak</option>
+                </select>
+              </div>
             </div>
             <div>
-              <label htmlFor="category" className="mb-1 block text-sm font-medium text-slate-700">
-                Kategori
-              </label>
-              <select
-                id="category"
-                name="category"
-                required
-                className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              >
-                <option value="">Pilih kategori</option>
-                <option value="infrastruktur">Infrastruktur</option>
-                <option value="lingkungan">Lingkungan</option>
-                <option value="pelayanan">Pelayanan</option>
-                <option value="lainnya">Lainnya</option>
-              </select>
-            </div>
-            <div>
-              <label htmlFor="subject" className="mb-1 block text-sm font-medium text-slate-700">
+              <label className="form-label" htmlFor="title">
                 Subjek
               </label>
-              <Input id="subject" name="subject" required placeholder="Ringkasan pengaduan" />
+              <Input id="title" {...form.register('title')} placeholder="Ringkasan pengaduan" />
+              {form.formState.errors.title && (
+                <p className="form-error">{form.formState.errors.title.message}</p>
+              )}
             </div>
             <div>
-              <label htmlFor="message" className="mb-1 block text-sm font-medium text-slate-700">
+              <label className="form-label" htmlFor="location">
+                Lokasi <span className="text-slate-400">(opsional)</span>
+              </label>
+              <Input id="location" {...form.register('location')} placeholder="RT/RW, jalan, dll." />
+            </div>
+            <div>
+              <label className="form-label" htmlFor="description">
                 Isi Pengaduan
               </label>
               <textarea
-                id="message"
-                name="message"
-                required
+                id="description"
                 rows={5}
                 placeholder="Jelaskan pengaduan Anda secara detail..."
                 className="flex w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                {...form.register('description')}
               />
+              {form.formState.errors.description && (
+                <p className="form-error">{form.formState.errors.description.message}</p>
+              )}
             </div>
-            <Button type="submit" disabled={loading} className="w-full sm:w-auto">
-              {loading ? 'Mengirim...' : 'Kirim Pengaduan'}
+
+            {submitMutation.isError && (
+              <div className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>{(submitMutation.error as Error).message}</span>
+              </div>
+            )}
+
+            <Button type="submit" disabled={submitMutation.isPending} className="w-full sm:w-auto">
+              {submitMutation.isPending ? 'Mengirim...' : 'Kirim Pengaduan'}
             </Button>
           </form>
         </CardContent>

@@ -47,8 +47,10 @@ export function complaintStatusVariant(status: string): keyof typeof variants {
   const map: Record<string, keyof typeof variants> = {
     submitted: 'info',
     verified: 'warning',
+    assigned: 'primary',
     in_progress: 'primary',
     resolved: 'success',
+    rejected: 'danger',
     closed: 'default',
   };
   return map[status] ?? 'default';

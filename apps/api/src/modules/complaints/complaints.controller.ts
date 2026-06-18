@@ -22,20 +22,7 @@ export class ComplaintsController {
 
   @Public()
   @Post('public')
-  createPublic(
-    @Query('tenantCode') tenantCode: string,
-    @Body()
-    body: {
-      title: string;
-      description: string;
-      category: string;
-      priority?: string;
-      location?: string;
-      reporterName?: string;
-      reporterPhone?: string;
-      reporterEmail?: string;
-    },
-  ) {
+  createPublic(@Query('tenantCode') tenantCode: string, @Body() body: unknown) {
     return this.complaintsService.createPublic(tenantCode, body);
   }
 
@@ -47,8 +34,18 @@ export class ComplaintsController {
     @Query('page') page = '1',
     @Query('limit') limit = '20',
     @Query('status') status?: string,
+    @Query('priority') priority?: string,
+    @Query('search') search?: string,
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
   ) {
-    return this.complaintsService.findAll(user, parseInt(page, 10), parseInt(limit, 10), status);
+    return this.complaintsService.findAll(user, parseInt(page, 10), parseInt(limit, 10), {
+      status,
+      priority,
+      search,
+      dateFrom,
+      dateTo,
+    });
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -61,19 +58,20 @@ export class ComplaintsController {
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Post()
   @RequirePermissions('complaints.create')
-  create(
+  create(@CurrentUser() user: JwtPayload, @Body() body: unknown, @Req() req: Request) {
+    return this.complaintsService.create(user, body, req.ip);
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Patch(':id/status')
+  @RequirePermissions('complaints.update', 'complaints.close')
+  updateStatus(
     @CurrentUser() user: JwtPayload,
-    @Body()
-    body: {
-      title: string;
-      description: string;
-      category: string;
-      priority?: string;
-      location?: string;
-    },
+    @Param('id') id: string,
+    @Body() body: unknown,
     @Req() req: Request,
   ) {
-    return this.complaintsService.create(user, body, req.ip);
+    return this.complaintsService.updateStatus(user, id, body, req.ip);
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -82,10 +80,22 @@ export class ComplaintsController {
   assign(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
-    @Body() body: { assigneeId: string },
+    @Body() body: unknown,
     @Req() req: Request,
   ) {
-    return this.complaintsService.assign(user, id, body.assigneeId, req.ip);
+    return this.complaintsService.assign(user, id, body, req.ip);
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Post(':id/responses')
+  @RequirePermissions('complaints.respond')
+  addResponse(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @Req() req: Request,
+  ) {
+    return this.complaintsService.addResponse(user, id, body, req.ip);
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -94,7 +104,7 @@ export class ComplaintsController {
   respond(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
-    @Body() body: { response: string; status?: string },
+    @Body() body: unknown,
     @Req() req: Request,
   ) {
     return this.complaintsService.respond(user, id, body, req.ip);
