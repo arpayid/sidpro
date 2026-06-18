@@ -53,3 +53,24 @@ export function complaintStatusVariant(status: string): keyof typeof variants {
   };
   return map[status] ?? 'default';
 }
+
+export function auditActionVariant(action: string): keyof typeof variants {
+  const normalized = action.toLowerCase();
+  const map: Record<string, keyof typeof variants> = {
+    create: 'success',
+    update: 'info',
+    delete: 'danger',
+    generate: 'primary',
+    download: 'info',
+    verify: 'warning',
+    login: 'default',
+    logout: 'default',
+    export: 'primary',
+    import: 'primary',
+    upload: 'info',
+    approve: 'success',
+    reject: 'danger',
+    upsert: 'warning',
+  };
+  return map[normalized] ?? 'default';
+}

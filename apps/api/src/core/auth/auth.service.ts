@@ -153,13 +153,31 @@ export class AuthService {
     }, 'Token diperbarui');
   }
 
-  async logout(userId: string, refreshToken?: string) {
+  async logout(userId: string, refreshToken?: string, ipAddress?: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, tenantId: true },
+    });
+
     if (refreshToken) {
       await this.prisma.refreshToken.updateMany({
         where: { userId, token: refreshToken, revokedAt: null },
         data: { revokedAt: new Date() },
       });
     }
+
+    if (user) {
+      await this.auditLogs.log({
+        tenantId: user.tenantId,
+        actorId: user.id,
+        action: 'logout',
+        module: 'auth',
+        entityType: 'user',
+        entityId: user.id,
+        ipAddress,
+      });
+    }
+
     return successResponse(null, 'Logout berhasil');
   }
 

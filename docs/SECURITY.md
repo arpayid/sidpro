@@ -24,12 +24,26 @@ Record these events:
 - role management
 - resident create, update, delete, export
 - family create, update, delete, export
-- letter create, verify, approve, reject, generate
+- letter create, verify, approve, reject, generate, download
+- letter settings and template update
+- QR verification (public verify endpoint)
+- file upload
+- auth login and logout
 - complaint create, assign, respond, close
 - finance update and export
 - aid update and export
 - report export
 - setting update
+
+## Audit Log Viewer
+
+Admin UI: `/admin/audit-logs` (permission `audit.read`).
+
+- Lists tenant-scoped audit entries with filters (module, action, actor, date range, search).
+- Detail drawer shows sanitized metadata — no raw secrets in API or UI.
+- Sensitive keys (`password`, `token`, `apiKey`, etc.) are redacted server-side.
+- NIK/KK in metadata are masked before response.
+- Reading audit logs does not create additional audit entries.
 
 ## Data Rules
 

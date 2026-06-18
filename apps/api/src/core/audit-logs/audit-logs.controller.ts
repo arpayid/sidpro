@@ -1,46 +1,47 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { AuditLogsService } from './audit-logs.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators';
 import { CurrentUser, JwtPayload } from '../../common/decorators/current-user.decorator';
-import { PrismaService } from '../../database/prisma.service';
-import { paginatedResponse } from '../../common/utils/response.util';
 
 @Controller('audit-logs')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class AuditLogsController {
-  constructor(
-    private auditLogs: AuditLogsService,
-    private prisma: PrismaService,
-  ) {}
+  constructor(private auditLogs: AuditLogsService) {}
 
   @Get()
   @RequirePermissions('audit.read')
-  async findAll(
+  findAll(
     @CurrentUser() user: JwtPayload,
     @Query('page') page = '1',
     @Query('limit') limit = '20',
     @Query('module') module?: string,
+    @Query('action') action?: string,
+    @Query('actorId') actorId?: string,
+    @Query('entityType') entityType?: string,
+    @Query('entityId') entityId?: string,
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
+    @Query('search') search?: string,
   ) {
-    const pageNum = parseInt(page, 10);
-    const limitNum = parseInt(limit, 10);
-    const where = {
-      ...(user.tenantId ? { tenantId: user.tenantId } : {}),
-      ...(module ? { module } : {}),
-    };
+    return this.auditLogs.findAll(user, {
+      page: parseInt(page, 10),
+      limit: parseInt(limit, 10),
+      module,
+      action,
+      actorId,
+      entityType,
+      entityId,
+      dateFrom,
+      dateTo,
+      search,
+    });
+  }
 
-    const [data, total] = await Promise.all([
-      this.prisma.auditLog.findMany({
-        where,
-        orderBy: { createdAt: 'desc' },
-        skip: (pageNum - 1) * limitNum,
-        take: limitNum,
-        include: { actor: { select: { id: true, name: true, email: true } } },
-      }),
-      this.prisma.auditLog.count({ where }),
-    ]);
-
-    return paginatedResponse(data, pageNum, limitNum, total);
+  @Get(':id')
+  @RequirePermissions('audit.read')
+  findOne(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    return this.auditLogs.findOne(user, id);
   }
 }

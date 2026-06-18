@@ -136,5 +136,6 @@ Restore singkat — lihat [`STAGING_DEPLOY.md`](./STAGING_DEPLOY.md#backup).
 ## Monitoring & security
 
 - Health: `GET /api/v1/health`, web `GET /`
+- Audit log viewer (admin): `/admin/audit-logs` — requires `audit.read`; default filter last 7 days
 - Monitoring: [`docs/MONITORING.md`](./MONITORING.md)
 - Security: [`docs/SECURITY.md`](./SECURITY.md), [`docs/SECURITY_CHECKLIST.md`](./SECURITY_CHECKLIST.md)

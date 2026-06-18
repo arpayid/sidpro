@@ -28,8 +28,9 @@ export class AuthController {
   logout(
     @CurrentUser('sub') userId: string,
     @Body() body: { refreshToken?: string },
+    @Req() req: Request,
   ) {
-    return this.authService.logout(userId, body.refreshToken);
+    return this.authService.logout(userId, body.refreshToken, req.ip);
   }
 
   @UseGuards(JwtAuthGuard)

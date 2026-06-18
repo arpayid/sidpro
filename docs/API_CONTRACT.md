@@ -119,6 +119,29 @@ Base API style: REST JSON.
 | GET | /reports/finance | reports.finance |
 | GET | /reports/audit | audit.read |
 
+## Audit Logs
+
+| Method | Path | Permission |
+|---|---|---|
+| GET | /audit-logs | audit.read |
+| GET | /audit-logs/:id | audit.read |
+
+Query filters (`GET /audit-logs`):
+
+- `page`, `limit` — pagination (default 1, 20; max limit 100)
+- `module` — filter by module (e.g. `auth`, `letters`, `population`)
+- `action` — filter by action (e.g. `create`, `update`, `generate`, `login`)
+- `actorId` — filter by user ID
+- `entityType`, `entityId` — filter by affected entity
+- `dateFrom`, `dateTo` — ISO date (`YYYY-MM-DD`) inclusive range on `createdAt`
+- `search` — case-insensitive search across module, action, entity, actor name/email, IP
+
+Response metadata is sanitized: passwords, tokens, API keys are redacted; NIK/KK values are masked.
+
+Sorting: `createdAt` descending (fixed).
+
+Tenant scope: non–super-admin users only see logs for their `tenantId`.
+
 ## API Rules
 
 - Protected endpoints require authentication.
