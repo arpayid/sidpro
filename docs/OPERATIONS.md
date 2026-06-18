@@ -109,6 +109,29 @@ Detail instalasi: [`STAGING_DEPLOY.md`](./STAGING_DEPLOY.md#systemd-deployment).
 
 ## Backup
 
+### Development (local / Docker Compose)
+
+```bash
+# Requires DATABASE_URL in .env (loaded by shell or docker compose)
+export DATABASE_URL="postgresql://sidpro:sidpro@localhost:5432/sidpro"
+export BACKUP_DIR="./backups"
+pnpm backup
+# or: ./scripts/backup-db.sh
+```
+
+Output: `backups/db_YYYYMMDD_HHMMSS.sql.gz` (+ optional `uploads_*.tar.gz` if `UPLOAD_DIR` exists).
+
+Restore (dev only — guarded):
+
+```bash
+export DATABASE_URL="postgresql://sidpro:sidpro@localhost:5432/sidpro"
+RESTORE_CONFIRM=YES ./scripts/restore-db.sh ./backups/db_YYYYMMDD_HHMMSS.sql.gz
+```
+
+`restore-db.sh` refuses to run when `NODE_ENV=production`. Use `scripts/restore.sh` for interactive staging restore.
+
+### Staging VPS
+
 Staging VPS:
 
 ```bash

@@ -15,6 +15,7 @@
     "prisma:migrate": "prisma migrate dev --schema=prisma/schema.prisma",
     "prisma:seed": "tsx prisma/seed/index.ts",
     "smoke": "./scripts/smoke-test.sh",
+    "backup": "./scripts/backup-db.sh",
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\""
   },
   "devDependencies": {
