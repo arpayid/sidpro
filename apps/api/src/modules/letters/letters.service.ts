@@ -6,19 +6,42 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHash, randomUUID } from 'crypto';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { AuditLogsService } from '../../core/audit-logs/audit-logs.service';
 import { StorageService } from '../../core/storage/storage.service';
 import { JwtPayload } from '../../common/decorators/current-user.decorator';
-import { paginatedResponse, successResponse } from '../../common/utils/response.util';
+import { paginatedResponse, successResponse, maskNik } from '../../common/utils/response.util';
 import {
   DEFAULT_LETTER_TEMPLATE,
   LetterPdfService,
+  type LetterPdfVillage,
 } from './letter-pdf.service';
 
 interface SignatoryConfig {
   name?: string;
   title?: string;
+}
+
+interface LetterPdfConfig {
+  maskNik?: boolean;
+}
+
+interface LetterHeaderConfig {
+  useCustom?: boolean;
+  name?: string;
+  address?: string;
+  province?: string;
+  regency?: string;
+  district?: string;
+}
+
+interface VillageRecord {
+  name: string;
+  address?: string | null;
+  province?: string | null;
+  regency?: string | null;
+  district?: string | null;
 }
 
 @Injectable()
@@ -42,14 +65,179 @@ export class LettersService {
   }
 
   private async getSignatory(tenantId: string): Promise<{ name: string; title: string }> {
-    const setting = await this.prisma.setting.findUnique({
-      where: { tenantId_key: { tenantId, key: 'letters.signatory' } },
-    });
-    const value = (setting?.value ?? {}) as SignatoryConfig;
+    const settings = await this.getLetterSettingsData(tenantId);
+    return settings.signatory;
+  }
+
+  private async getLetterSettingsData(tenantId: string) {
+    const [signatorySetting, pdfSetting, headerSetting] = await Promise.all([
+      this.prisma.setting.findUnique({
+        where: { tenantId_key: { tenantId, key: 'letters.signatory' } },
+      }),
+      this.prisma.setting.findUnique({
+        where: { tenantId_key: { tenantId, key: 'letters.pdf' } },
+      }),
+      this.prisma.setting.findUnique({
+        where: { tenantId_key: { tenantId, key: 'letters.header' } },
+      }),
+    ]);
+
+    const signatoryValue = (signatorySetting?.value ?? {}) as SignatoryConfig;
+    const pdfValue = (pdfSetting?.value ?? {}) as LetterPdfConfig;
+    const headerValue = (headerSetting?.value ?? {}) as LetterHeaderConfig;
+
     return {
-      name: value.name ?? 'Kepala Desa',
-      title: value.title ?? 'Kepala Desa',
+      signatory: {
+        name: signatoryValue.name ?? 'Kepala Desa',
+        title: signatoryValue.title ?? 'Kepala Desa',
+      },
+      pdf: {
+        maskNik: pdfValue.maskNik ?? false,
+      },
+      header: {
+        useCustom: headerValue.useCustom ?? false,
+        name: headerValue.name,
+        address: headerValue.address,
+        province: headerValue.province,
+        regency: headerValue.regency,
+        district: headerValue.district,
+      },
     };
+  }
+
+  private resolvePdfVillage(village: VillageRecord, header: LetterHeaderConfig): LetterPdfVillage {
+    if (!header.useCustom) {
+      return {
+        name: village.name,
+        address: village.address,
+        regency: village.regency,
+        district: village.district,
+        province: village.province,
+      };
+    }
+
+    return {
+      name: header.name?.trim() || village.name,
+      address: header.address?.trim() || village.address,
+      regency: header.regency?.trim() || village.regency,
+      district: header.district?.trim() || village.district,
+      province: header.province?.trim() || village.province,
+    };
+  }
+
+  async getSettings(user: JwtPayload) {
+    const tenantId = this.requireTenant(user);
+    const [settings, village, templates, letterTypes] = await Promise.all([
+      this.getLetterSettingsData(tenantId),
+      this.prisma.village.findFirst({ where: { tenantId } }),
+      this.prisma.letterTemplate.findMany({
+        where: { tenantId, isActive: true },
+        orderBy: [{ letterTypeId: 'asc' }, { version: 'desc' }],
+        include: { letterType: { select: { id: true, code: true, name: true } } },
+      }),
+      this.prisma.letterType.findMany({
+        where: { tenantId, isActive: true },
+        orderBy: { name: 'asc' },
+        select: { id: true, code: true, name: true },
+      }),
+    ]);
+
+    const activeTemplates = templates.filter(
+      (template, index, list) =>
+        list.findIndex((item) => item.letterTypeId === template.letterTypeId) === index,
+    );
+
+    return successResponse({
+      ...settings,
+      villageProfile: village
+        ? {
+            name: village.name,
+            address: village.address,
+            province: village.province,
+            regency: village.regency,
+            district: village.district,
+          }
+        : null,
+      letterTypes,
+      templates: activeTemplates,
+    });
+  }
+
+  async updateSettings(
+    user: JwtPayload,
+    body: {
+      signatory: { name: string; title: string };
+      pdf: { maskNik: boolean };
+      header: LetterHeaderConfig;
+    },
+    ipAddress?: string,
+  ) {
+    const tenantId = this.requireTenant(user);
+
+    await this.prisma.$transaction([
+      this.prisma.setting.upsert({
+        where: { tenantId_key: { tenantId, key: 'letters.signatory' } },
+        create: { tenantId, key: 'letters.signatory', value: body.signatory as Prisma.InputJsonValue },
+        update: { value: body.signatory as Prisma.InputJsonValue },
+      }),
+      this.prisma.setting.upsert({
+        where: { tenantId_key: { tenantId, key: 'letters.pdf' } },
+        create: { tenantId, key: 'letters.pdf', value: body.pdf as Prisma.InputJsonValue },
+        update: { value: body.pdf as Prisma.InputJsonValue },
+      }),
+      this.prisma.setting.upsert({
+        where: { tenantId_key: { tenantId, key: 'letters.header' } },
+        create: { tenantId, key: 'letters.header', value: body.header as Prisma.InputJsonValue },
+        update: { value: body.header as Prisma.InputJsonValue },
+      }),
+    ]);
+
+    await this.auditLogs.log({
+      tenantId,
+      actorId: user.sub,
+      action: 'update',
+      module: 'letters',
+      entityType: 'letter_settings',
+      metadata: {
+        maskNik: body.pdf.maskNik,
+        useCustomHeader: body.header.useCustom,
+      },
+      ipAddress,
+    });
+
+    return successResponse(await this.getLetterSettingsData(tenantId), 'Pengaturan surat berhasil disimpan');
+  }
+
+  async updateTemplate(
+    user: JwtPayload,
+    id: string,
+    body: { name?: string; content?: string; isActive?: boolean },
+    ipAddress?: string,
+  ) {
+    const tenantId = this.requireTenant(user);
+    const existing = await this.prisma.letterTemplate.findFirst({
+      where: { id, tenantId },
+    });
+    if (!existing) throw new NotFoundException('Template surat tidak ditemukan');
+
+    const template = await this.prisma.letterTemplate.update({
+      where: { id },
+      data: body,
+      include: { letterType: { select: { id: true, code: true, name: true } } },
+    });
+
+    await this.auditLogs.log({
+      tenantId,
+      actorId: user.sub,
+      action: 'update',
+      module: 'letters',
+      entityType: 'letter_template',
+      entityId: id,
+      metadata: { letterTypeId: template.letterTypeId },
+      ipAddress,
+    });
+
+    return successResponse(template, 'Template surat berhasil diperbarui');
   }
 
   // ─── Letter Types ─────────────────────────────────────────────────────────
@@ -344,13 +532,13 @@ export class LettersService {
     const qrCode = randomUUID();
     const issuedAt = new Date();
 
-    const [village, template, signatory] = await Promise.all([
+    const [village, template, letterSettings] = await Promise.all([
       this.prisma.village.findFirst({ where: { tenantId } }),
       this.prisma.letterTemplate.findFirst({
         where: { tenantId, letterTypeId: request.letterTypeId, isActive: true },
         orderBy: { version: 'desc' },
       }),
-      this.getSignatory(tenantId),
+      this.getLetterSettingsData(tenantId),
     ]);
 
     if (!village) {
@@ -369,25 +557,26 @@ export class LettersService {
           .join(', ')
       : null;
 
+    const residentNik = request.resident?.nik;
+    const displayNik = residentNik
+      ? letterSettings.pdf.maskNik
+        ? maskNik(residentNik)
+        : residentNik
+      : '-';
+
     const verificationUrl = this.buildVerificationUrl(qrCode);
     const pdfBuffer = await this.letterPdf.generate({
-      village: {
-        name: village.name,
-        address: village.address,
-        regency: village.regency,
-        district: village.district,
-        province: village.province,
-      },
+      village: this.resolvePdfVillage(village, letterSettings.header),
       letterTypeName: request.letterType.name,
       letterNumber,
       purpose: request.purpose,
       templateContent: template?.content ?? DEFAULT_LETTER_TEMPLATE,
       applicant: {
         fullName: applicantName,
-        nik: request.resident?.nik,
+        nik: displayNik,
         address: applicantAddress,
       },
-      signatory,
+      signatory: letterSettings.signatory,
       issuedAt,
       verificationUrl,
       qrCode,

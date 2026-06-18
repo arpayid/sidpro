@@ -30,6 +30,9 @@ Permissions: letters.read, letters.create, letters.verify, letters.approve, lett
 
 | Method | Path | Auth | Permission |
 |--------|------|------|------------|
+| GET | `/api/v1/letters/settings` | JWT | letters.manage |
+| PUT | `/api/v1/letters/settings` | JWT | letters.manage |
+| PATCH | `/api/v1/letter-templates/:id` | JWT | letters.manage |
 | POST | `/api/v1/letter-requests/:id/generate-pdf` | JWT | letters.generate |
 | GET | `/api/v1/letter-requests/:id/download` | JWT | letters.download |
 | GET | `/api/v1/letters/verify/:qrCode` | Public | — |
@@ -48,6 +51,32 @@ Setting `letters.signatory` (JSON):
 { "name": "Nama Pejabat", "title": "Kepala Desa" }
 ```
 
+Setting `letters.pdf`:
+
+```json
+{ "maskNik": true }
+```
+
+Setting `letters.header` (opsional kop kustom):
+
+```json
+{
+  "useCustom": false,
+  "name": "Desa ...",
+  "address": "...",
+  "province": "...",
+  "regency": "...",
+  "district": "..."
+}
+```
+
 Env `APP_URL` dipakai untuk link verifikasi di QR code.
+
+Env `MINIO_PUBLIC_URL` (opsional) dipakai agar presigned download PDF dapat diakses browser client.
+
+## Admin UI
+
+- **Layanan Surat:** `/admin/surat`
+- **Pengaturan Surat:** `/admin/surat/pengaturan` (permission `letters.manage`)
 
 Done when: request can be created, checked, approved, numbered, generated as real PDF, downloaded, verified publicly, and logged.

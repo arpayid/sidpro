@@ -264,6 +264,26 @@ async function main() {
   });
 
   await prisma.setting.upsert({
+    where: { tenantId_key: { tenantId: tenant.id, key: 'letters.pdf' } },
+    update: {},
+    create: {
+      tenantId: tenant.id,
+      key: 'letters.pdf',
+      value: { maskNik: true },
+    },
+  });
+
+  await prisma.setting.upsert({
+    where: { tenantId_key: { tenantId: tenant.id, key: 'letters.header' } },
+    update: {},
+    create: {
+      tenantId: tenant.id,
+      key: 'letters.header',
+      value: { useCustom: false },
+    },
+  });
+
+  await prisma.setting.upsert({
     where: { tenantId_key: { tenantId: tenant.id, key: 'app.theme' } },
     update: {},
     create: {

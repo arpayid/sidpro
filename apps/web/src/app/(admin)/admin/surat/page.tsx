@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { createLetterRequestSchema } from '@sidpro/validators';
@@ -103,12 +104,21 @@ export default function SuratPage() {
         title="Layanan Surat"
         description="Kelola pengajuan dan penerbitan surat desa."
         actions={
-          can('letters.create') ? (
-            <Button size="sm" onClick={() => setCreateOpen(true)}>
-              <Plus className="mr-1.5 h-4 w-4" />
-              Buat Permohonan
-            </Button>
-          ) : undefined
+          <div className="flex gap-2">
+            {can('letters.manage') && (
+              <Link href="/admin/surat/pengaturan">
+                <Button size="sm" variant="outline" type="button">
+                  Pengaturan Surat
+                </Button>
+              </Link>
+            )}
+            {can('letters.create') && (
+              <Button size="sm" onClick={() => setCreateOpen(true)}>
+                <Plus className="mr-1.5 h-4 w-4" />
+                Buat Permohonan
+              </Button>
+            )}
+          </div>
         }
       />
 

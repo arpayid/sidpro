@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Patch,
   Body,
   Param,
@@ -19,6 +20,48 @@ import { CurrentUser, JwtPayload } from '../../common/decorators/current-user.de
 @Controller()
 export class LettersController {
   constructor(private lettersService: LettersService) {}
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Get('letters/settings')
+  @RequirePermissions('letters.manage')
+  getSettings(@CurrentUser() user: JwtPayload) {
+    return this.lettersService.getSettings(user);
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Put('letters/settings')
+  @RequirePermissions('letters.manage')
+  updateSettings(
+    @CurrentUser() user: JwtPayload,
+    @Body()
+    body: {
+      signatory: { name: string; title: string };
+      pdf: { maskNik: boolean };
+      header: {
+        useCustom: boolean;
+        name?: string;
+        address?: string;
+        province?: string;
+        regency?: string;
+        district?: string;
+      };
+    },
+    @Req() req: Request,
+  ) {
+    return this.lettersService.updateSettings(user, body, req.ip);
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Patch('letter-templates/:id')
+  @RequirePermissions('letters.manage')
+  updateTemplate(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Body() body: { name?: string; content?: string; isActive?: boolean },
+    @Req() req: Request,
+  ) {
+    return this.lettersService.updateTemplate(user, id, body, req.ip);
+  }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Get('letter-types')

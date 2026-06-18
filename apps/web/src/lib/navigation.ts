@@ -3,6 +3,7 @@ export const adminNavItems = [
   { href: '/admin/penduduk', label: 'Penduduk', icon: 'users', permission: 'population.read' },
   { href: '/admin/keluarga', label: 'Keluarga / KK', icon: 'home', permission: 'families.read' },
   { href: '/admin/surat', label: 'Layanan Surat', icon: 'file-text', permission: 'letters.read' },
+  { href: '/admin/surat/pengaturan', label: 'Pengaturan Surat', icon: 'file-cog', permission: 'letters.manage' },
   { href: '/admin/pengaduan', label: 'Pengaduan', icon: 'message-square', permission: 'complaints.read' },
   { href: '/admin/bantuan-sosial', label: 'Bantuan Sosial', icon: 'heart-handshake', permission: 'aid.read' },
   { href: '/admin/aset', label: 'Aset Desa', icon: 'building', permission: 'assets.read' },

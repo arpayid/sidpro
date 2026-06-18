@@ -9,18 +9,29 @@ import {
   CreateBucketCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import {
+  buildMinioInternalBaseUrl,
+  rewriteMinioSignedUrl,
+} from './signed-url.util';
 
 @Injectable()
 export class StorageService implements OnModuleInit {
   private readonly logger = new Logger(StorageService.name);
   private readonly client: S3Client;
   private readonly bucket: string;
+  private readonly internalBaseUrl: string;
 
   constructor(private readonly config: ConfigService) {
     const endpoint = this.config.get<string>('MINIO_ENDPOINT', 'localhost');
     const port = this.config.get<string>('MINIO_PORT', '9000');
     const useSSL = this.config.get<string>('MINIO_USE_SSL', 'false') === 'true';
     const protocol = useSSL ? 'https' : 'http';
+
+    this.internalBaseUrl = buildMinioInternalBaseUrl({
+      endpoint,
+      port,
+      useSsl: useSSL,
+    });
 
     this.client = new S3Client({
       endpoint: `${protocol}://${endpoint}:${port}`,
@@ -76,7 +87,9 @@ export class StorageService implements OnModuleInit {
       Bucket: this.bucket,
       Key: key,
     });
-    return getSignedUrl(this.client, command, { expiresIn });
+    const signed = await getSignedUrl(this.client, command, { expiresIn });
+    const publicUrl = this.config.get<string>('MINIO_PUBLIC_URL');
+    return rewriteMinioSignedUrl(signed, this.internalBaseUrl, publicUrl);
   }
 
   async deleteFile(key: string): Promise<void> {

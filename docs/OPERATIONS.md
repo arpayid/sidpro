@@ -40,6 +40,16 @@ Checkpoint staging & client deployment baseline:
 - **minio** — object storage (Docker Compose)
 - **reverse proxy** — Nginx (placeholder until domain ready)
 
+### MinIO public URL (download PDF)
+
+Presigned URL dari API default memakai endpoint internal (`MINIO_ENDPOINT:MINIO_PORT`). Untuk browser client di luar host Docker/VPS, set:
+
+```bash
+MINIO_PUBLIC_URL=https://files.example.com   # tanpa trailing slash
+```
+
+Jika tidak diset, API tetap mengembalikan URL internal (cocok untuk development lokal).
+
 `docker-compose.yml` hanya menjalankan infra. API dan web via **systemd** di VPS staging (`/opt/sidpro`).
 
 ## Development commands

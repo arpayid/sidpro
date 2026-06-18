@@ -17,4 +17,36 @@ export const approveLetterSchema = z.object({
   approved: z.boolean(),
 });
 
+export const letterSignatorySchema = z.object({
+  name: z.string().min(2).max(120),
+  title: z.string().min(2).max(120),
+});
+
+export const letterPdfSettingsSchema = z.object({
+  maskNik: z.boolean(),
+});
+
+export const letterHeaderSettingsSchema = z.object({
+  useCustom: z.boolean(),
+  name: z.string().max(200).optional(),
+  address: z.string().max(500).optional(),
+  province: z.string().max(100).optional(),
+  regency: z.string().max(100).optional(),
+  district: z.string().max(100).optional(),
+});
+
+export const updateLetterSettingsSchema = z.object({
+  signatory: letterSignatorySchema,
+  pdf: letterPdfSettingsSchema,
+  header: letterHeaderSettingsSchema,
+});
+
+export const updateLetterTemplateSchema = z.object({
+  name: z.string().min(2).max(200).optional(),
+  content: z.string().min(10).max(10000).optional(),
+  isActive: z.boolean().optional(),
+});
+
 export type CreateLetterRequestInput = z.infer<typeof createLetterRequestSchema>;
+export type UpdateLetterSettingsInput = z.infer<typeof updateLetterSettingsSchema>;
+export type UpdateLetterTemplateInput = z.infer<typeof updateLetterTemplateSchema>;
