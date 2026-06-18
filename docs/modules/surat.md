@@ -18,6 +18,14 @@ Permissions: letters.read, letters.create, letters.verify, letters.approve, lett
 4. Generate PDF (`completed`) — nomor surat, QR, file PDF di MinIO.
 5. Download PDF (signed URL, audit log).
 6. Publik verifikasi via QR/kode di `/verifikasi-surat`.
+7. Publik lacak status permohonan via `/surat/cek` (`POST /letters/public/track`).
+
+## Public tracking
+
+- Endpoint: `POST /api/v1/letters/public/track?tenantCode={code}`
+- Body: `{ ticket: "SRT-XXXXXXXX", nikLast4: "1234" }`
+- Anti-enumeration: pesan generik jika tiket atau NIK tidak cocok.
+- Rate limit: 10 req/min/IP (sama seperti verifikasi QR).
 
 ## PDF generation
 
@@ -36,6 +44,7 @@ Permissions: letters.read, letters.create, letters.verify, letters.approve, lett
 | POST | `/api/v1/letter-requests/:id/generate-pdf` | JWT | letters.generate |
 | GET | `/api/v1/letter-requests/:id/download` | JWT | letters.download |
 | GET | `/api/v1/letters/verify/:qrCode` | Public | — |
+| POST | `/api/v1/letters/public/track` | Public | — |
 
 ## Audit log actions
 

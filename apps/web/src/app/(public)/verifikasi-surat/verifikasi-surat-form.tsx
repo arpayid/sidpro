@@ -23,7 +23,10 @@ export function VerifikasiSuratForm() {
 
   useEffect(() => {
     const initial = searchParams.get('code');
-    if (initial) setCode(initial);
+    if (initial) {
+      setCode(initial);
+      void verifyCode(initial);
+    }
   }, [searchParams]);
 
   async function verifyCode(verificationCode: string) {

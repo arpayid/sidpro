@@ -135,7 +135,18 @@ QR=$(echo "$GEN" | json_field "console.log(j.data?.qrCode||'')")
 DOWNLOAD=$(curl -sf -H "$AUTH" "$API/letter-requests/$LR_ID/download" 2>/dev/null || echo '{}')
 DOWNLOAD_OK=$(echo "$DOWNLOAD" | grep -c '"url"' || true)
 VERIFY_QR=$(curl -sf "$API/letters/verify/$QR" 2>/dev/null | grep -c '"valid":true' || true)
+VERIFY_NO_NIK=$(curl -sf "$API/letters/verify/$QR" 2>/dev/null | grep -c '"nik"' || true)
+LETTER_NUM=$(echo "$GEN" | json_field "console.log(j.data?.letterNumber||'')")
+LR_TICKET="SRT-$(echo "$LR_ID" | cut -c1-8 | tr '[:lower:]' '[:upper:]')"
+NIK_LAST4="${NIK: -4}"
+TRACK_LR=$(curl -sf -X POST "$API/letters/public/track?tenantCode=demo-desa" \
+  -H 'Content-Type: application/json' \
+  -d "{\"ticket\":\"$LR_TICKET\",\"nikLast4\":\"$NIK_LAST4\"}" 2>/dev/null || echo '{}')
+TRACK_LR_OK=$(echo "$TRACK_LR" | grep -c success || true)
 check "Workflow surat (create/verify/approve/generate/download/verify QR)" "$([ -n "$LR_ID" ] && [ "$VERIFY" -ge 1 ] && [ "$APPROVE" -ge 1 ] && [ "$GEN_OK" -ge 1 ] && [ "$DOWNLOAD_OK" -ge 1 ] && [ "$VERIFY_QR" -ge 1 ] && echo 1 || echo 0)"
+check "Letter generate returns letterNumber" "$([ -n "$LETTER_NUM" ] && echo 1 || echo 0)"
+check "Letter verify does not expose NIK" "$([ "$VERIFY_NO_NIK" -eq 0 ] && echo 1 || echo 0)"
+check "Letter public track" "$([ "$TRACK_LR_OK" -ge 1 ] && echo 1 || echo 0)"
 
 printf '\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde\x00\x00\x00\x0cIDATx\x9cc\xf8\x0f\x00\x00\x01\x01\x00\x05\x18\xd8N\x00\x00\x00\x00IEND\xaeB`\x82' > /tmp/sidpro-smoke-test.png
 

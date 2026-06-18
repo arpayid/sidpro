@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const createLetterRequestSchema = z.object({
   letterTypeId: z.string().uuid(),
-  residentId: z.string().uuid().optional(),
+  residentId: z.string().uuid(),
   purpose: z.string().min(5).max(1000),
   formData: z.record(z.unknown()).optional(),
 });
@@ -46,6 +46,20 @@ export const updateLetterTemplateSchema = z.object({
   content: z.string().min(10).max(10000).optional(),
   isActive: z.boolean().optional(),
 });
+
+export const publicLetterTrackSchema = z.object({
+  ticket: z
+    .string()
+    .min(5)
+    .max(20)
+    .regex(/^SRT-[A-Z0-9]{8}$/i, 'Format tiket: SRT-XXXXXXXX'),
+  nikLast4: z
+    .string()
+    .length(4)
+    .regex(/^\d{4}$/, 'Masukkan 4 digit terakhir NIK'),
+});
+
+export type PublicLetterTrackInput = z.infer<typeof publicLetterTrackSchema>;
 
 export type CreateLetterRequestInput = z.infer<typeof createLetterRequestSchema>;
 export type UpdateLetterSettingsInput = z.infer<typeof updateLetterSettingsSchema>;

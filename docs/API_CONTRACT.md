@@ -116,6 +116,7 @@ POST/PATCH `/residents` accepts optional `address` object: `{ hamletId, neighbor
 | POST | /letter-requests/:id/generate-pdf | letters.generate |
 | GET | /letter-requests/:id/download | letters.download |
 | GET | /letters/verify/:qrCode | public |
+| POST | /letters/public/track | public |
 
 ## Complaints
 
