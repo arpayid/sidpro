@@ -19,6 +19,8 @@ import {
   useDashboardActivity,
   formatAuditActivity,
 } from '@/features/dashboard/use-dashboard';
+import { LettersStatusChart, PopulationCharts } from '@/features/dashboard/dashboard-charts';
+import { usePopulationReport, useLettersReport } from '@/features/reports/use-reports';
 
 function formatNumber(n: number) {
   return new Intl.NumberFormat('id-ID').format(n);
@@ -100,6 +102,8 @@ function TaskCard({ title, description, count, href }: TaskCardProps) {
 export default function DashboardPage() {
   const { data, isLoading, isError, error, refetch } = useDashboard();
   const activity = useDashboardActivity(7);
+  const populationReport = usePopulationReport();
+  const lettersReport = useLettersReport();
 
   if (isError) {
     return (
@@ -151,6 +155,20 @@ export default function DashboardPage() {
             icon={<AlertCircle className="h-5 w-5" />}
             href="/admin/pengaduan"
           />
+        </div>
+      )}
+
+      {(populationReport.data || lettersReport.data) && (
+        <div className="mt-6 space-y-6">
+          {populationReport.data && (
+            <PopulationCharts
+              byGender={populationReport.data.byGender}
+              byStatus={populationReport.data.byStatus}
+            />
+          )}
+          {lettersReport.data && (
+            <LettersStatusChart byStatus={lettersReport.data.byStatus} />
+          )}
         </div>
       )}
 
