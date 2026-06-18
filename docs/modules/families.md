@@ -22,7 +22,12 @@ GET /families, POST /families, GET /families/:id, PATCH /families/:id, DELETE /f
 
 ## UI
 
-Family list, family detail, create family, edit family, manage members, household profile.
+Family list, family detail, create family, **edit family (drawer)**, **remove member**, **soft delete KK**, manage members, household profile.
+
+## Business rules
+
+- Satu kepala keluarga (`isHead=true`) per KK — backend menolak jika sudah ada kepala saat menambah anggota baru sebagai kepala.
+- Hapus anggota kepala keluarga akan mengosongkan `headResidentId`.
 
 ## Permissions
 
