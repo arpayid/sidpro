@@ -1,0 +1,711 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Core ───────────────────────────────────────────────────────────────────
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  code      String   @unique
+  status    String   @default("active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  villages          Village[]
+  users             User[]
+  roles             Role[]
+  auditLogs         AuditLog[]
+  files             File[]
+  notifications     Notification[]
+  settings          Setting[]
+  residents         Resident[]
+  families          Family[]
+  addresses         Address[]
+  hamlets           Hamlet[]
+  neighborhoodUnits NeighborhoodUnit[]
+  civilEvents       CivilEvent[]
+  letterTypes       LetterType[]
+  letterRequests    LetterRequest[]
+  complaints        Complaint[]
+  posts             Post[]
+  agendas           Agenda[]
+  galleryItems      GalleryItem[]
+  aidPrograms       AidProgram[]
+  assets            Asset[]
+  developmentProjects DevelopmentProject[]
+  budgetYears       BudgetYear[]
+  financeDocuments  FinanceDocument[]
+
+  @@map("tenants")
+}
+
+model Village {
+  id          String  @id @default(uuid())
+  tenantId    String  @map("tenant_id")
+  name        String
+  code        String
+  address     String?
+  province    String?
+  regency     String?
+  district    String?
+  postalCode  String? @map("postal_code")
+  vision      String?
+  mission     String?
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, code])
+  @@map("villages")
+}
+
+model User {
+  id           String    @id @default(uuid())
+  tenantId     String?   @map("tenant_id")
+  email        String    @unique
+  name         String
+  phone        String?
+  passwordHash String    @map("password_hash")
+  status       String    @default("active")
+  twoFaEnabled Boolean   @default(false) @map("two_fa_enabled")
+  twoFaSecret  String?   @map("two_fa_secret")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  tenant        Tenant?        @relation(fields: [tenantId], references: [id])
+  userRoles     UserRole[]
+  refreshTokens RefreshToken[]
+  auditLogs     AuditLog[]
+  notifications Notification[]
+  letterRequests LetterRequest[] @relation("Requester")
+  complaints    Complaint[]    @relation("Reporter")
+  assignedComplaints Complaint[] @relation("Assignee")
+
+  @@index([tenantId])
+  @@map("users")
+}
+
+model Role {
+  id        String   @id @default(uuid())
+  tenantId  String?  @map("tenant_id")
+  name      String
+  code      String
+  scope     String   @default("tenant")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant          Tenant?          @relation(fields: [tenantId], references: [id])
+  userRoles       UserRole[]
+  rolePermissions RolePermission[]
+
+  @@unique([tenantId, code])
+  @@map("roles")
+}
+
+model Permission {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  name      String
+  module    String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model UserRole {
+  userId String @map("user_id")
+  roleId String @map("role_id")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+model RolePermission {
+  roleId       String @map("role_id")
+  permissionId String @map("permission_id")
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  tenantId   String?  @map("tenant_id")
+  actorId    String?  @map("actor_id")
+  action     String
+  module     String
+  entityType String   @map("entity_type")
+  entityId   String?  @map("entity_id")
+  metadata   Json?
+  ipAddress  String?  @map("ip_address")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id])
+  actor  User?   @relation(fields: [actorId], references: [id])
+
+  @@index([tenantId, module, action, createdAt])
+  @@map("audit_logs")
+}
+
+model File {
+  id        String   @id @default(uuid())
+  tenantId  String   @map("tenant_id")
+  ownerType String   @map("owner_type")
+  ownerId   String?  @map("owner_id")
+  path      String
+  mimeType  String   @map("mime_type")
+  size      Int
+  checksum  String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, ownerType, ownerId])
+  @@map("files")
+}
+
+model Notification {
+  id        String    @id @default(uuid())
+  tenantId  String    @map("tenant_id")
+  userId    String    @map("user_id")
+  type      String
+  title     String
+  message   String
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, userId, readAt])
+  @@map("notifications")
+}
+
+model Setting {
+  id        String   @id @default(uuid())
+  tenantId  String   @map("tenant_id")
+  key       String
+  value     Json
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, key])
+  @@map("settings")
+}
+
+// ─── Population ─────────────────────────────────────────────────────────────
+
+model Hamlet {
+  id        String   @id @default(uuid())
+  tenantId  String   @map("tenant_id")
+  name      String
+  code      String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant            Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  neighborhoodUnits NeighborhoodUnit[]
+  addresses         Address[]
+
+  @@unique([tenantId, code])
+  @@map("hamlets")
+}
+
+model NeighborhoodUnit {
+  id        String   @id @default(uuid())
+  tenantId  String   @map("tenant_id")
+  hamletId  String   @map("hamlet_id")
+  rt        String
+  rw        String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  hamlet  Hamlet  @relation(fields: [hamletId], references: [id], onDelete: Cascade)
+  addresses Address[]
+
+  @@unique([tenantId, hamletId, rt, rw])
+  @@map("neighborhood_units")
+}
+
+model Address {
+  id                 String   @id @default(uuid())
+  tenantId           String   @map("tenant_id")
+  hamletId           String?  @map("hamlet_id")
+  neighborhoodUnitId String?  @map("neighborhood_unit_id")
+  rt                 String?
+  rw                 String?
+  street             String?
+  latitude           Float?
+  longitude          Float?
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  hamlet           Hamlet?           @relation(fields: [hamletId], references: [id])
+  neighborhoodUnit NeighborhoodUnit? @relation(fields: [neighborhoodUnitId], references: [id])
+  residents        Resident[]
+  families         Family[]
+
+  @@index([tenantId])
+  @@map("addresses")
+}
+
+model Resident {
+  id               String    @id @default(uuid())
+  tenantId         String    @map("tenant_id")
+  nik              String
+  familyId         String?   @map("family_id")
+  fullName         String    @map("full_name")
+  gender           String
+  birthPlace       String    @map("birth_place")
+  birthDate        DateTime  @map("birth_date")
+  religion         String?
+  education        String?
+  occupation       String?
+  maritalStatus    String?   @map("marital_status")
+  bloodType        String?   @map("blood_type")
+  disabilityStatus String?   @map("disability_status")
+  residentStatus   String    @default("permanent") @map("resident_status")
+  addressId        String?   @map("address_id")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  deletedAt        DateTime? @map("deleted_at")
+
+  tenant       Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  family       Family?        @relation(fields: [familyId], references: [id])
+  address      Address?       @relation(fields: [addressId], references: [id])
+  familyMembers FamilyMember[]
+  civilEvents  CivilEvent[]
+  letterRequests LetterRequest[]
+
+  @@unique([tenantId, nik])
+  @@index([tenantId, fullName, residentStatus])
+  @@map("residents")
+}
+
+model Family {
+  id             String    @id @default(uuid())
+  tenantId       String    @map("tenant_id")
+  kkNumber       String    @map("kk_number")
+  headResidentId String?   @map("head_resident_id")
+  addressId      String?   @map("address_id")
+  economicStatus String?   @map("economic_status")
+  houseStatus    String?   @map("house_status")
+  waterSource    String?   @map("water_source")
+  electricity    String?
+  sanitation     String?
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  address       Address?       @relation(fields: [addressId], references: [id])
+  residents     Resident[]
+  familyMembers FamilyMember[]
+
+  @@unique([tenantId, kkNumber])
+  @@index([tenantId])
+  @@map("families")
+}
+
+model FamilyMember {
+  id           String   @id @default(uuid())
+  tenantId     String   @map("tenant_id")
+  familyId     String   @map("family_id")
+  residentId   String   @map("resident_id")
+  relationship String
+  isHead       Boolean  @default(false) @map("is_head")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  family   Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  resident Resident @relation(fields: [residentId], references: [id], onDelete: Cascade)
+
+  @@unique([familyId, residentId])
+  @@index([tenantId])
+  @@map("family_members")
+}
+
+model CivilEvent {
+  id         String   @id @default(uuid())
+  tenantId   String   @map("tenant_id")
+  residentId String   @map("resident_id")
+  eventType  String   @map("event_type")
+  eventDate  DateTime @map("event_date")
+  notes      String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  resident Resident @relation(fields: [residentId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, eventType, eventDate])
+  @@map("civil_events")
+}
+
+// ─── Letters ────────────────────────────────────────────────────────────────
+
+model LetterType {
+  id            String   @id @default(uuid())
+  tenantId      String   @map("tenant_id")
+  code          String
+  name          String
+  requiredFields Json?   @map("required_fields")
+  requiredFiles Json?    @map("required_files")
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  tenant           Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  templates        LetterTemplate[]
+  letterRequests   LetterRequest[]
+  numberSequences  LetterNumberSequence[]
+
+  @@unique([tenantId, code])
+  @@map("letter_types")
+}
+
+model LetterTemplate {
+  id           String   @id @default(uuid())
+  tenantId     String   @map("tenant_id")
+  letterTypeId String   @map("letter_type_id")
+  name         String
+  content      String
+  version      Int      @default(1)
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  letterType LetterType @relation(fields: [letterTypeId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, letterTypeId])
+  @@map("letter_templates")
+}
+
+model LetterRequest {
+  id           String    @id @default(uuid())
+  tenantId     String    @map("tenant_id")
+  requesterId  String?   @map("requester_id")
+  residentId   String?   @map("resident_id")
+  letterTypeId String    @map("letter_type_id")
+  status       String    @default("submitted")
+  purpose      String
+  formData     Json?     @map("form_data")
+  letterNumber String?   @map("letter_number")
+  submittedAt  DateTime  @default(now()) @map("submitted_at")
+  completedAt  DateTime? @map("completed_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  tenant      Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  requester   User?            @relation("Requester", fields: [requesterId], references: [id])
+  resident    Resident?        @relation(fields: [residentId], references: [id])
+  letterType  LetterType       @relation(fields: [letterTypeId], references: [id])
+  approvals   LetterApproval[]
+  outputs     LetterOutput[]
+
+  @@index([tenantId, status, submittedAt])
+  @@map("letter_requests")
+}
+
+model LetterApproval {
+  id              String   @id @default(uuid())
+  tenantId        String   @map("tenant_id")
+  letterRequestId String   @map("letter_request_id")
+  approverId      String?  @map("approver_id")
+  level           String
+  status          String
+  notes           String?
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  letterRequest LetterRequest @relation(fields: [letterRequestId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, letterRequestId])
+  @@map("letter_approvals")
+}
+
+model LetterOutput {
+  id              String    @id @default(uuid())
+  tenantId        String    @map("tenant_id")
+  letterRequestId String    @map("letter_request_id")
+  fileId          String?   @map("file_id")
+  qrCode          String    @unique
+  signedAt        DateTime? @map("signed_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  letterRequest LetterRequest @relation(fields: [letterRequestId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("letter_outputs")
+}
+
+model LetterNumberSequence {
+  id           String @id @default(uuid())
+  tenantId     String @map("tenant_id")
+  letterTypeId String @map("letter_type_id")
+  year         Int
+  lastNumber   Int    @default(0) @map("last_number")
+
+  letterType LetterType @relation(fields: [letterTypeId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, letterTypeId, year])
+  @@map("letter_number_sequences")
+}
+
+// ─── Complaints ─────────────────────────────────────────────────────────────
+
+model Complaint {
+  id            String    @id @default(uuid())
+  tenantId      String    @map("tenant_id")
+  reporterId    String?   @map("reporter_id")
+  assigneeId    String?   @map("assignee_id")
+  title         String
+  description   String
+  category      String
+  priority      String    @default("medium")
+  status        String    @default("submitted")
+  location      String?
+  reporterName  String?   @map("reporter_name")
+  reporterPhone String?   @map("reporter_phone")
+  reporterEmail String?   @map("reporter_email")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  closedAt      DateTime? @map("closed_at")
+
+  tenant   Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  reporter User?              @relation("Reporter", fields: [reporterId], references: [id])
+  assignee User?              @relation("Assignee", fields: [assigneeId], references: [id])
+  responses ComplaintResponse[]
+
+  @@index([tenantId, status, createdAt])
+  @@map("complaints")
+}
+
+model ComplaintResponse {
+  id          String   @id @default(uuid())
+  complaintId String   @map("complaint_id")
+  responderId String?  @map("responder_id")
+  response    String
+  status      String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  complaint Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+
+  @@index([complaintId])
+  @@map("complaint_responses")
+}
+
+// ─── CMS ────────────────────────────────────────────────────────────────────
+
+model Post {
+  id          String    @id @default(uuid())
+  tenantId    String    @map("tenant_id")
+  title       String
+  slug        String
+  content     String
+  excerpt     String?
+  category    String?
+  status      String    @default("draft")
+  publishedAt DateTime? @map("published_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, slug])
+  @@index([tenantId, status, publishedAt])
+  @@map("posts")
+}
+
+model Agenda {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  title       String
+  description String?
+  location    String?
+  startAt     DateTime @map("start_at")
+  endAt       DateTime? @map("end_at")
+  status      String   @default("scheduled")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, startAt])
+  @@map("agendas")
+}
+
+model GalleryItem {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  title       String
+  description String?
+  fileId      String?  @map("file_id")
+  type        String   @default("image")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("gallery_items")
+}
+
+// ─── Enterprise Modules ─────────────────────────────────────────────────────
+
+model AidProgram {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  name        String
+  code        String
+  description String?
+  status      String   @default("active")
+  startDate   DateTime? @map("start_date")
+  endDate     DateTime? @map("end_date")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  tenant     Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  recipients AidRecipient[]
+
+  @@unique([tenantId, code])
+  @@map("aid_programs")
+}
+
+model AidRecipient {
+  id           String   @id @default(uuid())
+  tenantId     String   @map("tenant_id")
+  programId    String   @map("program_id")
+  residentId   String?  @map("resident_id")
+  familyId     String?  @map("family_id")
+  status       String   @default("pending")
+  amount       Decimal? @db.Decimal(15, 2)
+  notes        String?
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  program AidProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, programId, status])
+  @@map("aid_recipients")
+}
+
+model Asset {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  name        String
+  code        String
+  category    String
+  condition   String   @default("good")
+  location    String?
+  value       Decimal? @db.Decimal(15, 2)
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, code])
+  @@index([tenantId, category])
+  @@map("assets")
+}
+
+model DevelopmentProject {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  name        String
+  code        String
+  description String?
+  location    String?
+  budget      Decimal? @db.Decimal(15, 2)
+  fundingSource String? @map("funding_source")
+  status      String   @default("planned")
+  progress    Int      @default(0)
+  startDate   DateTime? @map("start_date")
+  endDate     DateTime? @map("end_date")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, code])
+  @@index([tenantId, status])
+  @@map("development_projects")
+}
+
+model BudgetYear {
+  id        String   @id @default(uuid())
+  tenantId  String   @map("tenant_id")
+  year      Int
+  totalBudget Decimal @map("total_budget") @db.Decimal(15, 2)
+  status    String   @default("draft")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  items  BudgetItem[]
+
+  @@unique([tenantId, year])
+  @@map("budget_years")
+}
+
+model BudgetItem {
+  id           String  @id @default(uuid())
+  budgetYearId String  @map("budget_year_id")
+  category     String
+  name         String
+  planned      Decimal @db.Decimal(15, 2)
+  realized     Decimal @default(0) @db.Decimal(15, 2)
+
+  budgetYear BudgetYear @relation(fields: [budgetYearId], references: [id], onDelete: Cascade)
+
+  @@index([budgetYearId])
+  @@map("budget_items")
+}
+
+model FinanceDocument {
+  id        String   @id @default(uuid())
+  tenantId  String   @map("tenant_id")
+  title     String
+  type      String
+  year      Int?
+  fileId    String?  @map("file_id")
+  isPublic  Boolean  @default(false) @map("is_public")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, type, year])
+  @@map("finance_documents")
+}

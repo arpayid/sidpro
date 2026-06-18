@@ -1,0 +1,41 @@
+{
+  "name": "sidpro",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SID Premium Enterprise - Sistem Informasi Desa",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "prisma:validate": "prisma validate --schema=prisma/schema.prisma",
+    "prisma:generate": "prisma generate --schema=prisma/schema.prisma",
+    "prisma:migrate": "prisma migrate dev --schema=prisma/schema.prisma",
+    "prisma:seed": "tsx prisma/seed/index.ts",
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\""
+  },
+  "devDependencies": {
+    "@sidpro/config": "workspace:*",
+    "bcrypt": "^6.0.0",
+    "@types/bcrypt": "^5.0.2",
+    "@prisma/client": "^6.8.2",
+    "prettier": "^3.5.3",
+    "prisma": "^6.8.2",
+    "tsx": "^4.19.4",
+    "turbo": "^2.5.4",
+    "typescript": "^5.8.3"
+  },
+  "packageManager": "pnpm@10.18.3",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "dependencies": {
+    "@prisma/client": "6.19.3"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed/index.ts"
+  }
+}
