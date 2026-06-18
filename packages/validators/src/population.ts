@@ -31,6 +31,8 @@ export const createFamilySchema = z.object({
   houseStatus: z.string().optional(),
 });
 
+export const updateFamilySchema = createFamilySchema.omit({ kkNumber: true }).partial();
+
 export const addFamilyMemberSchema = z.object({
   residentId: z.string().uuid(),
   relationship: z.string().min(2),

@@ -103,4 +103,28 @@ export function useAddFamilyMember() {
   });
 }
 
+export function useRemoveFamilyMember() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ familyId, memberId }: { familyId: string; memberId: string }) =>
+      apiClient<void>(`/families/${familyId}/members/${memberId}`, { method: 'DELETE' }),
+    onSuccess: (_, { familyId }) => {
+      qc.invalidateQueries({ queryKey: ['families'] });
+      qc.invalidateQueries({ queryKey: ['families', familyId] });
+      qc.invalidateQueries({ queryKey: ['residents'] });
+    },
+  });
+}
+
+export function useDeleteFamily() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiClient<void>(`/families/${id}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['families'] });
+      qc.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+  });
+}
+
 export type { CreateResidentInput };

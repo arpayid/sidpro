@@ -137,7 +137,16 @@ export class FamiliesService {
   async update(
     user: JwtPayload,
     id: string,
-    body: Record<string, unknown>,
+    body: {
+      headResidentId?: string;
+      addressId?: string;
+      address?: ResidentAddressInput;
+      economicStatus?: string;
+      houseStatus?: string;
+      waterSource?: string;
+      electricity?: string;
+      sanitation?: string;
+    },
     ipAddress?: string,
   ) {
     const tenantId = this.requireTenant(user);
@@ -146,7 +155,23 @@ export class FamiliesService {
     });
     if (!existing) throw new NotFoundException('Keluarga tidak ditemukan');
 
-    const family = await this.prisma.family.update({ where: { id }, data: body });
+    let addressId = body.addressId;
+    if (body.address) {
+      addressId = await this.populationService.resolveAddress(tenantId, body.address);
+    }
+
+    const family = await this.prisma.family.update({
+      where: { id },
+      data: {
+        headResidentId: body.headResidentId,
+        economicStatus: body.economicStatus,
+        houseStatus: body.houseStatus,
+        waterSource: body.waterSource,
+        electricity: body.electricity,
+        sanitation: body.sanitation,
+        ...(addressId !== undefined ? { addressId } : {}),
+      },
+    });
 
     await this.auditLogs.log({
       tenantId,
@@ -198,20 +223,51 @@ export class FamiliesService {
     });
     if (!family) throw new NotFoundException('Keluarga tidak ditemukan');
 
-    const member = await this.prisma.familyMember.create({
-      data: {
-        tenantId,
-        familyId,
-        residentId: body.residentId,
-        relationship: body.relationship,
-        isHead: body.isHead ?? false,
-      },
-      include: { resident: { select: { id: true, fullName: true } } },
+    const existingMember = await this.prisma.familyMember.findUnique({
+      where: { familyId_residentId: { familyId, residentId: body.residentId } },
     });
+    if (existingMember) throw new ConflictException('Penduduk sudah terdaftar sebagai anggota KK ini');
 
-    await this.prisma.resident.update({
-      where: { id: body.residentId },
-      data: { familyId },
+    if (body.isHead) {
+      const currentHead = await this.prisma.familyMember.findFirst({
+        where: { familyId, isHead: true, residentId: { not: body.residentId } },
+      });
+      if (currentHead) {
+        throw new ConflictException(
+          'Keluarga sudah memiliki kepala keluarga. Lepas status kepala terlebih dahulu.',
+        );
+      }
+    }
+
+    const member = await this.prisma.$transaction(async (tx) => {
+      if (body.isHead) {
+        await tx.familyMember.updateMany({
+          where: { familyId, isHead: true },
+          data: { isHead: false },
+        });
+        await tx.family.update({
+          where: { id: familyId },
+          data: { headResidentId: body.residentId },
+        });
+      }
+
+      const created = await tx.familyMember.create({
+        data: {
+          tenantId,
+          familyId,
+          residentId: body.residentId,
+          relationship: body.relationship,
+          isHead: body.isHead ?? false,
+        },
+        include: { resident: { select: { id: true, fullName: true } } },
+      });
+
+      await tx.resident.update({
+        where: { id: body.residentId },
+        data: { familyId },
+      });
+
+      return created;
     });
 
     await this.auditLogs.log({
@@ -235,13 +291,19 @@ export class FamiliesService {
     });
     if (!member) throw new NotFoundException('Anggota keluarga tidak ditemukan');
 
-    await this.prisma.$transaction([
-      this.prisma.familyMember.delete({ where: { id: memberId } }),
-      this.prisma.resident.updateMany({
+    await this.prisma.$transaction(async (tx) => {
+      await tx.familyMember.delete({ where: { id: memberId } });
+      await tx.resident.updateMany({
         where: { id: member.residentId, familyId },
         data: { familyId: null },
-      }),
-    ]);
+      });
+      if (member.isHead) {
+        await tx.family.update({
+          where: { id: familyId },
+          data: { headResidentId: null },
+        });
+      }
+    });
 
     await this.auditLogs.log({
       tenantId,
