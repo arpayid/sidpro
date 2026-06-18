@@ -10,6 +10,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { Request } from 'express';
 import { LettersService } from './letters.service';
 import { Public, RequirePermissions } from '../../common/decorators';
@@ -193,8 +194,16 @@ export class LettersController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Get('letters/verify/:qrCode')
   verifyByQr(@Param('qrCode') qrCode: string, @Req() req: Request) {
     return this.lettersService.verifyByQr(qrCode, req.ip);
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @Post('letters/public/track')
+  trackPublic(@Query('tenantCode') tenantCode: string, @Body() body: unknown) {
+    return this.lettersService.trackPublic(tenantCode, body);
   }
 }

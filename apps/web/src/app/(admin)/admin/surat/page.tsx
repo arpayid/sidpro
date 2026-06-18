@@ -75,13 +75,14 @@ export default function SuratPage() {
   });
 
   async function onCreateSubmit(values: CreateForm) {
-    const body = {
-      ...values,
-      residentId: values.residentId || undefined,
-    };
-    await createMutation.mutateAsync(body);
+    await createMutation.mutateAsync(values);
     setCreateOpen(false);
     createForm.reset();
+  }
+
+  function maskNik(nik: string) {
+    if (nik.length <= 4) return nik;
+    return `${'*'.repeat(nik.length - 4)}${nik.slice(-4)}`;
   }
 
   function openDetail(request: LetterRequest) {
@@ -231,7 +232,7 @@ export default function SuratPage() {
             )}
           </div>
           <div>
-            <label className="form-label">Cari Penduduk (opsional)</label>
+            <label className="form-label">Cari Penduduk</label>
             <Input
               placeholder="Ketik nama pemohon..."
               value={residentSearch}
@@ -240,20 +241,23 @@ export default function SuratPage() {
           </div>
           <div>
             <label className="form-label" htmlFor="residentId">
-              Penduduk Pemohon
+              Penduduk Pemohon <span className="text-red-500">*</span>
             </label>
             <select
               id="residentId"
               className="h-10 w-full rounded-md border border-slate-300 px-3 text-sm"
               {...createForm.register('residentId')}
             >
-              <option value="">— Tanpa penduduk terdaftar —</option>
+              <option value="">— Pilih penduduk —</option>
               {(residentsData?.data ?? []).map((r) => (
                 <option key={r.id} value={r.id}>
-                  {r.fullName}
+                  {r.fullName} ({maskNik(r.nik)})
                 </option>
               ))}
             </select>
+            {createForm.formState.errors.residentId && (
+              <p className="form-error">{createForm.formState.errors.residentId.message}</p>
+            )}
           </div>
           <div>
             <label className="form-label" htmlFor="purpose">

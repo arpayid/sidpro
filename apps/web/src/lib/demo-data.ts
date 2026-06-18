@@ -230,6 +230,7 @@ export const publicNavItems = [
   { href: '/layanan', label: 'Layanan' },
   { href: '/transparansi', label: 'Transparansi' },
   { href: '/pengaduan', label: 'Pengaduan' },
+  { href: '/surat/cek', label: 'Cek Surat' },
   { href: '/verifikasi-surat', label: 'Verifikasi Surat' },
 ] as const;
 
