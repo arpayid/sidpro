@@ -56,5 +56,6 @@ Record these events:
 - Database backup active.
 - Logs are monitored (`journalctl` for systemd units).
 - Dependency checks are run regularly.
-- API/web managed by systemd with `Restart=on-failure` on VPS staging.
-- Daily backup cron to `/var/backups/sidpro` via `scripts/staging-backup-cron.sh`.
+- API/web managed by systemd with `Restart=on-failure` on VPS staging (`/opt/sidpro`).
+- Daily backup cron to `/var/backups/sidpro` — DB (`db_*.sql.gz`) and MinIO/uploads (`uploads_*.tar.gz`) via `scripts/staging-backup-cron.sh`.
+- Deploy secrets only in `/etc/sidpro/sidpro.env` — never in repository.

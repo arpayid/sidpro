@@ -1,8 +1,7 @@
 # SIDPRO API — systemd unit template (staging/production)
 # Copy to /etc/systemd/system/sidpro-api.service and adjust paths.
 # Do NOT commit real secrets — use EnvironmentFile outside the repository.
-# On VPS: set WorkingDirectory to actual deploy path (e.g. /root/sidpro or /opt/sidpro).
-# Ensure user `sidpro` can traverse the parent directory (e.g. chmod o+x /root if needed).
+# Standard deploy path: /opt/sidpro (see docs/STAGING_DEPLOY.md).
 
 [Unit]
 Description=SIDPRO NestJS API
