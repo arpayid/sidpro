@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { Button, Input } from '@sidpro/ui';
-import { Plus, Check, UserPlus, MessageSquare, XCircle } from 'lucide-react';
+import { Plus, Check, UserPlus, MessageSquare, XCircle, Download } from 'lucide-react';
 import { PageHeader } from '@/components/enterprise/page-header';
 import { DataTable, FilterBar } from '@/components/enterprise/data-table';
 import { DetailDrawer } from '@/components/enterprise/detail-drawer';
@@ -22,6 +22,7 @@ import {
   useCloseComplaint,
   useDownloadComplaintFile,
   useUploadComplaintAttachment,
+  useExportComplaints,
   COMPLAINT_STATUS_LABELS,
   COMPLAINT_PRIORITY_LABELS,
   type Complaint,
@@ -116,6 +117,7 @@ export default function AdminPengaduanPage() {
   const closeMutation = useCloseComplaint();
   const downloadMutation = useDownloadComplaintFile();
   const uploadMutation = useUploadComplaintAttachment();
+  const exportMutation = useExportComplaints();
 
   const complaints = data?.data ?? [];
   const meta = data?.meta;
@@ -190,12 +192,25 @@ export default function AdminPengaduanPage() {
         title="Pengaduan Warga"
         description="Tindak lanjuti pengaduan dari masyarakat secara transparan."
         actions={
-          can('complaints.create') && (
-            <Button size="sm" onClick={() => setCreateOpen(true)}>
-              <Plus className="mr-1.5 h-4 w-4" />
-              Buat Pengaduan
-            </Button>
-          )
+          <div className="flex gap-2">
+            {can('complaints.read') && (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={exportMutation.isPending}
+                onClick={() => exportMutation.mutate()}
+              >
+                <Download className="mr-1.5 h-4 w-4" />
+                Export CSV
+              </Button>
+            )}
+            {can('complaints.create') && (
+              <Button size="sm" onClick={() => setCreateOpen(true)}>
+                <Plus className="mr-1.5 h-4 w-4" />
+                Buat Pengaduan
+              </Button>
+            )}
+          </div>
         }
       />
 

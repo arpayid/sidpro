@@ -7,9 +7,11 @@ import {
   Param,
   Query,
   Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
-import { Request } from 'express';
+import { Throttle } from '@nestjs/throttler';
+import { Request, Response } from 'express';
 import { ComplaintsService } from './complaints.service';
 import { Public, RequirePermissions } from '../../common/decorators';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -21,15 +23,24 @@ export class ComplaintsController {
   constructor(private complaintsService: ComplaintsService) {}
 
   @Public()
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Post('public')
   createPublic(@Query('tenantCode') tenantCode: string, @Body() body: unknown) {
     return this.complaintsService.createPublic(tenantCode, body);
   }
 
   @Public()
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Post('public/track')
   trackPublic(@Query('tenantCode') tenantCode: string, @Body() body: unknown) {
     return this.complaintsService.trackPublic(tenantCode, body);
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Get('export')
+  @RequirePermissions('complaints.read')
+  exportCsv(@CurrentUser() user: JwtPayload, @Req() req: Request, @Res() res: Response) {
+    return this.complaintsService.exportCsv(user, req.ip, res);
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
