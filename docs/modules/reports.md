@@ -19,6 +19,9 @@ API endpoints:
 | GET | /reports/letters | reports.letters |
 | GET | /reports/finance | reports.finance |
 | GET | /reports/audit | audit.read |
+| GET | /reports/population/export | reports.export |
+| GET | /reports/letters/export | reports.export |
+| GET | /reports/finance/export | reports.export |
 | GET | /complaints/export | complaints.read |
 
 Done when: reports can be filtered, previewed, exported by permission, export activity is logged, and audit log viewer shows sanitized tenant-scoped activity.

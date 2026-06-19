@@ -1,11 +1,17 @@
 import { Injectable, ForbiddenException } from '@nestjs/common';
+import { Response } from 'express';
+import * as XLSX from 'xlsx';
 import { PrismaService } from '../../database/prisma.service';
+import { AuditLogsService } from '../../core/audit-logs/audit-logs.service';
 import { JwtPayload } from '../../common/decorators/current-user.decorator';
 import { successResponse } from '../../common/utils/response.util';
 
 @Injectable()
 export class ReportsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private auditLogs: AuditLogsService,
+  ) {}
 
   private requireTenant(user: JwtPayload): string {
     if (!user.tenantId) throw new ForbiddenException('Tenant scope required');
@@ -188,5 +194,229 @@ export class ReportsService {
     ]);
 
     return successResponse({ periodDays: days, byModule, byAction, recent });
+  }
+
+  async exportPopulationReport(user: JwtPayload, ipAddress: string | undefined, res: Response) {
+    const tenantId = this.requireTenant(user);
+
+    const [byGender, byStatus, civilEvents] = await Promise.all([
+      this.prisma.resident.groupBy({
+        by: ['gender'],
+        where: { tenantId, deletedAt: null },
+        _count: { id: true },
+      }),
+      this.prisma.resident.groupBy({
+        by: ['residentStatus'],
+        where: { tenantId, deletedAt: null },
+        _count: { id: true },
+      }),
+      this.prisma.civilEvent.findMany({
+        where: { tenantId },
+        orderBy: { eventDate: 'desc' },
+        include: { resident: { select: { fullName: true } } },
+      }),
+    ]);
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.json_to_sheet(
+        byGender.map((row) => ({
+          jenisKelamin: row.gender,
+          jumlah: row._count.id,
+        })),
+      ),
+      'Jenis Kelamin',
+    );
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.json_to_sheet(
+        byStatus.map((row) => ({
+          status: row.residentStatus,
+          jumlah: row._count.id,
+        })),
+      ),
+      'Status Penduduk',
+    );
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.json_to_sheet(
+        civilEvents.map((event) => ({
+          tanggal: event.eventDate.toISOString().split('T')[0],
+          jenis: event.eventType,
+          penduduk: event.resident?.fullName ?? '',
+          keterangan: event.notes ?? '',
+        })),
+      ),
+      'Peristiwa Sipil',
+    );
+
+    await this.auditLogs.log({
+      tenantId,
+      actorId: user.sub,
+      action: 'export',
+      module: 'reports',
+      entityType: 'report',
+      metadata: { reportType: 'population', civilEventCount: civilEvents.length },
+      ipAddress,
+    });
+
+    this.sendWorkbook(res, workbook, 'laporan-kependudukan.xlsx');
+  }
+
+  async exportLettersReport(user: JwtPayload, ipAddress: string | undefined, res: Response) {
+    const tenantId = this.requireTenant(user);
+
+    const [byStatus, byType, requests, letterTypes] = await Promise.all([
+      this.prisma.letterRequest.groupBy({
+        by: ['status'],
+        where: { tenantId },
+        _count: { id: true },
+      }),
+      this.prisma.letterRequest.groupBy({
+        by: ['letterTypeId'],
+        where: { tenantId },
+        _count: { id: true },
+      }),
+      this.prisma.letterRequest.findMany({
+        where: { tenantId },
+        orderBy: { submittedAt: 'desc' },
+        include: {
+          letterType: { select: { name: true } },
+          resident: { select: { fullName: true } },
+        },
+      }),
+      this.prisma.letterType.findMany({
+        where: { tenantId },
+        select: { id: true, name: true },
+      }),
+    ]);
+
+    const typeNames = new Map(letterTypes.map((type) => [type.id, type.name]));
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.json_to_sheet(
+        byStatus.map((row) => ({
+          status: row.status,
+          jumlah: row._count.id,
+        })),
+      ),
+      'Ringkasan Status',
+    );
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.json_to_sheet(
+        byType.map((row) => ({
+          jenisSurat: typeNames.get(row.letterTypeId) ?? row.letterTypeId,
+          jumlah: row._count.id,
+        })),
+      ),
+      'Ringkasan Jenis',
+    );
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.json_to_sheet(
+        requests.map((request) => ({
+          nomorSurat: request.letterNumber ?? '',
+          jenisSurat: request.letterType.name,
+          pemohon: request.resident?.fullName ?? '',
+          status: request.status,
+          keperluan: request.purpose,
+          tanggalAjuan: request.submittedAt.toISOString().split('T')[0],
+        })),
+      ),
+      'Daftar Permohonan',
+    );
+
+    await this.auditLogs.log({
+      tenantId,
+      actorId: user.sub,
+      action: 'export',
+      module: 'reports',
+      entityType: 'report',
+      metadata: { reportType: 'letters', requestCount: requests.length },
+      ipAddress,
+    });
+
+    this.sendWorkbook(res, workbook, 'laporan-surat.xlsx');
+  }
+
+  async exportFinanceReport(
+    user: JwtPayload,
+    ipAddress: string | undefined,
+    res: Response,
+    year?: number,
+  ) {
+    const tenantId = this.requireTenant(user);
+    const targetYear = year ?? new Date().getFullYear();
+
+    const budgetYear = await this.prisma.budgetYear.findUnique({
+      where: { tenantId_year: { tenantId, year: targetYear } },
+      include: { items: true },
+    });
+
+    const items = budgetYear?.items ?? [];
+    const byCategory = items.reduce(
+      (acc, item) => {
+        const cat = item.category;
+        if (!acc[cat]) acc[cat] = { planned: 0, realized: 0 };
+        acc[cat].planned += Number(item.planned);
+        acc[cat].realized += Number(item.realized);
+        return acc;
+      },
+      {} as Record<string, { planned: number; realized: number }>,
+    );
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.json_to_sheet(
+        items.map((item) => ({
+          kategori: item.category,
+          uraian: item.name,
+          anggaran: Number(item.planned),
+          realisasi: Number(item.realized),
+        })),
+      ),
+      `Anggaran ${targetYear}`,
+    );
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.json_to_sheet(
+        Object.entries(byCategory).map(([category, totals]) => ({
+          kategori: category,
+          anggaran: totals.planned,
+          realisasi: totals.realized,
+          serapan:
+            totals.planned > 0
+              ? `${Math.round((totals.realized / totals.planned) * 100)}%`
+              : '0%',
+        })),
+      ),
+      'Per Kategori',
+    );
+
+    await this.auditLogs.log({
+      tenantId,
+      actorId: user.sub,
+      action: 'export',
+      module: 'reports',
+      entityType: 'report',
+      metadata: { reportType: 'finance', year: targetYear, itemCount: items.length },
+      ipAddress,
+    });
+
+    this.sendWorkbook(res, workbook, `laporan-keuangan-${targetYear}.xlsx`);
+  }
+
+  private sendWorkbook(res: Response, workbook: XLSX.WorkBook, filename: string) {
+    const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(buffer);
   }
 }
