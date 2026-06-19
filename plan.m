@@ -1099,7 +1099,7 @@ Planning skill     : .ai/skills/02-planning-skill.md
 
 | Point | PR | Status |
 |-------|-----|--------|
-| 39–41 | — | 🚧 in progress |
+| 39–41 | #27 | ✅ merged → `mvp-security-v2`, `mvp-roadmap-v1` |
 
 ### Post-MVP Backlog (dokumentasi)
 
