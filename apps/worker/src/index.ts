@@ -1,9 +1,12 @@
 /**
- * SIDPRO Worker - Background job processor placeholder
+ * SIDPRO Worker - Background job processor
  * Queues: pdf-generation, notifications, import-export
  */
 
 import { Worker, Queue } from 'bullmq';
+import type { ComplaintStatusEmailJob } from '@sidpro/types';
+import { createEmailAdapter } from './email/factory';
+import { processComplaintStatusEmail } from './jobs/complaint-status-email';
 
 const redisUrl = process.env.REDIS_URL ?? 'redis://localhost:6379';
 const url = new URL(redisUrl);
@@ -14,6 +17,8 @@ const connection = {
   password: url.password || undefined,
   maxRetriesPerRequest: null as null,
 };
+
+const emailAdapter = createEmailAdapter();
 
 const queues = {
   pdf: new Queue('pdf-generation', { connection }),
@@ -33,20 +38,31 @@ const pdfWorker = new Worker(
 const notificationWorker = new Worker(
   'notifications',
   async (job) => {
-    console.log(`[notifications] Processing job ${job.id}:`, job.data);
-    return { status: 'completed', message: 'Notification sent placeholder' };
+    if (job.name === 'complaint-status-email') {
+      return processComplaintStatusEmail(emailAdapter, job.data as ComplaintStatusEmailJob);
+    }
+
+    console.log(`[notifications] Unknown job ${job.name}:`, job.data);
+    return { status: 'ignored', jobName: job.name };
   },
   { connection },
 );
 
-pdfWorker.on('completed', (job) => console.log(`Job ${job.id} completed`));
-pdfWorker.on('failed', (job, err) => console.error(`Job ${job?.id} failed:`, err));
+pdfWorker.on('completed', (job) => console.log(`[pdf-generation] Job ${job.id} completed`));
+pdfWorker.on('failed', (job, err) => console.error(`[pdf-generation] Job ${job?.id} failed:`, err));
+
+notificationWorker.on('completed', (job) =>
+  console.log(`[notifications] Job ${job.id} (${job.name}) completed`),
+);
+notificationWorker.on('failed', (job, err) =>
+  console.error(`[notifications] Job ${job?.id} (${job?.name}) failed:`, err),
+);
 
 console.log('SIDPRO Worker started');
+console.log('Email adapter:', process.env.SMTP_HOST ? 'smtp' : 'console');
 console.log('Queues:', Object.keys(queues).join(', '));
 
 process.on('SIGTERM', async () => {
-  await pdfWorker.close();
-  await notificationWorker.close();
+  await Promise.all([pdfWorker.close(), notificationWorker.close()]);
   process.exit(0);
 });
