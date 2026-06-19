@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from 'react';
 import { AdminSidebar } from '@/components/layout/admin-sidebar';
 import { AdminTopbar } from '@/components/layout/admin-topbar';
+import { AuthSessionSync } from '@/components/auth/auth-session-sync';
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -10,6 +11,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-screen bg-[hsl(var(--background))]">
+      <AuthSessionSync />
       <AdminSidebar
         mobileOpen={sidebarOpen}
         onMobileClose={() => setSidebarOpen(false)}

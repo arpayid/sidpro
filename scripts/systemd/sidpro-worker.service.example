@@ -1,0 +1,16 @@
+[Unit]
+Description=SIDPRO Background Worker (BullMQ)
+After=network.target docker.service
+Wants=docker.service
+
+[Service]
+Type=simple
+User=sidpro
+WorkingDirectory=/opt/sidpro
+EnvironmentFile=/etc/sidpro/sidpro.env
+ExecStart=/usr/bin/node apps/worker/dist/index.js
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

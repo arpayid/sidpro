@@ -18,7 +18,7 @@ Checkpoint staging & client deployment baseline:
 **Current staging baseline:** `mvp-staging-ops-v1.3` — deploy path `/opt/sidpro`, systemd, DB + MinIO/uploads backup.
 
 - **Staging guide:** [`docs/STAGING_DEPLOY.md`](./STAGING_DEPLOY.md)
-- **Systemd templates:** `scripts/systemd/sidpro-api.service.example`, `scripts/systemd/sidpro-web.service.example`
+- **Systemd templates:** `scripts/systemd/sidpro-api.service.example`, `scripts/systemd/sidpro-web.service.example`, `scripts/systemd/sidpro-worker.service.example`
 
 ## Staging directory layout
 
@@ -34,7 +34,7 @@ Checkpoint staging & client deployment baseline:
 
 - **web** — Next.js admin + portal (`:3000`)
 - **api** — NestJS REST API (`:4000`)
-- **worker** — background jobs (placeholder)
+- **worker** — BullMQ background jobs (email notifications, PDF placeholder)
 - **postgres** — PostgreSQL 17 (Docker Compose)
 - **redis** — cache / queue (Docker Compose)
 - **minio** — object storage (Docker Compose)
@@ -77,7 +77,7 @@ pnpm prisma:generate
 pnpm prisma migrate deploy
 SEED_ADMIN_PASSWORD='<strong-password>' pnpm prisma:seed
 pnpm build
-sudo systemctl restart sidpro-api sidpro-web
+sudo systemctl restart sidpro-api sidpro-web sidpro-worker
 ./scripts/healthcheck.sh
 STAGING_ADMIN_PASSWORD='...' ./scripts/smoke-test.sh
 ```
@@ -89,11 +89,32 @@ STAGING_ADMIN_PASSWORD='...' ./scripts/smoke-test.sh
 Environment file: `/etc/sidpro/sidpro.env` (mode `600`, di luar repo).
 
 ```bash
-sudo systemctl status sidpro-api sidpro-web
-sudo systemctl restart sidpro-api sidpro-web
+sudo systemctl status sidpro-api sidpro-web sidpro-worker
+sudo systemctl restart sidpro-api sidpro-web sidpro-worker
 sudo journalctl -u sidpro-api -f
 sudo journalctl -u sidpro-web -f
+sudo journalctl -u sidpro-worker -f
 ```
+
+### Background worker (email notifications)
+
+Complaint status emails are queued via BullMQ (`REDIS_URL` required). The API enqueues jobs; **worker must be running** to deliver them.
+
+| Env | Purpose |
+|-----|---------|
+| `REDIS_URL` | BullMQ connection (API + worker) |
+| `SMTP_HOST` | Optional — use SMTP adapter; default is console log |
+| `APP_URL` | Tracking link in email body |
+
+Local dev:
+
+```bash
+docker compose up -d redis
+pnpm --filter @sidpro/worker build
+pnpm --filter @sidpro/worker dev
+```
+
+Staging: enable `sidpro-worker.service` from `scripts/systemd/sidpro-worker.service.example` after `pnpm build`.
 
 Detail instalasi: [`STAGING_DEPLOY.md`](./STAGING_DEPLOY.md#systemd-deployment).
 
@@ -104,7 +125,7 @@ Detail instalasi: [`STAGING_DEPLOY.md`](./STAGING_DEPLOY.md#systemd-deployment).
 3. `pnpm install`
 4. Validasi: lint, typecheck, test, build, `prisma validate`
 5. `prisma migrate deploy`
-6. `sudo systemctl restart sidpro-api sidpro-web`
+6. `sudo systemctl restart sidpro-api sidpro-web sidpro-worker`
 7. Healthcheck + smoke test
 
 ## Backup
