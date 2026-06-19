@@ -14,12 +14,19 @@ import { Request } from 'express';
 import { TenantsService } from './tenants.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
+import { RequirePermissions } from '../../common/decorators';
 import { CurrentUser, JwtPayload } from '../../common/decorators/current-user.decorator';
 
 @Controller('tenants')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class TenantsController {
   constructor(private tenantsService: TenantsService) {}
+
+  @Get('regency/overview')
+  @RequirePermissions('tenants.regency_overview')
+  getRegencyOverview(@CurrentUser() user: JwtPayload) {
+    return this.tenantsService.getRegencyOverview(user);
+  }
 
   @Get()
   findAll(

@@ -13,9 +13,14 @@ model Tenant {
   id        String   @id @default(uuid())
   name      String
   code      String   @unique
+  level     String   @default("desa")
+  parentId  String?  @map("parent_id")
   status    String   @default("active")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
+
+  parent   Tenant?  @relation("TenantHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children Tenant[] @relation("TenantHierarchy")
 
   villages          Village[]
   users             User[]
@@ -42,6 +47,7 @@ model Tenant {
   budgetYears       BudgetYear[]
   financeDocuments  FinanceDocument[]
 
+  @@index([parentId, level])
   @@map("tenants")
 }
 

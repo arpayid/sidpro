@@ -23,6 +23,7 @@ import {
   Images,
   MapPin,
   CalendarHeart,
+  Landmark,
   X,
   ChevronLeft,
   ChevronRight,
@@ -52,6 +53,7 @@ const iconMap = {
   'user-cog': UserCog,
   'scroll-text': ScrollText,
   shield: Shield,
+  landmark: Landmark,
 } as const;
 
 interface AdminSidebarProps {

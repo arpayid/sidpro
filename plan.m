@@ -1138,4 +1138,20 @@ PR dibuka → tunggu Codex review
 
 ---
 
+## 21. Wave 10 — Multi-tenant Kabupaten Foundation (2026-06-19)
+
+| Point | Scope | Tag |
+|-------|--------|-----|
+| 47 | Tenant hierarchy schema (`parentId`, `level`) | `mvp-tenant-v1` |
+| 48 | Regency aggregate API + RBAC | `mvp-tenant-v1` |
+| 49 | Admin kabupaten dashboard UI | `mvp-tenant-v1` |
+
+### Wave 10 Execution Log
+
+| Point | PR | Status |
+|-------|-----|--------|
+| 47–49 | — | 🚧 in progress |
+
+---
+
 *Dokumen ini adalah living plan. Update versi dan tanggal setiap kali scope berubah.*
