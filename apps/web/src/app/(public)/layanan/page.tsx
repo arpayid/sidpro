@@ -4,6 +4,7 @@ import {
   MessageSquare,
   ShieldCheck,
   BarChart3,
+  Search,
   ArrowRight,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@sidpro/ui';
@@ -15,6 +16,7 @@ const icons = {
   'message-square': MessageSquare,
   'shield-check': ShieldCheck,
   'bar-chart': BarChart3,
+  search: Search,
 } as const;
 
 export const metadata: Metadata = {

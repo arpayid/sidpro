@@ -452,6 +452,171 @@ async function main() {
     }
   }
 
+  const residentCount = await prisma.resident.count({ where: { tenantId: tenant.id } });
+  if (residentCount === 0) {
+    const demoResidents = [
+      {
+        nik: '7301010101010001',
+        fullName: 'Ahmad Wijaya',
+        gender: 'male',
+        birthPlace: 'Makassar',
+        birthDate: new Date('1990-05-15'),
+      },
+      {
+        nik: '7301010101010002',
+        fullName: 'Siti Rahmawati',
+        gender: 'female',
+        birthPlace: 'Makassar',
+        birthDate: new Date('1992-08-20'),
+      },
+    ];
+
+    for (const resident of demoResidents) {
+      await prisma.resident.create({
+        data: {
+          tenantId: tenant.id,
+          ...resident,
+          residentStatus: 'permanent',
+        },
+      });
+    }
+
+    const head = await prisma.resident.findFirst({
+      where: { tenantId: tenant.id, nik: '7301010101010001' },
+    });
+    if (head) {
+      const family = await prisma.family.create({
+        data: {
+          tenantId: tenant.id,
+          kkNumber: '7301010101010001',
+          headResidentId: head.id,
+        },
+      });
+      await prisma.resident.update({
+        where: { id: head.id },
+        data: { familyId: family.id },
+      });
+      await prisma.familyMember.create({
+        data: {
+          tenantId: tenant.id,
+          familyId: family.id,
+          residentId: head.id,
+          relationship: 'Kepala Keluarga',
+          isHead: true,
+        },
+      });
+    }
+  }
+
+  const postCount = await prisma.post.count({ where: { tenantId: tenant.id } });
+  if (postCount === 0) {
+    await prisma.post.create({
+      data: {
+        tenantId: tenant.id,
+        title: 'Desa Demo Luncurkan Portal Layanan Digital',
+        slug: 'desa-demo-luncurkan-portal',
+        excerpt: 'Pemerintah desa resmi meluncurkan portal layanan digital SIDPRO.',
+        content:
+          'Pemerintah Desa Demo Makmur meluncurkan portal layanan digital untuk mempercepat pelayanan administrasi warga.',
+        category: 'Pengumuman',
+        status: 'published',
+        publishedAt: new Date(),
+      },
+    });
+  }
+
+  const galleryCount = await prisma.galleryItem.count({ where: { tenantId: tenant.id } });
+  if (galleryCount === 0) {
+    await prisma.galleryItem.createMany({
+      data: [
+        {
+          tenantId: tenant.id,
+          title: 'Gotong Royong Bersih Desa',
+          description: 'Kegiatan bersih-bersih lingkungan bersama warga.',
+          type: 'image',
+        },
+        {
+          tenantId: tenant.id,
+          title: 'Rapat Koordinasi BPD',
+          description: 'Rapat perencanaan pembangunan desa.',
+          type: 'image',
+        },
+      ],
+    });
+  }
+
+  const budgetYear = await prisma.budgetYear.upsert({
+    where: { tenantId_year: { tenantId: tenant.id, year: 2026 } },
+    update: {},
+    create: {
+      tenantId: tenant.id,
+      year: 2026,
+      totalBudget: 500000000,
+      status: 'active',
+    },
+  });
+
+  const budgetItemCount = await prisma.budgetItem.count({
+    where: { budgetYearId: budgetYear.id },
+  });
+  if (budgetItemCount === 0) {
+    await prisma.budgetItem.createMany({
+      data: [
+        {
+          budgetYearId: budgetYear.id,
+          category: 'Pembangunan',
+          name: 'Infrastruktur Jalan Desa',
+          planned: 150000000,
+          realized: 95000000,
+        },
+        {
+          budgetYearId: budgetYear.id,
+          category: 'Pemberdayaan',
+          name: 'Bantuan UMKM Desa',
+          planned: 75000000,
+          realized: 45000000,
+        },
+        {
+          budgetYearId: budgetYear.id,
+          category: 'Pelayanan',
+          name: 'Operasional Kantor Desa',
+          planned: 50000000,
+          realized: 32000000,
+        },
+      ],
+    });
+  }
+
+  const docCount = await prisma.financeDocument.count({
+    where: { tenantId: tenant.id, isPublic: true },
+  });
+  if (docCount === 0) {
+    await prisma.financeDocument.create({
+      data: {
+        tenantId: tenant.id,
+        title: 'Laporan Realisasi APBDes 2026 (Semester I)',
+        type: 'laporan',
+        year: 2026,
+        isPublic: true,
+      },
+    });
+  }
+
+  const projectCount = await prisma.developmentProject.count({ where: { tenantId: tenant.id } });
+  if (projectCount === 0) {
+    await prisma.developmentProject.create({
+      data: {
+        tenantId: tenant.id,
+        code: 'PBG-001',
+        name: 'Peningkatan Jalan Lingkungan RT 01',
+        location: 'Dusun Krajan',
+        budget: 120000000,
+        progress: 65,
+        status: 'ongoing',
+      },
+    });
+  }
+
   console.log('Seed completed!');
 }
 

@@ -62,6 +62,43 @@ export default async function ProfilDesaPage() {
             </div>
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Kontak Desa</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <div className="flex justify-between border-b border-slate-100 pb-2">
+              <span className="text-slate-500">Telepon</span>
+              <span className="font-medium">{village.contactPhone ?? '—'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-500">Email</span>
+              <span className="font-medium">{village.contactEmail ?? '—'}</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Pejabat Desa</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            {(village.officials ?? []).length ? (
+              village.officials!.map((official) => (
+                <div
+                  key={`${official.name}-${official.title}`}
+                  className="flex justify-between border-b border-slate-100 pb-2 last:border-0"
+                >
+                  <span className="font-medium text-slate-900">{official.name}</span>
+                  <span className="text-slate-500">{official.title}</span>
+                </div>
+              ))
+            ) : (
+              <p className="text-slate-500">Data pejabat belum tersedia.</p>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

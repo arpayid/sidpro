@@ -4,8 +4,8 @@
 Dokumen   : plan.m
 Proyek    : SID Premium Enterprise (sidpro)
 Workspace : /root/sidpro
-Versi     : 1.0
-Tanggal   : 2026-06-18
+Versi     : 1.1
+Tanggal   : 2026-06-19
 Baseline  : commit 254d515 (mvp-complaints-v1)
 Protokol  : AGENTS.md → AUDIT → PLAN → IMPLEMENT → VALIDATE → TEST → DOCS → PR
 ```
@@ -1168,6 +1168,244 @@ PR dibuka → tunggu Codex review
 | Point | PR | Status |
 |-------|-----|--------|
 | 50–53 | #30 | ✅ merged → `mvp-ux-v1` |
+
+---
+
+## 23. Roadmap Eksekusi Otomatis (Wave 12–19)
+
+Sisa pekerjaan MVP + enterprise diorganisir menjadi **8 wave** untuk dieksekusi otomatis dengan protokol:
+
+```txt
+AUDIT → PLAN → IMPLEMENT → VALIDATE → TEST → PR
+  → tunggu Codex review → fix P1/P2 valid → merge → tag → wave berikutnya
+```
+
+### 23.1 Peta Wave (prioritas eksekusi)
+
+| Wave | Nama | Tag | Tier | Estimasi |
+|------|------|-----|------|----------|
+| **12** | Codex P2 Hardening (ops + security) | `mvp-hardening-v2` | 1 — fondasi | 2–3 hari |
+| **13** | Backup, Restore & CI Smoke | `mvp-backup-v1` | 1 — fondasi | 2–3 hari |
+| **14** | Portal Publik Polish | `mvp-portal-v5` | 2 — produk | 3–5 hari |
+| **15** | Surat & Pengajuan Warga | `mvp-letters-v2` | 2 — produk | 4–6 hari |
+| **16** | Penduduk & KK Polish | `mvp-population-v2` | 2 — produk | 3–5 hari |
+| **17** | Dashboard & Laporan Polish | `mvp-dashboard-v2` | 3 — enterprise | 3–4 hari |
+| **18** | Multi-tenant Lanjutan | `mvp-tenant-v2` | 3 — enterprise | 4–6 hari |
+| **19** | Enterprise Ops & Security | `mvp-security-v4` | 3 — enterprise | 2–4 hari |
+
+**Post-MVP (dokumentasi saja, tidak auto-wave):** BUMDes, GIS/Peta Desa, AI Assistant — lihat `docs/modules/roadmap-post-mvp.md`.
+
+### 23.2 Dependensi antar wave
+
+```txt
+Wave 12 (hardening)
+  → Wave 13 (backup/CI)     [bisa paralel tipis dengan 12, merge 12 dulu]
+  → Wave 14 (portal)
+  → Wave 15 (surat warga)   [butuh 12 selesai untuk upload/security]
+  → Wave 16 (KK)            [paralel opsional dengan 15]
+  → Wave 17 (dashboard)
+  → Wave 18 (tenant v2)     [butuh Wave 10]
+  → Wave 19 (security ops)
+```
+
+---
+
+## 24. Wave 12 — Codex P2 Hardening (Ops + Security)
+
+| Point | Scope | Tag |
+|-------|--------|-----|
+| 54 | `restore-db.sh` + `ON_ERROR_STOP` + guard dev-only | `mvp-hardening-v2` |
+| 55 | Smoke test / seed `SEED_ADMIN_EMAIL` alignment | `mvp-hardening-v2` |
+| 56 | Family delete unlink anggota KK | `mvp-hardening-v2` |
+| 57 | CMS upload/download scope `ownerType === gallery` | `mvp-hardening-v2` |
+| 58 | Public upload MIME validation + orphan file cleanup | `mvp-hardening-v2` |
+
+### Wave 12 Execution Log
+
+| Point | PR | Status |
+|-------|-----|--------|
+| 54–58 | — | ⏳ queued |
+
+**DoD:** lint/typecheck/test/build hijau; tidak ada P1/P2 Codex terbuka; smoke lokal PASS.
+
+---
+
+## 25. Wave 13 — Backup, Restore & CI Smoke
+
+| Point | Scope | Tag |
+|-------|--------|-----|
+| 59 | Hardening `scripts/backup-db.sh` + encrypted optional | `mvp-backup-v1` |
+| 60 | `docs/OPERATIONS.md` — backup schedule & restore runbook | `mvp-backup-v1` |
+| 61 | CI job smoke test di GitHub Actions (`mvp-smoke-green-v2`) | `mvp-smoke-green-v2` |
+| 62 | Smoke test: surat track + regency login path | `mvp-smoke-green-v2` |
+
+### Wave 13 Execution Log
+
+| Point | PR | Status |
+|-------|-----|--------|
+| 59–62 | — | ⏳ queued |
+
+**Constraint:** Tidak setup cron production; hanya script + docs + CI.
+
+---
+
+## 26. Wave 14 — Portal Publik Polish
+
+| Point | Scope | Tag |
+|-------|--------|-----|
+| 63 | Homepage statistik desa live dari API | `mvp-portal-v5` |
+| 64 | `/profil-desa` — visi/misi, pejabat, peta ringkas | `mvp-portal-v5` |
+| 65 | `/transparansi` — APBDes + dokumen publik dari modul keuangan | `mvp-portal-v5` |
+| 66 | `/agenda` + `/galeri` publik dari CMS (bukan placeholder) | `mvp-portal-v5` |
+| 67 | `/layanan` — link surat/pengaduan/cek status konsisten | `mvp-portal-v5` |
+
+### Wave 14 Execution Log
+
+| Point | PR | Status |
+|-------|-----|--------|
+| 63–67 | — | ⏳ queued |
+
+**Catatan:** `/profil-desa` dan `/transparansi` sudah partial — wave ini polish + data live penuh.
+
+---
+
+## 27. Wave 15 — Surat & Pengajuan Warga
+
+| Point | Scope | Tag |
+|-------|--------|-----|
+| 68 | UI pengajuan surat role `warga` (tanpa dropdown `/residents`) | `mvp-letters-v2` |
+| 69 | Template merge field lengkap + nomor surat otomatis | `mvp-letters-v2` |
+| 70 | PDF generation stabil + retry MinIO | `mvp-letters-v2` |
+| 71 | QR validasi publik: rate limit + NIK tidak full expose | `mvp-letters-v2` |
+| 72 | Smoke E2E: warga submit → admin approve → PDF → verify QR | `mvp-letters-v2` |
+
+### Wave 15 Execution Log
+
+| Point | PR | Status |
+|-------|-----|--------|
+| 68–72 | — | ⏳ queued |
+
+---
+
+## 28. Wave 16 — Penduduk & KK Polish
+
+| Point | Scope | Tag |
+|-------|--------|-----|
+| 73 | UI hapus anggota KK + konfirmasi | `mvp-population-v2` |
+| 74 | UI soft-delete KK + validasi kepala keluarga | `mvp-population-v2` |
+| 75 | Form penduduk: alamat/wilayah (dusun, RT/RW) inline | `mvp-population-v2` |
+| 76 | Konsistensi NIK masking di semua tabel admin | `mvp-population-v2` |
+| 77 | Peristiwa sipil / mutasi (pindah/meninggal) UX polish | `mvp-population-v2` |
+
+### Wave 16 Execution Log
+
+| Point | PR | Status |
+|-------|-----|--------|
+| 73–77 | — | ⏳ queued |
+
+---
+
+## 29. Wave 17 — Dashboard & Laporan Polish
+
+| Point | Scope | Tag |
+|-------|--------|-----|
+| 78 | Dashboard widget: penduduk, KK, surat, pengaduan (live) | `mvp-dashboard-v2` |
+| 79 | Chart Recharts di dashboard admin | `mvp-dashboard-v2` |
+| 80 | Laporan drill-down + empty/loading/error state enterprise | `mvp-dashboard-v2` |
+| 81 | Export laporan: audit log entry + permission gate review | `mvp-dashboard-v2` |
+
+### Wave 17 Execution Log
+
+| Point | PR | Status |
+|-------|-----|--------|
+| 78–81 | — | ⏳ queued |
+
+---
+
+## 30. Wave 18 — Multi-tenant Lanjutan
+
+| Point | Scope | Tag |
+|-------|--------|-----|
+| 82 | Level `kecamatan` — seed + role `admin_kecamatan` | `mvp-tenant-v2` |
+| 83 | Dashboard kecamatan (agregat desa di bawahnya) | `mvp-tenant-v2` |
+| 84 | Regency drill-down: klik desa → ringkasan read-only | `mvp-tenant-v2` |
+| 85 | Provisioning tenant desa baru di bawah kabupaten (admin sistem) | `mvp-tenant-v2` |
+
+### Wave 18 Execution Log
+
+| Point | PR | Status |
+|-------|-----|--------|
+| 82–85 | — | ⏳ queued |
+
+**Prasyarat:** Wave 10 (`mvp-tenant-v1`) merged.
+
+---
+
+## 31. Wave 19 — Enterprise Ops & Security
+
+| Point | Scope | Tag |
+|-------|--------|-----|
+| 86 | Rollout 2FA wajib admin — docs staging + enrollment UX | `mvp-security-v4` |
+| 87 | CI: `npm audit` / dependency scan (non-blocking → blocking bertahap) | `mvp-security-v4` |
+| 88 | `docs/SECURITY_CHECKLIST.md` sync dengan implementasi terbaru | `mvp-security-v4` |
+| 89 | Docs process manager web (systemd/pm2) anti-OOM | `mvp-security-v4` |
+| 90 | Pengaduan: SLA dashboard opsional + rate limit review | `mvp-complaints-v3` |
+
+### Wave 19 Execution Log
+
+| Point | PR | Status |
+|-------|-----|--------|
+| 86–90 | — | ⏳ queued |
+
+---
+
+## 32. Post-MVP Backlog (tidak masuk auto-wave)
+
+| Modul | Prioritas | Trigger mulai |
+|-------|-----------|---------------|
+| BUMDes | P2 | Setelah Wave 19 + MVP smoke hijau 2 minggu |
+| GIS / Peta Desa | P2 | Setelah portal + tenant v2 stabil |
+| AI Assistant | P3 | Setelah auth, RBAC, audit, backup production-ready |
+
+Dokumen acuan: `docs/modules/roadmap-post-mvp.md`, `docs/SID_ENTERPRISE_BLUEPRINT.md` §7.15.
+
+---
+
+## 33. Checklist Agent — Eksekusi Otomatis per Wave
+
+```txt
+[ ] Baca section wave aktif di plan.m
+[ ] git checkout main && git pull
+[ ] git checkout -b feat/wave{N}-<slug>
+[ ] AUDIT file/modul terkait
+[ ] Implementasi minimal scope (point wave saja)
+[ ] RBAC + tenant scope + audit log (mutation)
+[ ] pnpm lint && typecheck && test && build && prisma:validate (jika schema)
+[ ] Update docs modul terkait (jika fitur besar)
+[ ] git push → gh pr create
+[ ] Tunggu CI hijau + Codex review
+[ ] Fix P1/P2 valid → push → re-review
+[ ] gh pr merge --squash → git tag → update Execution Log plan.m
+[ ] Lanjut wave berikutnya tanpa menunggu prompt user
+```
+
+### Status MVP Blueprint (revisi 2026-06-19)
+
+```txt
+ 1. Auth + RBAC              ✅
+ 2. Profil desa               🟡 → Wave 14
+ 3. Portal publik             🟡 → Wave 14
+ 4. Data penduduk             ✅ partial → Wave 16
+ 5. Data KK                   🟡 → Wave 16
+ 6. Layanan surat             🟡 → Wave 15
+ 7. Template surat PDF        🟡 → Wave 15
+ 8. QR validasi surat         🟡 → Wave 15
+ 9. Pengaduan warga           ✅ → Wave 19 (SLA)
+10. Dashboard admin           🟡 → Wave 17
+11. Audit log                 ✅
+12. Backup                    🔴 → Wave 13
+13. Multi-tenant kabupaten    🟡 → Wave 10 ✅, Wave 18 lanjutan
+```
 
 ---
 

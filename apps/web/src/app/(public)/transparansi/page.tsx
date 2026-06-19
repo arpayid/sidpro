@@ -64,6 +64,27 @@ export default async function TransparansiPage() {
           </CardContent>
         </Card>
       </div>
+
+      {data.documents && data.documents.length > 0 && (
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle>Dokumen Publik</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-2 text-sm">
+              {data.documents.map((doc: { id: string; title: string }) => (
+                <li
+                  key={doc.id}
+                  className="flex items-center justify-between rounded-md border border-slate-100 px-3 py-2"
+                >
+                  <span className="font-medium text-slate-800">{doc.title}</span>
+                  <span className="text-xs text-slate-400">Dokumen resmi desa</span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
