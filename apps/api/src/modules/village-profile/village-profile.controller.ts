@@ -17,6 +17,13 @@ export class VillageProfileController {
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Get('manage')
+  @RequirePermissions('settings.manage')
+  getForAdmin(@CurrentUser() user: JwtPayload) {
+    return this.villageProfileService.getForTenant(user);
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Patch()
   @RequirePermissions('settings.manage')
   update(

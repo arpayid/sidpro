@@ -27,6 +27,21 @@ export class VillageProfileService {
     });
   }
 
+  async getForTenant(user: JwtPayload) {
+    if (!user.tenantId) throw new ForbiddenException('Tenant scope required');
+
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: user.tenantId },
+      include: { villages: true },
+    });
+    if (!tenant) throw new NotFoundException('Tenant tidak ditemukan');
+
+    return successResponse({
+      tenant: { id: tenant.id, name: tenant.name, code: tenant.code },
+      village: tenant.villages[0] ?? null,
+    });
+  }
+
   async update(
     user: JwtPayload,
     body: {
