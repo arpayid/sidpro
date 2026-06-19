@@ -16,7 +16,12 @@ export default async function AgendaPage() {
       <p className="page-description">Jadwal kegiatan dan acara resmi desa.</p>
 
       <div className="mt-8 space-y-4">
-        {agenda.map((item) => (
+        {agenda.length === 0 ? (
+          <p className="rounded-lg border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
+            Belum ada agenda kegiatan yang dijadwalkan.
+          </p>
+        ) : (
+          agenda.map((item) => (
           <Card key={item.id}>
             <CardHeader>
               <CardTitle className="text-lg">{item.title}</CardTitle>
@@ -42,7 +47,8 @@ export default async function AgendaPage() {
               <p className="pt-2 text-slate-700">{item.description}</p>
             </CardContent>
           </Card>
-        ))}
+          ))
+        )}
       </div>
     </div>
   );

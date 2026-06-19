@@ -330,6 +330,49 @@ async function main() {
     },
   });
 
+  await prisma.setting.upsert({
+    where: { tenantId_key: { tenantId: tenant.id, key: 'village.contact' } },
+    update: {},
+    create: {
+      tenantId: tenant.id,
+      key: 'village.contact',
+      value: { phone: '(0298) 123456', email: 'info@demo-desa.go.id' },
+    },
+  });
+
+  const agendaSeeds = [
+    {
+      title: 'Rapat Koordinasi BPD',
+      description: 'Rapat koordinasi Badan Permusyawaratan Desa perihal RKPDes.',
+      location: 'Balai Desa',
+      startAt: new Date('2026-06-20T09:00:00'),
+    },
+    {
+      title: 'Posyandu Balita',
+      description: 'Pemeriksaan kesehatan balita dan imunisasi rutin.',
+      location: 'Posyandu Melati',
+      startAt: new Date('2026-06-22T08:00:00'),
+    },
+  ];
+
+  for (const item of agendaSeeds) {
+    const existing = await prisma.agenda.findFirst({
+      where: { tenantId: tenant.id, title: item.title },
+    });
+    if (!existing) {
+      await prisma.agenda.create({
+        data: {
+          tenantId: tenant.id,
+          title: item.title,
+          description: item.description,
+          location: item.location,
+          startAt: item.startAt,
+          status: 'scheduled',
+        },
+      });
+    }
+  }
+
   console.log('Seed completed!');
 }
 

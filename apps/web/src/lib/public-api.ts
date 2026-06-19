@@ -60,13 +60,16 @@ export async function fetchPublicVillage(): Promise<VillageProfile> {
       mission?: string | null;
       description?: string | null;
     };
+    contact?: { phone?: string | null; email?: string | null };
   }>(`${API_PREFIX}/village-profile?${tenantQuery()}`, {
     tenant: { name: demoVillage.name, code: demoVillage.code },
     village: demoVillage,
+    contact: { phone: null, email: null },
   });
 
   const village = response.village ?? (response as unknown as VillageProfile);
   const tenant = response.tenant;
+  const contact = response.contact;
 
   return {
     name: village.name ?? tenant?.name ?? demoVillage.name,
@@ -78,6 +81,8 @@ export async function fetchPublicVillage(): Promise<VillageProfile> {
     vision: village.vision ?? demoVillage.vision,
     mission: village.mission ?? demoVillage.mission,
     description: village.description ?? demoVillage.description,
+    contactPhone: contact?.phone ?? null,
+    contactEmail: contact?.email ?? null,
   };
 }
 

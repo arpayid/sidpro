@@ -21,9 +21,34 @@ export class VillageProfileService {
     const village = tenant.villages[0];
     if (!village) throw new NotFoundException('Profil desa belum tersedia');
 
+    const contact = await this.getContactSetting(tenant.id);
+
     return successResponse({
       tenant: { id: tenant.id, name: tenant.name, code: tenant.code },
       village,
+      contact,
+    });
+  }
+
+  private async getContactSetting(tenantId: string) {
+    const setting = await this.prisma.setting.findUnique({
+      where: { tenantId_key: { tenantId, key: 'village.contact' } },
+    });
+    const value = (setting?.value ?? {}) as { phone?: string; email?: string };
+    return {
+      phone: value.phone ?? null,
+      email: value.email ?? null,
+    };
+  }
+
+  private async upsertContactSetting(
+    tenantId: string,
+    contact: { phone?: string; email?: string },
+  ) {
+    await this.prisma.setting.upsert({
+      where: { tenantId_key: { tenantId, key: 'village.contact' } },
+      update: { value: contact },
+      create: { tenantId, key: 'village.contact', value: contact },
     });
   }
 
@@ -36,9 +61,12 @@ export class VillageProfileService {
     });
     if (!tenant) throw new NotFoundException('Tenant tidak ditemukan');
 
+    const contact = await this.getContactSetting(tenant.id);
+
     return successResponse({
       tenant: { id: tenant.id, name: tenant.name, code: tenant.code },
       village: tenant.villages[0] ?? null,
+      contact,
     });
   }
 
@@ -54,10 +82,14 @@ export class VillageProfileService {
       vision?: string;
       mission?: string;
       description?: string;
+      contactPhone?: string;
+      contactEmail?: string;
     },
     ipAddress?: string,
   ) {
     if (!user.tenantId) throw new ForbiddenException('Tenant scope required');
+
+    const { contactPhone, contactEmail, ...villageFields } = body;
 
     const village = await this.prisma.village.findFirst({
       where: { tenantId: user.tenantId },
@@ -66,16 +98,24 @@ export class VillageProfileService {
     const updated = village
       ? await this.prisma.village.update({
           where: { id: village.id },
-          data: body,
+          data: villageFields,
         })
       : await this.prisma.village.create({
           data: {
             tenantId: user.tenantId,
-            name: body.name ?? 'Desa',
+            name: villageFields.name ?? 'Desa',
             code: 'default',
-            ...body,
+            ...villageFields,
           },
         });
+
+    if (contactPhone !== undefined || contactEmail !== undefined) {
+      const existing = await this.getContactSetting(user.tenantId);
+      await this.upsertContactSetting(user.tenantId, {
+        phone: contactPhone ?? existing.phone ?? undefined,
+        email: contactEmail ?? existing.email ?? undefined,
+      });
+    }
 
     await this.auditLogs.log({
       tenantId: user.tenantId,

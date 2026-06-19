@@ -1,8 +1,12 @@
 import Link from 'next/link';
 import { Shield, Mail, Phone, MapPin } from 'lucide-react';
-import { demoVillage } from '@/lib/demo-data';
+import { fetchPublicVillage } from '@/lib/public-api';
 
-export function PublicFooter() {
+export async function PublicFooter() {
+  const village = await fetchPublicVillage();
+  const email = village.contactEmail ?? `info@${village.code}.go.id`;
+  const phone = village.contactPhone ?? '—';
+
   return (
     <footer className="border-t border-emerald-900/10 bg-emerald-950 text-emerald-50">
       <div className="container-page grid gap-8 py-12 md:grid-cols-3">
@@ -53,15 +57,15 @@ export function PublicFooter() {
           <ul className="space-y-2 text-sm text-emerald-100">
             <li className="flex items-start gap-2">
               <MapPin className="mt-0.5 h-4 w-4 shrink-0" />
-              <span>{demoVillage.address}</span>
+              <span>{village.address}</span>
             </li>
             <li className="flex items-center gap-2">
               <Phone className="h-4 w-4 shrink-0" />
-              <span>(0298) 123456</span>
+              <span>{phone}</span>
             </li>
             <li className="flex items-center gap-2">
               <Mail className="h-4 w-4 shrink-0" />
-              <span>info@{demoVillage.code}.go.id</span>
+              <span>{email}</span>
             </li>
           </ul>
         </div>
@@ -69,7 +73,7 @@ export function PublicFooter() {
 
       <div className="border-t border-emerald-800/50">
         <div className="container-page flex flex-col items-center justify-between gap-2 py-4 text-xs text-emerald-200 sm:flex-row">
-          <p>&copy; {new Date().getFullYear()} {demoVillage.name}. Hak cipta dilindungi.</p>
+          <p>&copy; {new Date().getFullYear()} {village.name}. Hak cipta dilindungi.</p>
           <p>Ditenagai oleh SIDPRO Enterprise</p>
         </div>
       </div>

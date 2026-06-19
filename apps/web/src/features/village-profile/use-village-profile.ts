@@ -18,6 +18,7 @@ export interface VillageProfileData {
     mission?: string | null;
     description?: string | null;
   } | null;
+  contact?: { phone?: string | null; email?: string | null };
 }
 
 export interface UpdateVillageProfileInput {
@@ -30,6 +31,8 @@ export interface UpdateVillageProfileInput {
   vision?: string;
   mission?: string;
   description?: string;
+  contactPhone?: string;
+  contactEmail?: string;
 }
 
 export function useVillageProfile() {
