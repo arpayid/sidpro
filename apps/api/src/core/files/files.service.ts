@@ -97,6 +97,63 @@ export class FilesService {
     return successResponse(record, 'File berhasil diunggah');
   }
 
+  async uploadPublic(
+    tenantId: string,
+    file: { buffer: Buffer; originalname: string; mimetype: string; size: number },
+    ipAddress?: string,
+  ) {
+    const key = `${tenantId}/complaint_public/${randomUUID()}-${file.originalname}`;
+    const checksum = createHash('sha256').update(file.buffer).digest('hex');
+
+    await this.storage.uploadFile(file.buffer, key, file.mimetype);
+
+    const record = await this.prisma.file.create({
+      data: {
+        tenantId,
+        ownerType: 'complaint_public',
+        ownerId: null,
+        path: key,
+        mimeType: file.mimetype,
+        size: file.size,
+        checksum,
+      },
+    });
+
+    await this.auditLogs.log({
+      tenantId,
+      action: 'upload',
+      module: 'files',
+      entityType: 'file',
+      entityId: record.id,
+      metadata: { path: key, mimeType: file.mimetype, size: file.size, public: true },
+      ipAddress,
+    });
+
+    return successResponse(record, 'File berhasil diunggah');
+  }
+
+  async linkPublicComplaintFiles(tenantId: string, complaintId: string, fileIds: string[]) {
+    if (!fileIds.length) return;
+
+    const files = await this.prisma.file.findMany({
+      where: {
+        id: { in: fileIds },
+        tenantId,
+        ownerType: 'complaint_public',
+        ownerId: null,
+      },
+    });
+
+    if (files.length !== fileIds.length) {
+      throw new BadRequestException('Lampiran tidak valid atau sudah digunakan');
+    }
+
+    await this.prisma.file.updateMany({
+      where: { id: { in: fileIds } },
+      data: { ownerType: 'complaint', ownerId: complaintId },
+    });
+  }
+
   async getDownloadUrl(user: JwtPayload, id: string) {
     const tenantId = this.requireTenant(user);
     const file = await this.prisma.file.findFirst({ where: { id, tenantId } });

@@ -15,6 +15,7 @@ import {
 } from '@sidpro/validators';
 import { PrismaService } from '../../database/prisma.service';
 import { AuditLogsService } from '../../core/audit-logs/audit-logs.service';
+import { FilesService } from '../../core/files/files.service';
 import { JwtPayload } from '../../common/decorators/current-user.decorator';
 import { paginatedResponse, successResponse } from '../../common/utils/response.util';
 
@@ -49,6 +50,7 @@ export class ComplaintsService {
   constructor(
     private prisma: PrismaService,
     private auditLogs: AuditLogsService,
+    private filesService: FilesService,
   ) {}
 
   private requireTenant(user: JwtPayload): string {
@@ -60,6 +62,10 @@ export class ComplaintsService {
     const tenant = await this.prisma.tenant.findUnique({ where: { code: tenantCode } });
     if (!tenant) throw new NotFoundException('Tenant tidak ditemukan');
     return tenant.id;
+  }
+
+  async resolveTenantIdForUpload(tenantCode: string): Promise<string> {
+    return this.resolveTenantId(tenantCode);
   }
 
   private assertTransition(from: string, to: string) {
@@ -222,20 +228,29 @@ export class ComplaintsService {
     }
 
     const tenantId = await this.resolveTenantId(tenantCode);
+    const fileIds = parsed.data.fileIds ?? [];
 
-    const complaint = await this.prisma.complaint.create({
-      data: {
-        tenantId,
-        title: parsed.data.title,
-        description: parsed.data.description,
-        category: parsed.data.category,
-        priority: parsed.data.priority ?? 'medium',
-        location: parsed.data.location,
-        reporterName: parsed.data.reporterName,
-        reporterPhone: parsed.data.reporterPhone,
-        reporterEmail: parsed.data.reporterEmail,
-        status: 'submitted',
-      },
+    const complaint = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.complaint.create({
+        data: {
+          tenantId,
+          title: parsed.data.title,
+          description: parsed.data.description,
+          category: parsed.data.category,
+          priority: parsed.data.priority ?? 'medium',
+          location: parsed.data.location,
+          reporterName: parsed.data.reporterName,
+          reporterPhone: parsed.data.reporterPhone,
+          reporterEmail: parsed.data.reporterEmail,
+          status: 'submitted',
+        },
+      });
+
+      if (fileIds.length) {
+        await this.filesService.linkPublicComplaintFiles(tenantId, created.id, fileIds);
+      }
+
+      return created;
     });
 
     return successResponse(complaint, 'Pengaduan berhasil dikirim');
