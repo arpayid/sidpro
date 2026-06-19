@@ -88,6 +88,7 @@ jobs:
             | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
           sudo apt-get update -qq
           sudo apt-get install -y -qq postgresql-client-17
+          export PATH="/usr/lib/postgresql/17/bin:$PATH"
           export BACKUP_DIR=$(mktemp -d)
           pnpm backup
           test -n "$(ls -1 "$BACKUP_DIR"/db_*.sql.gz 2>/dev/null)" || (echo "Backup file missing" && exit 1)
