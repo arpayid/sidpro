@@ -329,6 +329,33 @@ async function main() {
 
       console.log(`[seed] Regency admin ready: ${regencyAdminEmail}`);
     }
+
+    const wargaRole = await prisma.role.findFirst({
+      where: { code: 'warga', tenantId: tenant.id },
+    });
+
+    if (wargaRole) {
+      const wargaEmail = process.env.SEED_WARGA_EMAIL ?? 'warga@demo-desa.id';
+      const wargaUser = await prisma.user.upsert({
+        where: { email: wargaEmail },
+        update: { passwordHash },
+        create: {
+          email: wargaEmail,
+          name: 'Warga Demo',
+          passwordHash,
+          tenantId: tenant.id,
+          status: 'active',
+        },
+      });
+
+      await prisma.userRole.upsert({
+        where: { userId_roleId: { userId: wargaUser.id, roleId: wargaRole.id } },
+        update: {},
+        create: { userId: wargaUser.id, roleId: wargaRole.id },
+      });
+
+      console.log(`[seed] Warga user ready: ${wargaEmail}`);
+    }
   }
 
   for (const lt of LETTER_TYPES) {
