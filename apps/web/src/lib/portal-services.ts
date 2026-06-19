@@ -23,6 +23,13 @@ export const portalServices: PortalService[] = [
     href: '/pengaduan/cek',
   },
   {
+    id: 'ajukan-surat',
+    title: 'Ajukan Surat Online',
+    description: 'Login sebagai warga untuk mengajukan permohonan surat keterangan.',
+    icon: 'file-text',
+    href: '/surat/ajukan',
+  },
+  {
     id: 'cek-surat',
     title: 'Cek Status Surat',
     description: 'Lacak permohonan surat dengan nomor tiket dan 4 digit terakhir NIK.',

@@ -71,15 +71,27 @@ export class StorageService implements OnModuleInit {
     }
   }
 
-  async uploadFile(buffer: Buffer, key: string, mimeType: string): Promise<void> {
-    await this.client.send(
-      new PutObjectCommand({
-        Bucket: this.bucket,
-        Key: key,
-        Body: buffer,
-        ContentType: mimeType,
-      }),
-    );
+  async uploadFile(buffer: Buffer, key: string, mimeType: string, retries = 3): Promise<void> {
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        await this.client.send(
+          new PutObjectCommand({
+            Bucket: this.bucket,
+            Key: key,
+            Body: buffer,
+            ContentType: mimeType,
+          }),
+        );
+        return;
+      } catch (error) {
+        lastError = error;
+        if (attempt < retries) {
+          await new Promise((resolve) => setTimeout(resolve, 200 * attempt));
+        }
+      }
+    }
+    throw lastError;
   }
 
   async getSignedUrl(key: string, expiresIn = 3600): Promise<string> {

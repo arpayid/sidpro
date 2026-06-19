@@ -1224,7 +1224,7 @@ Wave 12 (hardening)
 
 | Point | PR | Status |
 |-------|-----|--------|
-| 54–58 | — | ⏳ queued |
+| 54–58 | #31 | ✅ merged → `mvp-hardening-v2` |
 
 **DoD:** lint/typecheck/test/build hijau; tidak ada P1/P2 Codex terbuka; smoke lokal PASS.
 
@@ -1243,7 +1243,7 @@ Wave 12 (hardening)
 
 | Point | PR | Status |
 |-------|-----|--------|
-| 59–62 | — | ⏳ queued |
+| 59–62 | #32 | ✅ merged → `mvp-backup-v1`, `mvp-smoke-green-v2` |
 
 **Constraint:** Tidak setup cron production; hanya script + docs + CI.
 
@@ -1263,7 +1263,7 @@ Wave 12 (hardening)
 
 | Point | PR | Status |
 |-------|-----|--------|
-| 63–67 | — | ⏳ queued |
+| 63–67 | #33 | ✅ merged → `mvp-portal-v5` |
 
 **Catatan:** `/profil-desa` dan `/transparansi` sudah partial — wave ini polish + data live penuh.
 
