@@ -140,7 +140,13 @@ pnpm backup
 # or: ./scripts/backup-db.sh
 ```
 
-Output: `backups/db_YYYYMMDD_HHMMSS.sql.gz` (+ optional `uploads_*.tar.gz` if `UPLOAD_DIR` exists).
+Output: `backups/db_YYYYMMDD_HHMMSS.sql.gz` + `db_*.sql.gz.sha256` (+ optional `uploads_*.tar.gz` if `UPLOAD_DIR` exists).
+
+Verify backup integrity:
+
+```bash
+sha256sum -c backups/db_YYYYMMDD_HHMMSS.sql.gz.sha256
+```
 
 Restore (dev only — guarded):
 
@@ -149,7 +155,7 @@ export DATABASE_URL="postgresql://sidpro:sidpro@localhost:5432/sidpro"
 RESTORE_CONFIRM=YES ./scripts/restore-db.sh ./backups/db_YYYYMMDD_HHMMSS.sql.gz
 ```
 
-`restore-db.sh` refuses to run when `NODE_ENV=production`. Use `scripts/restore.sh` for interactive staging restore.
+`restore-db.sh` uses `psql -v ON_ERROR_STOP=1 --single-transaction` and refuses to run when `NODE_ENV=production`. Use `scripts/restore.sh` for interactive staging restore.
 
 ### Staging VPS
 

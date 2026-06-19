@@ -233,7 +233,15 @@ RESP_CMP=$(curl -sf -X POST "$API/complaints/$CMP_ID/responses" -H "$AUTH" -H 'C
   -d '{"response":"Ditindaklanjuti oleh smoke test","status":"resolved"}' | grep -c success || true)
 check "Complaints add response" "$([ "$RESP_CMP" -ge 1 ] && echo 1 || echo 0)"
 
-# 13. Logout
+# 13. Regency admin overview (Wave 10)
+REGENCY_LOGIN=$(curl -sf -X POST "$API/auth/login" -H 'Content-Type: application/json' \
+  -d "{\"email\":\"admin.kab@demo-kabupaten.id\",\"password\":\"$ADMIN_PASSWORD\"}" 2>/dev/null || echo '{}')
+REGENCY_ACCESS=$(echo "$REGENCY_LOGIN" | json_field "console.log(j.data?.accessToken||'')")
+REGENCY_AUTH="Authorization: Bearer $REGENCY_ACCESS"
+REGENCY_OVERVIEW=$(curl -sf -H "$REGENCY_AUTH" "$API/tenants/regency/overview" 2>/dev/null | grep -c success || true)
+check "Regency admin overview" "$([ -n "$REGENCY_ACCESS" ] && [ "$REGENCY_OVERVIEW" -ge 1 ] && echo 1 || echo 0)"
+
+# 14. Logout
 LOGOUT=$(curl -sf -X POST "$API/auth/logout" -H "$AUTH" -H 'Content-Type: application/json' \
   -d "{\"refreshToken\":\"$REFRESH\"}" | grep -c success || true)
 check "Logout" "$([ "$LOGOUT" -ge 1 ] && echo 1 || echo 0)"
