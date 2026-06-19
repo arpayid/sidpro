@@ -22,12 +22,23 @@ export class VillageProfileService {
     if (!village) throw new NotFoundException('Profil desa belum tersedia');
 
     const contact = await this.getContactSetting(tenant.id);
+    const officials = await this.getOfficials(tenant.id);
 
     return successResponse({
       tenant: { id: tenant.id, name: tenant.name, code: tenant.code },
       village,
       contact,
+      officials,
     });
+  }
+
+  private async getOfficials(tenantId: string) {
+    const signatory = await this.prisma.setting.findUnique({
+      where: { tenantId_key: { tenantId, key: 'letters.signatory' } },
+    });
+    const value = (signatory?.value ?? {}) as { name?: string; title?: string };
+    if (!value.name) return [];
+    return [{ name: value.name, title: value.title ?? 'Pejabat Desa' }];
   }
 
   private async getContactSetting(tenantId: string) {

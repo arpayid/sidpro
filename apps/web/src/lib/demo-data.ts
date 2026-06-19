@@ -10,6 +10,7 @@ export interface VillageProfile {
   description: string;
   contactPhone?: string | null;
   contactEmail?: string | null;
+  officials?: { name: string; title: string }[];
 }
 
 export interface DashboardStat {
@@ -204,6 +205,7 @@ export const demoTransparency = {
     { name: 'Renovasi Balai Desa', budget: 'Rp 280.000.000', progress: 60 },
     { name: 'Drainase RT 03', budget: 'Rp 120.000.000', progress: 40 },
   ],
+  documents: [] as { id: string; title: string }[],
 };
 
 export const adminNavItems = [

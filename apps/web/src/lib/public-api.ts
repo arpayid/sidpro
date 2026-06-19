@@ -61,10 +61,12 @@ export async function fetchPublicVillage(): Promise<VillageProfile> {
       description?: string | null;
     };
     contact?: { phone?: string | null; email?: string | null };
+    officials?: { name: string; title: string }[];
   }>(`${API_PREFIX}/village-profile?${tenantQuery()}`, {
     tenant: { name: demoVillage.name, code: demoVillage.code },
     village: demoVillage,
     contact: { phone: null, email: null },
+    officials: [{ name: 'Kepala Desa Demo', title: 'Kepala Desa' }],
   });
 
   const village = response.village ?? (response as unknown as VillageProfile);
@@ -83,6 +85,7 @@ export async function fetchPublicVillage(): Promise<VillageProfile> {
     description: village.description ?? demoVillage.description,
     contactPhone: contact?.phone ?? null,
     contactEmail: contact?.email ?? null,
+    officials: response.officials ?? [],
   };
 }
 
@@ -283,7 +286,7 @@ export async function fetchPublicTransparency() {
     : demoTransparency.projects;
 
   if (!items.length && !projectItems.length) {
-    return demoTransparency;
+    return { ...demoTransparency, documents: data.publicDocuments ?? [] };
   }
 
   return {

@@ -2,25 +2,32 @@ export interface PortalService {
   id: string;
   title: string;
   description: string;
-  icon: 'file-text' | 'message-square' | 'shield-check' | 'bar-chart';
+  icon: 'file-text' | 'message-square' | 'shield-check' | 'bar-chart' | 'search';
   href: string;
 }
 
 /** Canonical portal layanan — bukan demo fallback. */
 export const portalServices: PortalService[] = [
   {
-    id: 'surat',
-    title: 'Surat Online',
-    description: 'Ajukan surat keterangan dan dokumen resmi desa secara online.',
-    icon: 'file-text',
-    href: '/layanan',
-  },
-  {
     id: 'pengaduan',
     title: 'Pengaduan Warga',
     description: 'Sampaikan aspirasi dan laporan masalah lingkungan desa.',
     icon: 'message-square',
     href: '/pengaduan',
+  },
+  {
+    id: 'cek-pengaduan',
+    title: 'Cek Status Pengaduan',
+    description: 'Lacak progres pengaduan dengan nomor tiket dan nomor HP.',
+    icon: 'search',
+    href: '/pengaduan/cek',
+  },
+  {
+    id: 'cek-surat',
+    title: 'Cek Status Surat',
+    description: 'Lacak permohonan surat dengan nomor tiket dan 4 digit terakhir NIK.',
+    icon: 'search',
+    href: '/surat/cek',
   },
   {
     id: 'verifikasi',
