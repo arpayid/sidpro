@@ -18,6 +18,7 @@ import { AuditLogsService } from '../../core/audit-logs/audit-logs.service';
 import { FilesService } from '../../core/files/files.service';
 import { NotificationQueueService } from '../../core/queue/notification-queue.service';
 import { JwtPayload } from '../../common/decorators/current-user.decorator';
+import { escapeCsvCell } from '../../common/utils/csv.util';
 import { paginatedResponse, successResponse } from '../../common/utils/response.util';
 
 const COMPLAINT_INCLUDE_LIST = {
@@ -608,15 +609,15 @@ export class ComplaintsService {
     const header = 'id,title,category,priority,status,reporter_name,reporter_phone,created_at,updated_at';
     const rows = complaints.map((c) =>
       [
-        c.id,
-        `"${c.title.replace(/"/g, '""')}"`,
-        c.category,
-        c.priority,
-        c.status,
-        `"${(c.reporterName ?? '').replace(/"/g, '""')}"`,
-        c.reporterPhone ?? '',
-        c.createdAt.toISOString(),
-        c.updatedAt.toISOString(),
+        escapeCsvCell(c.id),
+        escapeCsvCell(c.title),
+        escapeCsvCell(c.category),
+        escapeCsvCell(c.priority),
+        escapeCsvCell(c.status),
+        escapeCsvCell(c.reporterName ?? ''),
+        escapeCsvCell(c.reporterPhone ?? ''),
+        escapeCsvCell(c.createdAt.toISOString()),
+        escapeCsvCell(c.updatedAt.toISOString()),
       ].join(','),
     );
 

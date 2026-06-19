@@ -28,6 +28,7 @@ const PERMISSIONS = [
   { code: 'families.update', name: 'Update Families', module: 'families' },
   { code: 'families.delete', name: 'Delete Families', module: 'families' },
   { code: 'families.export', name: 'Export Families', module: 'families' },
+  { code: 'families.view_sensitive', name: 'View Sensitive Family Data', module: 'families' },
   { code: 'letters.read', name: 'Read Letters', module: 'letters' },
   { code: 'letters.create', name: 'Create Letters', module: 'letters' },
   { code: 'letters.verify', name: 'Verify Letters', module: 'letters' },
@@ -55,6 +56,9 @@ const PERMISSIONS = [
   { code: 'cms.manage', name: 'Manage CMS', module: 'cms' },
   { code: 'reports.read', name: 'Read Reports', module: 'reports' },
   { code: 'reports.export', name: 'Export Reports', module: 'reports' },
+  { code: 'reports.population', name: 'Population Reports', module: 'reports' },
+  { code: 'reports.letters', name: 'Letters Reports', module: 'reports' },
+  { code: 'reports.finance', name: 'Finance Reports', module: 'reports' },
 ];
 
 const LETTER_TYPES = [

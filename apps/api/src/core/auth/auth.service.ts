@@ -468,6 +468,9 @@ export class AuthService {
     }
 
     const user = stored.user;
+    if (user.status !== 'active' || user.deletedAt) {
+      throw new UnauthorizedException('Akun tidak aktif');
+    }
     const authUser = this.mapUserRoles(user);
     const payload = this.buildJwtPayload(authUser);
 

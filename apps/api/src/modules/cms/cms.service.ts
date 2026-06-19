@@ -278,20 +278,20 @@ export class CmsService {
       this.prisma.galleryItem.count({ where }),
     ]);
 
-    const enriched = await this.enrichGalleryItemsWithImageUrls(data);
+    const enriched = await this.enrichGalleryItemsWithImageUrls(tenantId, data);
     return paginatedResponse(enriched, page, limit, total);
   }
 
   private async enrichGalleryItemsWithImageUrls<
     T extends { fileId?: string | null; title: string },
-  >(items: T[]) {
+  >(tenantId: string, items: T[]) {
     const fileIds = items
       .map((item) => item.fileId)
       .filter((fileId): fileId is string => Boolean(fileId));
 
     const files = fileIds.length
       ? await this.prisma.file.findMany({
-          where: { id: { in: fileIds } },
+          where: { id: { in: fileIds }, tenantId },
           select: { id: true, path: true },
         })
       : [];

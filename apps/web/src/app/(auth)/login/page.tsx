@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type FormEvent, Suspense, useEffect } from 'react';
+import { useState, type FormEvent, Suspense, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Shield } from 'lucide-react';
@@ -31,6 +31,7 @@ function LoginForm() {
   const callbackUrl = searchParams.get('callbackUrl') ?? '/admin/dashboard';
   const setupEnrollMutation = useSetupEnrollLogin();
   const completeEnrollMutation = useCompleteEnrollLogin();
+  const enrollSetupStarted = useRef(false);
 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -42,15 +43,17 @@ function LoginForm() {
   const [totpCode, setTotpCode] = useState('');
 
   useEffect(() => {
-    if (!enrollmentToken || enrollSetup) return;
+    if (!enrollmentToken || enrollSetup || enrollSetupStarted.current) return;
+    enrollSetupStarted.current = true;
     setupEnrollMutation
       .mutateAsync(enrollmentToken)
       .then((data) => setEnrollSetup(data))
       .catch((err) => {
+        enrollSetupStarted.current = false;
         setError(err instanceof Error ? err.message : 'Gagal memuat enrollment 2FA');
         setEnrollmentToken(null);
       });
-  }, [enrollmentToken, enrollSetup, setupEnrollMutation]);
+  }, [enrollmentToken, enrollSetup]);
 
   async function completeLogin(data: LoginResponse) {
     setAuthSession(data.accessToken, data.refreshToken, data.user);
@@ -203,6 +206,7 @@ function LoginForm() {
               onClick={() => {
                 setEnrollmentToken(null);
                 setEnrollSetup(null);
+                enrollSetupStarted.current = false;
                 setTotpCode('');
                 setError('');
               }}
