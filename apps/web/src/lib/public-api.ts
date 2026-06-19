@@ -206,6 +206,7 @@ export async function fetchPublicGallery(): Promise<GalleryItem[]> {
     title: string;
     category?: string | null;
     fileId?: string | null;
+    imageUrl?: string | null;
   }>(payload);
 
   if (!items.length) return demoGallery;
@@ -214,50 +215,75 @@ export async function fetchPublicGallery(): Promise<GalleryItem[]> {
     id: item.id,
     title: item.title,
     category: item.category ?? 'Umum',
-    imageUrl: item.fileId
-      ? `https://placehold.co/600x400/e2e8f0/64748b?text=${encodeURIComponent(item.title)}`
-      : 'https://placehold.co/600x400/e2e8f0/64748b?text=Galeri',
+    imageUrl:
+      item.imageUrl ??
+      `https://placehold.co/600x400/e2e8f0/64748b?text=${encodeURIComponent(item.title)}`,
   }));
 }
 
 export async function fetchPublicTransparency() {
-  const data = await apiFetchWithFallback<{
-    year: number;
-    budgetYear?: {
-      items: { category: string; planned: unknown; realized: unknown }[];
-    } | null;
-    summary: {
-      totalBudget: number;
-      totalPlanned: number;
-      totalRealized: number;
-      absorptionRate: number;
-    };
-    publicDocuments: { id: string; title: string }[];
-  }>(`${API_PREFIX}/finance/transparency?${tenantQuery()}`, {
-    year: new Date().getFullYear(),
-    budgetYear: null,
-    summary: { totalBudget: 0, totalPlanned: 0, totalRealized: 0, absorptionRate: 0 },
-    publicDocuments: [],
-  });
+  const tenantQueryStr = tenantQuery();
+  const [data, projectsPayload] = await Promise.all([
+    apiFetchWithFallback<{
+      year: number;
+      budgetYear?: {
+        items: { category: string; planned: unknown; realized: unknown }[];
+      } | null;
+      summary: {
+        totalBudget: number;
+        totalPlanned: number;
+        totalRealized: number;
+        absorptionRate: number;
+      };
+      publicDocuments: { id: string; title: string }[];
+    }>(`${API_PREFIX}/finance/transparency?${tenantQueryStr}`, {
+      year: new Date().getFullYear(),
+      budgetYear: null,
+      summary: { totalBudget: 0, totalPlanned: 0, totalRealized: 0, absorptionRate: 0 },
+      publicDocuments: [],
+    }),
+    apiFetchWithFallback<{
+      id: string;
+      name: string;
+      budget: number | null;
+      progress: number;
+      status: string;
+      location?: string | null;
+    }[]>(`${API_PREFIX}/development/public/projects?${tenantQueryStr}&limit=20`, []),
+  ]);
 
   const items = data.budgetYear?.items ?? [];
-  if (!items.length) return demoTransparency;
+  const projectItems = Array.isArray(projectsPayload) ? projectsPayload : [];
 
-  const apbd = items.map((item) => {
-    const planned = Number(item.planned);
-    const realized = Number(item.realized);
-    const percentage =
-      planned > 0 ? `${Math.round((realized / planned) * 100)}%` : '0%';
-    return {
-      category: item.category,
-      amount: formatCurrency(realized),
-      percentage,
-    };
-  });
+  const apbd = items.length
+    ? items.map((item) => {
+        const planned = Number(item.planned);
+        const realized = Number(item.realized);
+        const percentage =
+          planned > 0 ? `${Math.round((realized / planned) * 100)}%` : '0%';
+        return {
+          category: item.category,
+          amount: formatCurrency(realized),
+          percentage,
+        };
+      })
+    : demoTransparency.apbd;
+
+  const projects = projectItems.length
+    ? projectItems.map((project) => ({
+        name: project.name,
+        budget: project.budget ? formatCurrency(project.budget) : '—',
+        progress: project.progress,
+      }))
+    : demoTransparency.projects;
+
+  if (!items.length && !projectItems.length) {
+    return demoTransparency;
+  }
 
   return {
     apbd,
-    projects: demoTransparency.projects,
+    projects,
     documents: data.publicDocuments,
     summary: data.summary,
   };

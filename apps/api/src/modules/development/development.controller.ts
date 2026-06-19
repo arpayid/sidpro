@@ -14,13 +14,22 @@ import { Request } from 'express';
 import { DevelopmentService } from './development.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
-import { RequirePermissions } from '../../common/decorators';
+import { RequirePermissions, Public } from '../../common/decorators';
 import { CurrentUser, JwtPayload } from '../../common/decorators/current-user.decorator';
 
 @Controller('development')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class DevelopmentController {
   constructor(private developmentService: DevelopmentService) {}
+
+  @Public()
+  @Get('public/projects')
+  findPublicProjects(
+    @Query('tenantCode') tenantCode: string,
+    @Query('limit') limit = '20',
+  ) {
+    return this.developmentService.findPublicProjects(tenantCode, parseInt(limit, 10));
+  }
 
   @Get('projects')
   @RequirePermissions('development.read')
