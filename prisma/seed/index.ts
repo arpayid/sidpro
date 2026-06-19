@@ -121,6 +121,9 @@ async function main() {
 
   const allPermissions = await prisma.permission.findMany();
   const permIds = allPermissions.map((p) => p.id);
+  const desaAdminPermIds = allPermissions
+    .filter((p) => p.code !== 'tenants.regency_overview')
+    .map((p) => p.id);
 
   const regencyTenant = await prisma.tenant.upsert({
     where: { code: 'demo-kabupaten' },
@@ -222,8 +225,10 @@ async function main() {
     });
 
     const permsToAssign =
-      roleData.code === 'superadmin_system' || roleData.code === 'admin_desa'
+      roleData.code === 'superadmin_system'
         ? permIds
+        : roleData.code === 'admin_desa'
+        ? desaAdminPermIds
         : roleData.code === 'admin_kabupaten'
           ? allPermissions
               .filter((p) =>
