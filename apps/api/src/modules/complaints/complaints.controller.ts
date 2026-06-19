@@ -9,18 +9,56 @@ import {
   Req,
   Res,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { Request, Response } from 'express';
 import { ComplaintsService } from './complaints.service';
+import { FilesService } from '../../core/files/files.service';
 import { Public, RequirePermissions } from '../../common/decorators';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { CurrentUser, JwtPayload } from '../../common/decorators/current-user.decorator';
 
+const PUBLIC_UPLOAD_MIME = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+const PUBLIC_UPLOAD_MAX = 5 * 1024 * 1024;
+
 @Controller('complaints')
 export class ComplaintsController {
-  constructor(private complaintsService: ComplaintsService) {}
+  constructor(
+    private complaintsService: ComplaintsService,
+    private filesService: FilesService,
+  ) {}
+
+  @Public()
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @Post('public/upload')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: PUBLIC_UPLOAD_MAX },
+      fileFilter: (_req, file, cb) => {
+        if (!PUBLIC_UPLOAD_MIME.includes(file.mimetype)) {
+          cb(new BadRequestException('Tipe file tidak diizinkan'), false);
+          return;
+        }
+        cb(null, true);
+      },
+    }),
+  )
+  async uploadPublic(
+    @Query('tenantCode') tenantCode: string,
+    @UploadedFile() file: { buffer: Buffer; originalname: string; mimetype: string; size: number },
+    @Req() req: Request,
+  ) {
+    if (!file) throw new BadRequestException('File wajib diunggah');
+    const tenantId = await this.complaintsService.resolveTenantIdForUpload(tenantCode);
+    return this.filesService.uploadPublic(tenantId, file, req.ip);
+  }
 
   @Public()
   @Throttle({ default: { limit: 10, ttl: 60000 } })

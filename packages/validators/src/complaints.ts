@@ -9,6 +9,7 @@ export const createComplaintSchema = z.object({
   reporterName: z.string().min(2).optional(),
   reporterPhone: z.string().optional(),
   reporterEmail: z.string().email().optional(),
+  fileIds: z.array(z.string().uuid()).max(3).optional(),
 });
 
 export const respondComplaintSchema = z.object({
@@ -52,6 +53,7 @@ export const publicComplaintFormSchema = z.object({
   description: z.string().min(10, 'Isi pengaduan minimal 10 karakter').max(5000),
   priority: z.enum(['low', 'medium', 'high', 'urgent']),
   location: z.string().optional(),
+  fileIds: z.array(z.string().uuid()).max(3).optional(),
 });
 
 export type PublicComplaintFormInput = z.input<typeof publicComplaintFormSchema>;
@@ -67,6 +69,7 @@ export function toPublicComplaintPayload(values: PublicComplaintFormValues) {
     reporterName: values.reporterName,
     reporterPhone: values.reporterPhone,
     reporterEmail: values.reporterEmail || undefined,
+    fileIds: values.fileIds,
   };
 }
 

@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, type ChangeEvent } from 'react';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -7,7 +8,11 @@ import { publicComplaintFormSchema, type PublicComplaintFormInput } from '@sidpr
 import { Button, Card, CardContent, CardHeader, CardTitle, Input } from '@sidpro/ui';
 import { MessageSquare, AlertCircle, Search } from 'lucide-react';
 import { useSubmitPublicComplaint } from '@/features/complaints/use-public-complaint';
+import { useUploadPublicComplaintFile } from '@/features/complaints/use-public-complaint-upload';
 import { getPublicTenantCode } from '@/lib/tenant';
+
+const MAX_ATTACHMENTS = 3;
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
 
 const CATEGORIES = [
   { value: 'Infrastruktur', label: 'Infrastruktur' },
@@ -24,7 +29,10 @@ function formatTicketId(id: string) {
 
 export default function PengaduanPage() {
   const submitMutation = useSubmitPublicComplaint();
+  const uploadMutation = useUploadPublicComplaintFile();
   const tenantCode = getPublicTenantCode();
+  const [uploadedFiles, setUploadedFiles] = useState<{ id: string; name: string }[]>([]);
+  const [uploadError, setUploadError] = useState('');
 
   const form = useForm<PublicComplaintFormInput>({
     resolver: zodResolver(publicComplaintFormSchema),
@@ -41,7 +49,39 @@ export default function PengaduanPage() {
   });
 
   async function onSubmit(values: PublicComplaintFormInput) {
-    await submitMutation.mutateAsync(values);
+    await submitMutation.mutateAsync({
+      ...values,
+      fileIds: uploadedFiles.map((f) => f.id),
+    });
+  }
+
+  async function handleAttachmentChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (uploadedFiles.length >= MAX_ATTACHMENTS) {
+      setUploadError(`Maksimal ${MAX_ATTACHMENTS} lampiran`);
+      return;
+    }
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      setUploadError('Format: JPG, PNG, WebP, atau PDF');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setUploadError('Ukuran file maksimal 5MB');
+      return;
+    }
+    setUploadError('');
+    try {
+      const id = await uploadMutation.mutateAsync(file);
+      setUploadedFiles((prev) => [...prev, { id, name: file.name }]);
+    } catch (err) {
+      setUploadError((err as Error).message);
+    }
+  }
+
+  function removeAttachment(id: string) {
+    setUploadedFiles((prev) => prev.filter((f) => f.id !== id));
   }
 
   if (submitMutation.isSuccess && submitMutation.data) {
@@ -190,6 +230,37 @@ export default function PengaduanPage() {
               )}
             </div>
 
+            <div>
+              <label className="form-label" htmlFor="attachments">
+                Lampiran <span className="text-slate-400">(opsional, max {MAX_ATTACHMENTS})</span>
+              </label>
+              <input
+                id="attachments"
+                type="file"
+                accept={ALLOWED_TYPES.join(',')}
+                disabled={uploadMutation.isPending || uploadedFiles.length >= MAX_ATTACHMENTS}
+                onChange={handleAttachmentChange}
+                className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-emerald-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-emerald-700"
+              />
+              {uploadError && <p className="form-error">{uploadError}</p>}
+              {uploadedFiles.length > 0 && (
+                <ul className="mt-2 space-y-1 text-sm text-slate-600">
+                  {uploadedFiles.map((f) => (
+                    <li key={f.id} className="flex items-center justify-between rounded border border-slate-200 px-3 py-1.5">
+                      <span className="truncate">{f.name}</span>
+                      <button
+                        type="button"
+                        className="text-xs text-red-600 hover:underline"
+                        onClick={() => removeAttachment(f.id)}
+                      >
+                        Hapus
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
             {submitMutation.isError && (
               <div className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -197,7 +268,11 @@ export default function PengaduanPage() {
               </div>
             )}
 
-            <Button type="submit" disabled={submitMutation.isPending} className="w-full sm:w-auto">
+            <Button
+              type="submit"
+              disabled={submitMutation.isPending || uploadMutation.isPending}
+              className="w-full sm:w-auto"
+            >
               {submitMutation.isPending ? 'Mengirim...' : 'Kirim Pengaduan'}
             </Button>
           </form>
