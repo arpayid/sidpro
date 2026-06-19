@@ -1,5 +1,12 @@
 export const adminNavItems = [
   { href: '/admin/dashboard', label: 'Dashboard', icon: 'layout-dashboard' },
+  {
+    href: '/admin/kabupaten',
+    label: 'Dashboard Kabupaten',
+    icon: 'landmark',
+    permission: 'tenants.regency_overview',
+    regencyOnly: true,
+  },
   { href: '/admin/penduduk', label: 'Penduduk', icon: 'users', permission: 'population.read' },
   { href: '/admin/wilayah', label: 'Wilayah', icon: 'map-pin', permission: 'population.read' },
   { href: '/admin/peristiwa', label: 'Peristiwa Sipil', icon: 'calendar-heart', permission: 'population.read' },

@@ -59,6 +59,7 @@ const PERMISSIONS = [
   { code: 'reports.population', name: 'Population Reports', module: 'reports' },
   { code: 'reports.letters', name: 'Letters Reports', module: 'reports' },
   { code: 'reports.finance', name: 'Finance Reports', module: 'reports' },
+  { code: 'tenants.regency_overview', name: 'Regency Overview Dashboard', module: 'tenants' },
 ];
 
 const LETTER_TYPES = [
@@ -120,13 +121,29 @@ async function main() {
 
   const allPermissions = await prisma.permission.findMany();
   const permIds = allPermissions.map((p) => p.id);
+  const desaAdminPermIds = allPermissions
+    .filter((p) => p.code !== 'tenants.regency_overview')
+    .map((p) => p.id);
+
+  const regencyTenant = await prisma.tenant.upsert({
+    where: { code: 'demo-kabupaten' },
+    update: { level: 'kabupaten', parentId: null },
+    create: {
+      name: 'Kabupaten Demo',
+      code: 'demo-kabupaten',
+      level: 'kabupaten',
+      status: 'active',
+    },
+  });
 
   const tenant = await prisma.tenant.upsert({
     where: { code: 'demo-desa' },
-    update: {},
+    update: { parentId: regencyTenant.id, level: 'desa' },
     create: {
       name: 'Desa Demo',
       code: 'demo-desa',
+      level: 'desa',
+      parentId: regencyTenant.id,
       status: 'active',
     },
   });
@@ -184,6 +201,12 @@ async function main() {
 
   const roles = [
     { code: 'superadmin_system', name: 'Superadmin Sistem', scope: 'system', tenantId: null },
+    {
+      code: 'admin_kabupaten',
+      name: 'Admin Kabupaten',
+      scope: 'regency',
+      tenantId: regencyTenant.id,
+    },
     { code: 'admin_desa', name: 'Admin Desa', scope: 'tenant', tenantId: tenant.id },
     { code: 'operator_desa', name: 'Operator Desa', scope: 'tenant', tenantId: tenant.id },
     { code: 'warga', name: 'Warga', scope: 'tenant', tenantId: tenant.id },
@@ -202,9 +225,24 @@ async function main() {
     });
 
     const permsToAssign =
-      roleData.code === 'superadmin_system' || roleData.code === 'admin_desa'
+      roleData.code === 'superadmin_system'
         ? permIds
-        : roleData.code === 'operator_desa'
+        : roleData.code === 'admin_desa'
+        ? desaAdminPermIds
+        : roleData.code === 'admin_kabupaten'
+          ? allPermissions
+              .filter((p) =>
+                [
+                  'tenants.regency_overview',
+                  'reports.read',
+                  'reports.population',
+                  'reports.letters',
+                  'reports.finance',
+                  'audit.read',
+                ].includes(p.code),
+              )
+              .map((p) => p.id)
+          : roleData.code === 'operator_desa'
           ? allPermissions
               .filter((p) =>
                 ['population', 'families', 'letters', 'complaints', 'cms'].some((m) =>
@@ -263,6 +301,33 @@ async function main() {
       console.log(`[seed] Dev admin ready: ${adminEmail} (development-only — see warning above)`);
     } else {
       console.log(`[seed] Admin user seeded: ${adminEmail}`);
+    }
+
+    const regencyAdminRole = await prisma.role.findFirst({
+      where: { code: 'admin_kabupaten', tenantId: regencyTenant.id },
+    });
+
+    if (regencyAdminRole) {
+      const regencyAdminEmail = process.env.SEED_REGENCY_ADMIN_EMAIL ?? 'admin.kab@demo-kabupaten.id';
+      const regencyAdminUser = await prisma.user.upsert({
+        where: { email: regencyAdminEmail },
+        update: { passwordHash },
+        create: {
+          email: regencyAdminEmail,
+          name: 'Admin Kabupaten Demo',
+          passwordHash,
+          tenantId: regencyTenant.id,
+          status: 'active',
+        },
+      });
+
+      await prisma.userRole.upsert({
+        where: { userId_roleId: { userId: regencyAdminUser.id, roleId: regencyAdminRole.id } },
+        update: {},
+        create: { userId: regencyAdminUser.id, roleId: regencyAdminRole.id },
+      });
+
+      console.log(`[seed] Regency admin ready: ${regencyAdminEmail}`);
     }
   }
 

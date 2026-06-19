@@ -23,6 +23,7 @@ import {
   Images,
   MapPin,
   CalendarHeart,
+  Landmark,
   X,
   ChevronLeft,
   ChevronRight,
@@ -52,6 +53,7 @@ const iconMap = {
   'user-cog': UserCog,
   'scroll-text': ScrollText,
   shield: Shield,
+  landmark: Landmark,
 } as const;
 
 interface AdminSidebarProps {
@@ -68,11 +70,14 @@ export function AdminSidebar({
   onToggleCollapse,
 }: AdminSidebarProps) {
   const pathname = usePathname();
-  const { can } = useAuth();
+  const { can, user } = useAuth();
+  const isRegencyAdmin = user?.roles.includes('admin_kabupaten') ?? false;
 
-  const items = adminNavItems.filter(
-    (item) => !('permission' in item) || !item.permission || can(item.permission),
-  );
+  const items = adminNavItems.filter((item) => {
+    if ('regencyOnly' in item && item.regencyOnly && !isRegencyAdmin) return false;
+    if ('permission' in item && item.permission && !can(item.permission)) return false;
+    return true;
+  });
 
   const content = (
     <>

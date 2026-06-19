@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import type { AuthUser } from '@sidpro/types';
 import {
@@ -14,6 +15,7 @@ import { apiClient, syncAuthProfile } from '@/lib/api-client';
 
 export function useAuth() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [user, setUser] = useState<AuthUser | null>(() => getStoredUser());
 
   useEffect(() => {
@@ -33,9 +35,10 @@ export function useAuth() {
       // ignore — still clear local session
     }
     clearAuthSession();
+    queryClient.clear();
     setUser(null);
     router.push('/login');
-  }, [router]);
+  }, [router, queryClient]);
 
   const syncProfile = useCallback(async () => {
     const profile = await syncAuthProfile();
