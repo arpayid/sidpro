@@ -66,7 +66,7 @@ export class LettersController {
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Get('letter-types')
-  @RequirePermissions('letters.read')
+  @RequirePermissions('letters.read', 'letters.create')
   findLetterTypes(
     @CurrentUser() user: JwtPayload,
     @Query('page') page = '1',
