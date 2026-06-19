@@ -5,8 +5,8 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { Response } from 'express';
-import * as XLSX from 'xlsx';
 import { PrismaService } from '../../database/prisma.service';
+import { sendXlsxDownload } from '../../common/utils/spreadsheet.util';
 import { AuditLogsService } from '../../core/audit-logs/audit-logs.service';
 import { PopulationService } from '../population/population.service';
 import { JwtPayload } from '../../common/decorators/current-user.decorator';
@@ -350,11 +350,6 @@ export class FamiliesService {
       };
     });
 
-    const worksheet = XLSX.utils.json_to_sheet(rows);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Keluarga');
-    const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
-
     await this.auditLogs.log({
       tenantId,
       actorId: user.sub,
@@ -365,11 +360,6 @@ export class FamiliesService {
       ipAddress,
     });
 
-    res.setHeader(
-      'Content-Type',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    );
-    res.setHeader('Content-Disposition', 'attachment; filename="keluarga-export.xlsx"');
-    res.send(buffer);
+    await sendXlsxDownload(res, [{ name: 'Keluarga', rows }], 'keluarga-export.xlsx');
   }
 }

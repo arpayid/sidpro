@@ -24,7 +24,15 @@ export interface TwoFactorChallengeResponse {
   twoFactorToken: string;
 }
 
-export type LoginResult = LoginResponse | TwoFactorChallengeResponse;
+export interface TwoFactorEnrollmentChallengeResponse {
+  requiresTwoFactorEnrollment: true;
+  enrollmentToken: string;
+}
+
+export type LoginResult =
+  | LoginResponse
+  | TwoFactorChallengeResponse
+  | TwoFactorEnrollmentChallengeResponse;
 
 export interface TwoFactorVerifyLoginRequest {
   twoFactorToken: string;

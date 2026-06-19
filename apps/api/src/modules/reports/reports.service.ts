@@ -1,10 +1,10 @@
 import { Injectable, ForbiddenException } from '@nestjs/common';
 import { Response } from 'express';
-import * as XLSX from 'xlsx';
 import { PrismaService } from '../../database/prisma.service';
 import { AuditLogsService } from '../../core/audit-logs/audit-logs.service';
 import { JwtPayload } from '../../common/decorators/current-user.decorator';
 import { successResponse } from '../../common/utils/response.util';
+import { sendXlsxDownload } from '../../common/utils/spreadsheet.util';
 
 @Injectable()
 export class ReportsService {
@@ -226,40 +226,6 @@ export class ReportsService {
       }),
     ]);
 
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(
-      workbook,
-      XLSX.utils.json_to_sheet(
-        byGender.map((row) => ({
-          jenisKelamin: row.gender,
-          jumlah: row._count.id,
-        })),
-      ),
-      'Jenis Kelamin',
-    );
-    XLSX.utils.book_append_sheet(
-      workbook,
-      XLSX.utils.json_to_sheet(
-        byStatus.map((row) => ({
-          status: row.residentStatus,
-          jumlah: row._count.id,
-        })),
-      ),
-      'Status Penduduk',
-    );
-    XLSX.utils.book_append_sheet(
-      workbook,
-      XLSX.utils.json_to_sheet(
-        civilEvents.map((event) => ({
-          tanggal: event.eventDate.toISOString().split('T')[0],
-          jenis: event.eventType,
-          penduduk: event.resident?.fullName ?? '',
-          keterangan: event.notes ?? '',
-        })),
-      ),
-      'Peristiwa Sipil',
-    );
-
     await this.auditLogs.log({
       tenantId,
       actorId: user.sub,
@@ -270,7 +236,35 @@ export class ReportsService {
       ipAddress,
     });
 
-    this.sendWorkbook(res, workbook, 'laporan-kependudukan.xlsx');
+    await sendXlsxDownload(
+      res,
+      [
+        {
+          name: 'Jenis Kelamin',
+          rows: byGender.map((row) => ({
+            jenisKelamin: row.gender,
+            jumlah: row._count.id,
+          })),
+        },
+        {
+          name: 'Status Penduduk',
+          rows: byStatus.map((row) => ({
+            status: row.residentStatus,
+            jumlah: row._count.id,
+          })),
+        },
+        {
+          name: 'Peristiwa Sipil',
+          rows: civilEvents.map((event) => ({
+            tanggal: event.eventDate.toISOString().split('T')[0],
+            jenis: event.eventType,
+            penduduk: event.resident?.fullName ?? '',
+            keterangan: event.notes ?? '',
+          })),
+        },
+      ],
+      'laporan-kependudukan.xlsx',
+    );
   }
 
   async exportLettersReport(user: JwtPayload, ipAddress: string | undefined, res: Response) {
@@ -302,41 +296,6 @@ export class ReportsService {
     ]);
 
     const typeNames = new Map(letterTypes.map((type) => [type.id, type.name]));
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(
-      workbook,
-      XLSX.utils.json_to_sheet(
-        byStatus.map((row) => ({
-          status: row.status,
-          jumlah: row._count.id,
-        })),
-      ),
-      'Ringkasan Status',
-    );
-    XLSX.utils.book_append_sheet(
-      workbook,
-      XLSX.utils.json_to_sheet(
-        byType.map((row) => ({
-          jenisSurat: typeNames.get(row.letterTypeId) ?? row.letterTypeId,
-          jumlah: row._count.id,
-        })),
-      ),
-      'Ringkasan Jenis',
-    );
-    XLSX.utils.book_append_sheet(
-      workbook,
-      XLSX.utils.json_to_sheet(
-        requests.map((request) => ({
-          nomorSurat: request.letterNumber ?? '',
-          jenisSurat: request.letterType.name,
-          pemohon: request.resident?.fullName ?? '',
-          status: request.status,
-          keperluan: request.purpose,
-          tanggalAjuan: request.submittedAt.toISOString().split('T')[0],
-        })),
-      ),
-      'Daftar Permohonan',
-    );
 
     await this.auditLogs.log({
       tenantId,
@@ -348,7 +307,37 @@ export class ReportsService {
       ipAddress,
     });
 
-    this.sendWorkbook(res, workbook, 'laporan-surat.xlsx');
+    await sendXlsxDownload(
+      res,
+      [
+        {
+          name: 'Ringkasan Status',
+          rows: byStatus.map((row) => ({
+            status: row.status,
+            jumlah: row._count.id,
+          })),
+        },
+        {
+          name: 'Ringkasan Jenis',
+          rows: byType.map((row) => ({
+            jenisSurat: typeNames.get(row.letterTypeId) ?? row.letterTypeId,
+            jumlah: row._count.id,
+          })),
+        },
+        {
+          name: 'Daftar Permohonan',
+          rows: requests.map((request) => ({
+            nomorSurat: request.letterNumber ?? '',
+            jenisSurat: request.letterType.name,
+            pemohon: request.resident?.fullName ?? '',
+            status: request.status,
+            keperluan: request.purpose,
+            tanggalAjuan: request.submittedAt.toISOString().split('T')[0],
+          })),
+        },
+      ],
+      'laporan-surat.xlsx',
+    );
   }
 
   async exportFinanceReport(
@@ -377,35 +366,6 @@ export class ReportsService {
       {} as Record<string, { planned: number; realized: number }>,
     );
 
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(
-      workbook,
-      XLSX.utils.json_to_sheet(
-        items.map((item) => ({
-          kategori: item.category,
-          uraian: item.name,
-          anggaran: Number(item.planned),
-          realisasi: Number(item.realized),
-        })),
-      ),
-      `Anggaran ${targetYear}`,
-    );
-    XLSX.utils.book_append_sheet(
-      workbook,
-      XLSX.utils.json_to_sheet(
-        Object.entries(byCategory).map(([category, totals]) => ({
-          kategori: category,
-          anggaran: totals.planned,
-          realisasi: totals.realized,
-          serapan:
-            totals.planned > 0
-              ? `${Math.round((totals.realized / totals.planned) * 100)}%`
-              : '0%',
-        })),
-      ),
-      'Per Kategori',
-    );
-
     await this.auditLogs.log({
       tenantId,
       actorId: user.sub,
@@ -416,16 +376,32 @@ export class ReportsService {
       ipAddress,
     });
 
-    this.sendWorkbook(res, workbook, `laporan-keuangan-${targetYear}.xlsx`);
-  }
-
-  private sendWorkbook(res: Response, workbook: XLSX.WorkBook, filename: string) {
-    const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
-    res.setHeader(
-      'Content-Type',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    await sendXlsxDownload(
+      res,
+      [
+        {
+          name: `Anggaran ${targetYear}`,
+          rows: items.map((item) => ({
+            kategori: item.category,
+            uraian: item.name,
+            anggaran: Number(item.planned),
+            realisasi: Number(item.realized),
+          })),
+        },
+        {
+          name: 'Per Kategori',
+          rows: Object.entries(byCategory).map(([category, totals]) => ({
+            kategori: category,
+            anggaran: totals.planned,
+            realisasi: totals.realized,
+            serapan:
+              totals.planned > 0
+                ? `${Math.round((totals.realized / totals.planned) * 100)}%`
+                : '0%',
+          })),
+        },
+      ],
+      `laporan-keuangan-${targetYear}.xlsx`,
     );
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.send(buffer);
   }
 }

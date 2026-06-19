@@ -15,6 +15,11 @@ import {
   generateTotpSecret,
   verifyTotpToken,
 } from './totp.util';
+import {
+  SECURITY_REQUIRE_2FA_ADMIN_KEY,
+  isAdminRole,
+  parseRequire2FaAdminSetting,
+} from './security-policy.util';
 
 type AuthUserShape = {
   id: string;
@@ -76,6 +81,53 @@ export class AuthService {
       roles: user.roles,
       permissions: user.permissions,
     };
+  }
+
+  private async isRequire2FaAdminForUser(authUser: AuthUserShape): Promise<boolean> {
+    if (!isAdminRole(authUser.roles) || !authUser.tenantId) return false;
+
+    const setting = await this.prisma.setting.findUnique({
+      where: {
+        tenantId_key: {
+          tenantId: authUser.tenantId,
+          key: SECURITY_REQUIRE_2FA_ADMIN_KEY,
+        },
+      },
+    });
+
+    return parseRequire2FaAdminSetting(setting?.value);
+  }
+
+  private async ensureEnrollmentSecret(userId: string): Promise<string> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { twoFaSecret: true },
+    });
+    if (!user) throw new UnauthorizedException();
+
+    if (user.twoFaSecret) return user.twoFaSecret;
+
+    const secret = generateTotpSecret();
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { twoFaSecret: secret, twoFaEnabled: false },
+    });
+    return secret;
+  }
+
+  private verifyEnrollmentToken(enrollmentToken: string): string {
+    let payload: { sub?: string; type?: string };
+    try {
+      payload = this.jwt.verify(enrollmentToken);
+    } catch {
+      throw new UnauthorizedException('Sesi enrollment 2FA tidak valid atau kedaluwarsa');
+    }
+
+    if (payload.type !== '2fa_enroll_pending' || !payload.sub) {
+      throw new UnauthorizedException('Token enrollment 2FA tidak valid');
+    }
+
+    return payload.sub;
   }
 
   private async issueTokens(user: AuthUserShape, ipAddress?: string) {
@@ -158,6 +210,18 @@ export class AuthService {
       );
     }
 
+    if ((await this.isRequire2FaAdminForUser(authUser)) && !user.twoFaEnabled) {
+      await this.ensureEnrollmentSecret(user.id);
+      const enrollmentToken = this.jwt.sign(
+        { sub: user.id, type: '2fa_enroll_pending' },
+        { expiresIn: '15m' },
+      );
+      return successResponse(
+        { requiresTwoFactorEnrollment: true as const, enrollmentToken },
+        'Aktivasi 2FA wajib untuk admin',
+      );
+    }
+
     return this.issueTokens(authUser, ipAddress);
   }
 
@@ -197,6 +261,88 @@ export class AuthService {
     }
 
     return this.issueTokens(this.mapUserRoles(user), ipAddress);
+  }
+
+  async setupEnrollLogin(enrollmentToken: string) {
+    const userId = this.verifyEnrollmentToken(enrollmentToken);
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        userRoles: {
+          include: {
+            role: {
+              include: {
+                rolePermissions: { include: { permission: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!user || user.status !== 'active' || user.twoFaEnabled) {
+      throw new UnauthorizedException('Enrollment 2FA tidak diperlukan');
+    }
+
+    const authUser = this.mapUserRoles(user);
+    if (!(await this.isRequire2FaAdminForUser(authUser))) {
+      throw new UnauthorizedException('Enrollment 2FA tidak diperlukan');
+    }
+
+    const secret = await this.ensureEnrollmentSecret(userId);
+    return successResponse({
+      secret,
+      otpauthUrl: buildTotpUri(user.email, secret),
+    });
+  }
+
+  async completeEnrollLogin(enrollmentToken: string, token: string, ipAddress?: string) {
+    const userId = this.verifyEnrollmentToken(enrollmentToken);
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        userRoles: {
+          include: {
+            role: {
+              include: {
+                rolePermissions: { include: { permission: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!user || user.status !== 'active' || user.twoFaEnabled || !user.twoFaSecret) {
+      throw new UnauthorizedException('Enrollment 2FA tidak diperlukan');
+    }
+
+    const authUser = this.mapUserRoles(user);
+    if (!(await this.isRequire2FaAdminForUser(authUser))) {
+      throw new UnauthorizedException('Enrollment 2FA tidak diperlukan');
+    }
+
+    if (!(await verifyTotpToken(token, user.twoFaSecret))) {
+      throw new UnauthorizedException('Kode 2FA tidak valid');
+    }
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { twoFaEnabled: true },
+    });
+
+    await this.auditLogs.log({
+      tenantId: user.tenantId,
+      actorId: userId,
+      action: 'enable_2fa',
+      module: 'auth',
+      entityType: 'user',
+      entityId: userId,
+      metadata: { source: 'mandatory_enrollment' },
+      ipAddress,
+    });
+
+    return this.issueTokens({ ...authUser, twoFaEnabled: true }, ipAddress);
   }
 
   async setupTwoFactor(userId: string) {
@@ -249,8 +395,28 @@ export class AuthService {
     password: string,
     ipAddress?: string,
   ) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        userRoles: {
+          include: {
+            role: {
+              include: {
+                rolePermissions: { include: { permission: true } },
+              },
+            },
+          },
+        },
+      },
+    });
     if (!user) throw new UnauthorizedException();
+
+    const authUser = this.mapUserRoles(user);
+    if (await this.isRequire2FaAdminForUser(authUser)) {
+      throw new BadRequestException(
+        '2FA wajib untuk admin sesuai kebijakan keamanan tenant',
+      );
+    }
 
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) throw new UnauthorizedException('Password tidak valid');

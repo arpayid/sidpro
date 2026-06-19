@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type FormEvent, Suspense } from 'react';
+import { useState, type FormEvent, Suspense, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Shield } from 'lucide-react';
@@ -8,6 +8,10 @@ import { Button, Card, CardContent, CardHeader, CardTitle, Input } from '@sidpro
 import { setAuthSession } from '@/lib/auth';
 import { apiClient } from '@/lib/api-client';
 import type { LoginResponse, LoginResult } from '@sidpro/types';
+import {
+  useCompleteEnrollLogin,
+  useSetupEnrollLogin,
+} from '@/features/auth/use-two-fa';
 
 function isTwoFactorChallenge(
   data: LoginResult,
@@ -15,15 +19,38 @@ function isTwoFactorChallenge(
   return 'requiresTwoFactor' in data && data.requiresTwoFactor === true;
 }
 
+function isTwoFactorEnrollment(
+  data: LoginResult,
+): data is { requiresTwoFactorEnrollment: true; enrollmentToken: string } {
+  return 'requiresTwoFactorEnrollment' in data && data.requiresTwoFactorEnrollment === true;
+}
+
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get('callbackUrl') ?? '/admin/dashboard';
+  const setupEnrollMutation = useSetupEnrollLogin();
+  const completeEnrollMutation = useCompleteEnrollLogin();
 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [twoFactorToken, setTwoFactorToken] = useState<string | null>(null);
+  const [enrollmentToken, setEnrollmentToken] = useState<string | null>(null);
+  const [enrollSetup, setEnrollSetup] = useState<{ secret: string; otpauthUrl: string } | null>(
+    null,
+  );
   const [totpCode, setTotpCode] = useState('');
+
+  useEffect(() => {
+    if (!enrollmentToken || enrollSetup) return;
+    setupEnrollMutation
+      .mutateAsync(enrollmentToken)
+      .then((data) => setEnrollSetup(data))
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : 'Gagal memuat enrollment 2FA');
+        setEnrollmentToken(null);
+      });
+  }, [enrollmentToken, enrollSetup, setupEnrollMutation]);
 
   async function completeLogin(data: LoginResponse) {
     setAuthSession(data.accessToken, data.refreshToken, data.user);
@@ -50,6 +77,11 @@ function LoginForm() {
 
       if (isTwoFactorChallenge(body.data)) {
         setTwoFactorToken(body.data.twoFactorToken);
+        return;
+      }
+
+      if (isTwoFactorEnrollment(body.data)) {
+        setEnrollmentToken(body.data.enrollmentToken);
         return;
       }
 
@@ -83,6 +115,28 @@ function LoginForm() {
     }
   }
 
+  async function handleCompleteEnrollment(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!enrollmentToken) return;
+    setError('');
+    setLoading(true);
+
+    try {
+      const data = await completeEnrollMutation.mutateAsync({
+        enrollmentToken,
+        token: totpCode,
+      });
+      await completeLogin(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Aktivasi 2FA gagal');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const enrollmentMode = Boolean(enrollmentToken);
+  const verifyMode = Boolean(twoFactorToken);
+
   return (
     <Card className="w-full max-w-md border-slate-200/80 shadow-sm">
       <CardHeader className="text-center">
@@ -90,16 +144,73 @@ function LoginForm() {
           <Shield className="h-5 w-5" />
         </div>
         <CardTitle className="text-lg">
-          {twoFactorToken ? 'Verifikasi 2FA' : 'Masuk Admin SIDPRO'}
+          {enrollmentMode ? 'Aktivasi 2FA Wajib' : verifyMode ? 'Verifikasi 2FA' : 'Masuk Admin SIDPRO'}
         </CardTitle>
         <p className="text-sm text-slate-500">
-          {twoFactorToken
-            ? 'Masukkan kode 6 digit dari aplikasi authenticator'
-            : 'Platform pemerintahan desa enterprise'}
+          {enrollmentMode
+            ? 'Kebijakan keamanan mewajibkan admin mengaktifkan 2FA sebelum masuk'
+            : verifyMode
+              ? 'Masukkan kode 6 digit dari aplikasi authenticator'
+              : 'Platform pemerintahan desa enterprise'}
         </p>
       </CardHeader>
       <CardContent>
-        {twoFactorToken ? (
+        {enrollmentMode ? (
+          <form onSubmit={handleCompleteEnrollment} className="space-y-4">
+            {enrollSetup ? (
+              <div className="space-y-3 rounded-md border border-slate-200 bg-slate-50 p-4 text-left text-sm">
+                <p className="font-medium text-slate-800">
+                  Scan secret berikut di aplikasi authenticator:
+                </p>
+                <code className="block break-all rounded bg-white px-2 py-1 text-xs">
+                  {enrollSetup.secret}
+                </code>
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500">Menyiapkan enrollment 2FA...</p>
+            )}
+            <div>
+              <label htmlFor="enroll-totp" className="form-label">
+                Kode verifikasi (6 digit)
+              </label>
+              <Input
+                id="enroll-totp"
+                inputMode="numeric"
+                maxLength={6}
+                required
+                autoComplete="one-time-code"
+                placeholder="123456"
+                value={totpCode}
+                onChange={(e) => setTotpCode(e.target.value)}
+              />
+            </div>
+            {error && (
+              <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
+                {error}
+              </p>
+            )}
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={loading || !enrollSetup || totpCode.length < 6 || completeEnrollMutation.isPending}
+            >
+              {loading || completeEnrollMutation.isPending ? 'Mengaktifkan...' : 'Aktifkan 2FA & Masuk'}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              className="w-full"
+              onClick={() => {
+                setEnrollmentToken(null);
+                setEnrollSetup(null);
+                setTotpCode('');
+                setError('');
+              }}
+            >
+              Kembali ke login
+            </Button>
+          </form>
+        ) : verifyMode ? (
           <form onSubmit={handleVerifyTwoFactor} className="space-y-4">
             <div>
               <label htmlFor="totp" className="form-label">

@@ -1087,4 +1087,29 @@ Planning skill     : .ai/skills/02-planning-skill.md
 
 ---
 
+## 19. Wave 9 — Enterprise Security & Post-MVP Roadmap (2026-06-19)
+
+| Point | Scope | Tag |
+|-------|--------|-----|
+| 39 | Migrasi `xlsx` → `exceljs` (CVE mitigation) | `mvp-security-v2` |
+| 40 | Kebijakan 2FA wajib admin + enrollment login | `mvp-security-v2` |
+| 41 | Post-MVP roadmap (GIS, multi-tenant kabupaten, BUMDes, AI) | `mvp-roadmap-v1` |
+
+### Wave 9 Execution Log
+
+| Point | PR | Status |
+|-------|-----|--------|
+| 39–41 | — | 🚧 in progress |
+
+### Post-MVP Backlog (dokumentasi)
+
+| Modul | Prioritas | Catatan |
+|-------|-----------|---------|
+| GIS / Peta Desa | P2 | Layer wilayah, aset, pembangunan; integrasi tile server |
+| Multi-tenant Kabupaten | P1 | Hierarki kabupaten → kecamatan → desa; admin kabupaten read-only/aggregate |
+| BUMDes | P2 | Unit usaha desa, laporan keuangan terpisah dari APBDes |
+| AI Assistant | P3 | Setelah core MVP stabil; adapter eksplisit, no vendor lock-in |
+
+---
+
 *Dokumen ini adalah living plan. Update versi dan tanggal setiap kali scope berubah.*
