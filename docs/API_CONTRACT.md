@@ -96,6 +96,7 @@ POST/PATCH `/residents` accepts optional `address` object: `{ hamletId, neighbor
 | Method | Path | Permission |
 |---|---|---|
 | GET | /families | families.read |
+| GET | /families/export | families.export |
 | POST | /families | families.create |
 | GET | /families/:id | families.read |
 | PATCH | /families/:id | families.update |

@@ -4,6 +4,8 @@ import {
   ConflictException,
   ForbiddenException,
 } from '@nestjs/common';
+import { Response } from 'express';
+import * as XLSX from 'xlsx';
 import { PrismaService } from '../../database/prisma.service';
 import { AuditLogsService } from '../../core/audit-logs/audit-logs.service';
 import { PopulationService } from '../population/population.service';
@@ -317,5 +319,57 @@ export class FamiliesService {
     });
 
     return successResponse(null, 'Anggota keluarga berhasil dihapus');
+  }
+
+  async exportFamilies(user: JwtPayload, ipAddress: string | undefined, res: Response) {
+    const tenantId = this.requireTenant(user);
+    const viewSensitive = user.permissions.includes('families.view_sensitive');
+
+    const families = await this.prisma.family.findMany({
+      where: { tenantId, deletedAt: null },
+      orderBy: { kkNumber: 'asc' },
+      include: {
+        address: true,
+        familyMembers: {
+          include: { resident: { select: { fullName: true } } },
+        },
+      },
+    });
+
+    const rows = families.map((f) => {
+      const head = f.familyMembers.find((m) => m.isHead)?.resident?.fullName ?? '';
+      return {
+        kkNumber: viewSensitive ? f.kkNumber : maskKk(f.kkNumber),
+        headName: head,
+        memberCount: f.familyMembers.length,
+        economicStatus: f.economicStatus ?? '',
+        houseStatus: f.houseStatus ?? '',
+        address: [f.address?.street, f.address?.rt ? `RT ${f.address.rt}` : null, f.address?.rw ? `RW ${f.address.rw}` : null]
+          .filter(Boolean)
+          .join(', '),
+      };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Keluarga');
+    const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+
+    await this.auditLogs.log({
+      tenantId,
+      actorId: user.sub,
+      action: 'export',
+      module: 'families',
+      entityType: 'family',
+      metadata: { count: families.length },
+      ipAddress,
+    });
+
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader('Content-Disposition', 'attachment; filename="keluarga-export.xlsx"');
+    res.send(buffer);
   }
 }

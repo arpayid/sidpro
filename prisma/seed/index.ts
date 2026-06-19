@@ -27,6 +27,7 @@ const PERMISSIONS = [
   { code: 'families.create', name: 'Create Families', module: 'families' },
   { code: 'families.update', name: 'Update Families', module: 'families' },
   { code: 'families.delete', name: 'Delete Families', module: 'families' },
+  { code: 'families.export', name: 'Export Families', module: 'families' },
   { code: 'letters.read', name: 'Read Letters', module: 'letters' },
   { code: 'letters.create', name: 'Create Letters', module: 'letters' },
   { code: 'letters.verify', name: 'Verify Letters', module: 'letters' },

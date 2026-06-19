@@ -2,7 +2,8 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { CreateFamilyInput, CreateResidentInput } from '@sidpro/validators';
-import { apiClient, buildQuery } from '@/lib/api-client';
+import { apiClient, buildQuery, API_BASE, API_PREFIX } from '@/lib/api-client';
+import { getAccessToken } from '@/lib/auth';
 import type { PaginationMeta } from '@sidpro/types';
 import type { Resident } from '@/features/residents/use-residents';
 
@@ -123,6 +124,25 @@ export function useDeleteFamily() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['families'] });
       qc.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+  });
+}
+
+export function useExportFamilies() {
+  return useMutation({
+    mutationFn: async () => {
+      const token = getAccessToken();
+      const response = await fetch(`${API_BASE}${API_PREFIX}/families/export`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!response.ok) throw new Error('Export gagal');
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = 'keluarga-export.xlsx';
+      anchor.click();
+      URL.revokeObjectURL(url);
     },
   });
 }

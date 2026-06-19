@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { createFamilySchema, addFamilyMemberSchema, updateFamilySchema } from '@sidpro/validators';
 import type { z } from 'zod';
 import { Button, Input } from '@sidpro/ui';
-import { Plus, UserPlus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, UserPlus, Pencil, Trash2, Download } from 'lucide-react';
 import { PageHeader } from '@/components/enterprise/page-header';
 import { DataTable, FilterBar } from '@/components/enterprise/data-table';
 import { DetailDrawer } from '@/components/enterprise/detail-drawer';
@@ -21,6 +21,7 @@ import {
   useAddFamilyMember,
   useRemoveFamilyMember,
   useDeleteFamily,
+  useExportFamilies,
   type Family,
   type FamilyMember,
 } from '@/features/families/use-families';
@@ -64,6 +65,7 @@ export default function KeluargaPage() {
   const addMemberMutation = useAddFamilyMember();
   const removeMemberMutation = useRemoveFamilyMember();
   const deleteFamilyMutation = useDeleteFamily();
+  const exportMutation = useExportFamilies();
 
   const createForm = useForm<CreateFamilyForm>({
     resolver: zodResolver(createFamilySchema),
@@ -169,12 +171,25 @@ export default function KeluargaPage() {
         title="Data Keluarga"
         description="Kelola kartu keluarga dan anggota rumah tangga."
         actions={
-          can('families.create') ? (
-            <Button size="sm" onClick={() => setCreateOpen(true)}>
-              <Plus className="mr-1.5 h-4 w-4" />
-              Tambah KK
-            </Button>
-          ) : undefined
+          <div className="flex gap-2">
+            {can('families.export') && (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={exportMutation.isPending}
+                onClick={() => exportMutation.mutate()}
+              >
+                <Download className="mr-1.5 h-4 w-4" />
+                Export
+              </Button>
+            )}
+            {can('families.create') && (
+              <Button size="sm" onClick={() => setCreateOpen(true)}>
+                <Plus className="mr-1.5 h-4 w-4" />
+                Tambah KK
+              </Button>
+            )}
+          </div>
         }
       />
 
