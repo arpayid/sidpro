@@ -140,10 +140,13 @@ Penjelasan:
 7. **CI HIJAU**  
    Jangan merge jika CI gagal.
 
-8. **MERGE**  
-   Merge hanya setelah validasi selesai.
+8. **CODEX REVIEW**  
+   Repo terhubung ke `chatgpt-codex-connector[bot]`. Setelah PR dibuka, baca semua komentar Codex. Jika ada temuan P1/P2 yang valid, perbaiki di branch yang sama lalu push ulang. Merge hanya jika tidak ada temuan terbuka atau semua sudah ditangani.
 
-9. **DEPLOY**  
+9. **MERGE**  
+   Merge hanya setelah CI hijau dan langkah Codex review selesai.
+
+10. **DEPLOY**  
    Deploy setelah branch utama stabil.
 
 ---
