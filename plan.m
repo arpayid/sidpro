@@ -1112,4 +1112,30 @@ Planning skill     : .ai/skills/02-planning-skill.md
 
 ---
 
+## 20. Wave 9.1 — Codex Hotfix (2026-06-19)
+
+| Point | Scope | Tag |
+|-------|--------|-----|
+| 42 | 2FA pending token blocked from JWT routes | `mvp-security-v3` |
+| 43 | Complaint ticket exact 8-char suffix | `mvp-security-v3` |
+| 44 | CSV export formula injection mitigation | `mvp-security-v3` |
+| 45 | Report export RBAC AND permissions | `mvp-security-v3` |
+| 46 | Gallery file signing tenant-scoped | `mvp-security-v3` |
+
+### Merge policy (Codex)
+
+```txt
+PR dibuka → tunggu Codex review
+  → ada temuan P1/P2 valid → fix di branch yang sama → push → re-review
+  → tidak ada temuan / semua sudah ditangani → merge + tag
+```
+
+### Wave 9.1 Execution Log
+
+| Point | PR | Status |
+|-------|-----|--------|
+| 42–46 | — | 🚧 in progress |
+
+---
+
 *Dokumen ini adalah living plan. Update versi dan tanggal setiap kali scope berubah.*

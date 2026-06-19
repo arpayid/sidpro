@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
@@ -14,7 +14,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  validate(payload: JwtPayload): JwtPayload {
+  validate(payload: JwtPayload & { type?: string }): JwtPayload {
+    if (payload.type) {
+      throw new UnauthorizedException('Token tidak valid untuk akses API');
+    }
     return payload;
   }
 }

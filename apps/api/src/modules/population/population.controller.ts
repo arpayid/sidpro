@@ -61,10 +61,7 @@ export class PopulationController {
       storage: memoryStorage(),
       limits: { fileSize: 10 * 1024 * 1024 },
       fileFilter: (_req, file, cb) => {
-        const allowed = [
-          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-          'application/vnd.ms-excel',
-        ];
+        const allowed = ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
         if (!allowed.includes(file.mimetype)) {
           cb(new BadRequestException('File harus berformat Excel (.xlsx)'), false);
           return;

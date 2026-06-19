@@ -5,7 +5,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { PERMISSIONS_KEY } from '../decorators';
+import { PERMISSIONS_ALL_KEY, PERMISSIONS_KEY } from '../decorators';
 import { JwtPayload } from '../decorators/current-user.decorator';
 
 @Injectable()
@@ -13,15 +13,29 @@ export class PermissionsGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
+    const request = context.switchToHttp().getRequest();
+    const user = request.user as JwtPayload;
+
+    const requiredAll = this.reflector.getAllAndOverride<string[]>(PERMISSIONS_ALL_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+
+    if (requiredAll?.length) {
+      if (!user) throw new ForbiddenException('Access denied');
+      const missingAll = requiredAll.filter((p) => !user.permissions.includes(p));
+      if (missingAll.length) {
+        throw new ForbiddenException(`Missing permission: ${missingAll.join(', ')}`);
+      }
+      return true;
+    }
+
     const requiredPermissions = this.reflector.getAllAndOverride<string[]>(PERMISSIONS_KEY, [
       context.getHandler(),
       context.getClass(),
     ]);
 
     if (!requiredPermissions?.length) return true;
-
-    const request = context.switchToHttp().getRequest();
-    const user = request.user as JwtPayload;
 
     if (!user) throw new ForbiddenException('Access denied');
 

@@ -41,7 +41,7 @@ export function LaporanContent() {
         ? `${population.data.byGender.reduce((sum, g) => sum + g._count.id, 0)} penduduk terdata`
         : '—',
       canView: can('reports.population'),
-      canExport: can('reports.export'),
+      canExport: can('reports.export') && can('reports.population'),
       onExport: () => exportPopulation.mutate(),
       exportLabel: 'Unduh XLSX',
     },
@@ -54,7 +54,7 @@ export function LaporanContent() {
         ? `${letters.data.byStatus.reduce((sum, s) => sum + s._count.id, 0)} permohonan surat`
         : '—',
       canView: can('reports.letters'),
-      canExport: can('reports.export'),
+      canExport: can('reports.export') && can('reports.letters'),
       onExport: () => exportLetters.mutate(),
       exportLabel: 'Unduh XLSX',
     },
@@ -67,7 +67,7 @@ export function LaporanContent() {
         ? `Serapan anggaran ${finance.data.summary.absorptionRate}%`
         : '—',
       canView: can('reports.finance'),
-      canExport: can('reports.export'),
+      canExport: can('reports.export') && can('reports.finance'),
       onExport: () => exportFinance.mutate(),
       exportLabel: 'Unduh XLSX',
     },

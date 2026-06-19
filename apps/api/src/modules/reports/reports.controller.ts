@@ -3,7 +3,7 @@ import { Request, Response } from 'express';
 import { ReportsService } from './reports.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
-import { RequirePermissions } from '../../common/decorators';
+import { RequireAllPermissions, RequirePermissions } from '../../common/decorators';
 import { CurrentUser, JwtPayload } from '../../common/decorators/current-user.decorator';
 
 @Controller('reports')
@@ -18,7 +18,7 @@ export class ReportsController {
   }
 
   @Get('population/export')
-  @RequirePermissions('reports.export')
+  @RequireAllPermissions('reports.export', 'reports.population')
   exportPopulationReport(
     @CurrentUser() user: JwtPayload,
     @Req() req: Request,
@@ -28,7 +28,7 @@ export class ReportsController {
   }
 
   @Get('letters/export')
-  @RequirePermissions('reports.export')
+  @RequireAllPermissions('reports.export', 'reports.letters')
   exportLettersReport(
     @CurrentUser() user: JwtPayload,
     @Req() req: Request,
@@ -38,7 +38,7 @@ export class ReportsController {
   }
 
   @Get('finance/export')
-  @RequirePermissions('reports.export')
+  @RequireAllPermissions('reports.export', 'reports.finance')
   exportFinanceReport(
     @CurrentUser() user: JwtPayload,
     @Req() req: Request,
