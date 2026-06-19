@@ -25,10 +25,25 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
+      minio:
+        image: minio/minio:latest
+        env:
+          MINIO_ROOT_USER: sidpro
+          MINIO_ROOT_PASSWORD: sidpro_secret
+        ports:
+          - 9000:9000
+
     env:
       DATABASE_URL: postgresql://sidpro:sidpro_secret@localhost:5432/sidpro?schema=public
       JWT_SECRET: ci-test-secret-key-not-for-production
       NODE_ENV: test
+      MINIO_ENDPOINT: localhost
+      MINIO_PORT: '9000'
+      MINIO_ROOT_USER: sidpro
+      MINIO_ROOT_PASSWORD: sidpro_secret
+      MINIO_BUCKET: sidpro-files
+      MINIO_USE_SSL: 'false'
+      SEED_ADMIN_PASSWORD: Admin123!
 
     steps:
       - uses: actions/checkout@v4
@@ -62,6 +77,51 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      - name: Migrate database
+        run: pnpm exec prisma migrate deploy --schema=prisma/schema.prisma
+
+      - name: Seed database
+        run: pnpm prisma:seed
+
+      - name: Wait for MinIO
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:9000/minio/health/live >/dev/null; then
+              echo "MinIO ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "MinIO not ready"
+          exit 1
+
+      - name: Start API for smoke test
+        run: |
+          node apps/api/dist/main.js &
+          echo $! > /tmp/api.pid
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:4000/api/v1/health >/dev/null; then
+              echo "API ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "API not ready"
+          exit 1
+
+      - name: Smoke test
+        env:
+          API_URL: http://localhost:4000
+          STAGING_ADMIN_PASSWORD: Admin123!
+          SMOKE_RUN_SEED: '0'
+          SMOKE_SKIP_WEB: '1'
+        run: bash scripts/smoke-test.sh
+
+      - name: Stop API
+        if: always()
+        run: |
+          if [ -f /tmp/api.pid ]; then kill "$(cat /tmp/api.pid)" || true; fi
 
       - name: Dependency audit
         run: pnpm audit --audit-level=high
