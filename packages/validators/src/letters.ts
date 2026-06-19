@@ -3,6 +3,11 @@ import { z } from 'zod';
 export const createLetterRequestSchema = z.object({
   letterTypeId: z.string().uuid(),
   residentId: z.string().uuid().optional(),
+  applicantNik: z
+    .string()
+    .length(16, 'NIK harus 16 digit')
+    .regex(/^\d{16}$/, 'NIK harus berisi angka')
+    .optional(),
   purpose: z.string().min(5).max(1000),
   formData: z.record(z.unknown()).optional(),
 });
