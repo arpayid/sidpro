@@ -26,7 +26,9 @@ else
 fi
 
 "$PG_DUMP" "$DB_URL" | gzip > "$DB_BACKUP_FILE"
+sha256sum "$DB_BACKUP_FILE" > "${DB_BACKUP_FILE}.sha256"
 echo "[backup] Database backup saved: $DB_BACKUP_FILE"
+echo "[backup] Checksum: ${DB_BACKUP_FILE}.sha256"
 
 if [ -d "${UPLOAD_DIR:-./uploads}" ]; then
   UPLOAD_BACKUP="${BACKUP_DIR}/uploads_${TIMESTAMP}.tar.gz"
