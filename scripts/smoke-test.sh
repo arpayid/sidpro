@@ -152,12 +152,13 @@ check "Letter public track" "$([ "$TRACK_LR_OK" -ge 1 ] && echo 1 || echo 0)"
 
 # 7b. Warga citizen letter request (no resident UUID)
 WARGA_EMAIL="${SEED_WARGA_EMAIL:-warga@demo-desa.id}"
+WARGA_APPLICANT_NIK="7301010101010001"
 WARGA_LOGIN=$(curl -sf -X POST "$API/auth/login" -H 'Content-Type: application/json' \
   -d "{\"email\":\"$WARGA_EMAIL\",\"password\":\"$ADMIN_PASSWORD\"}" 2>/dev/null || echo '{}')
 WARGA_ACCESS=$(echo "$WARGA_LOGIN" | json_field "console.log(j.data?.accessToken||'')")
 WARGA_LR=$(curl -sf -X POST "$API/letter-requests" -H "Authorization: Bearer $WARGA_ACCESS" \
   -H 'Content-Type: application/json' \
-  -d "{\"letterTypeId\":\"$LT_ID\",\"applicantNik\":\"$NIK\",\"purpose\":\"Permohonan surat warga smoke test\"}" 2>/dev/null || echo '{}')
+  -d "{\"letterTypeId\":\"$LT_ID\",\"applicantNik\":\"$WARGA_APPLICANT_NIK\",\"purpose\":\"Permohonan surat warga smoke test\"}" 2>/dev/null || echo '{}')
 WARGA_LR_OK=$(echo "$WARGA_LR" | grep -c success || true)
 check "Warga letter request (applicantNik only)" "$([ -n "$WARGA_ACCESS" ] && [ "$WARGA_LR_OK" -ge 1 ] && echo 1 || echo 0)"
 
