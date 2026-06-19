@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient, buildQuery } from '@/lib/api-client';
 
 export interface Hamlet {
@@ -38,6 +38,36 @@ export function useNeighborhoodUnits(hamletId: string | null) {
         `/hamlets/${hamletId}/neighborhood-units`,
       );
       return res.data ?? [];
+    },
+  });
+}
+
+export function useCreateHamlet() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: { name: string; code: string }) => {
+      const res = await apiClient<Hamlet>('/hamlets', { method: 'POST', body });
+      if (!res.data) throw new Error('Gagal menambahkan dusun');
+      return res.data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['hamlets'] }),
+  });
+}
+
+export function useCreateNeighborhoodUnit() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: { hamletId: string; rt: string; rw: string }) => {
+      const res = await apiClient<NeighborhoodUnit>('/neighborhood-units', {
+        method: 'POST',
+        body,
+      });
+      if (!res.data) throw new Error('Gagal menambahkan RT/RW');
+      return res.data;
+    },
+    onSuccess: (_, { hamletId }) => {
+      qc.invalidateQueries({ queryKey: ['neighborhood-units', hamletId] });
+      qc.invalidateQueries({ queryKey: ['hamlets'] });
     },
   });
 }
