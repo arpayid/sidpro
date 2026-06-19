@@ -22,6 +22,43 @@ export class DevelopmentService {
     return user.tenantId;
   }
 
+  private async resolveTenantId(tenantCode: string): Promise<string> {
+    const tenant = await this.prisma.tenant.findUnique({ where: { code: tenantCode } });
+    if (!tenant) throw new NotFoundException('Tenant tidak ditemukan');
+    return tenant.id;
+  }
+
+  async findPublicProjects(tenantCode: string, limit = 20) {
+    const tenantId = await this.resolveTenantId(tenantCode);
+    const projects = await this.prisma.developmentProject.findMany({
+      where: {
+        tenantId,
+        status: { in: ['planned', 'ongoing', 'completed'] },
+      },
+      orderBy: [{ progress: 'desc' }, { createdAt: 'desc' }],
+      take: limit,
+      select: {
+        id: true,
+        name: true,
+        budget: true,
+        progress: true,
+        status: true,
+        location: true,
+      },
+    });
+
+    return successResponse(
+      projects.map((project) => ({
+        id: project.id,
+        name: project.name,
+        budget: project.budget ? Number(project.budget) : null,
+        progress: project.progress,
+        status: project.status,
+        location: project.location,
+      })),
+    );
+  }
+
   async findAll(user: JwtPayload, page = 1, limit = 20, status?: string) {
     const tenantId = this.requireTenant(user);
     const where = { tenantId, ...(status ? { status } : {}) };

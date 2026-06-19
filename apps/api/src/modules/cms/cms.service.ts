@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { AuditLogsService } from '../../core/audit-logs/audit-logs.service';
+import { StorageService } from '../../core/storage/storage.service';
 import { JwtPayload } from '../../common/decorators/current-user.decorator';
 import { paginatedResponse, successResponse } from '../../common/utils/response.util';
 
@@ -9,6 +10,7 @@ export class CmsService {
   constructor(
     private prisma: PrismaService,
     private auditLogs: AuditLogsService,
+    private storage: StorageService,
   ) {}
 
   private async resolveTenantId(tenantCode: string): Promise<string> {
@@ -275,7 +277,41 @@ export class CmsService {
       }),
       this.prisma.galleryItem.count({ where }),
     ]);
-    return paginatedResponse(data, page, limit, total);
+
+    const enriched = await this.enrichGalleryItemsWithImageUrls(data);
+    return paginatedResponse(enriched, page, limit, total);
+  }
+
+  private async enrichGalleryItemsWithImageUrls<
+    T extends { fileId?: string | null; title: string },
+  >(items: T[]) {
+    const fileIds = items
+      .map((item) => item.fileId)
+      .filter((fileId): fileId is string => Boolean(fileId));
+
+    const files = fileIds.length
+      ? await this.prisma.file.findMany({
+          where: { id: { in: fileIds } },
+          select: { id: true, path: true },
+        })
+      : [];
+    const pathById = new Map(files.map((file) => [file.id, file.path]));
+
+    return Promise.all(
+      items.map(async (item) => {
+        if (!item.fileId) {
+          return { ...item, imageUrl: null };
+        }
+
+        const path = pathById.get(item.fileId);
+        if (!path) {
+          return { ...item, imageUrl: null };
+        }
+
+        const imageUrl = await this.storage.getSignedUrl(path);
+        return { ...item, imageUrl };
+      }),
+    );
   }
 
   async findGallery(user: JwtPayload, page = 1, limit = 20) {
