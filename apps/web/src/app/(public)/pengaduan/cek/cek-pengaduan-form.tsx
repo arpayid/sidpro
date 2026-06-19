@@ -47,6 +47,7 @@ export function CekPengaduanForm() {
   }, [searchParams, form]);
 
   async function onSubmit(values: PublicComplaintTrackInput) {
+    trackMutation.reset();
     await trackMutation.mutateAsync(values);
   }
 
@@ -124,7 +125,7 @@ export function CekPengaduanForm() {
         </CardContent>
       </Card>
 
-      {result && (
+      {result && !trackMutation.isError && (
         <Card className="mx-auto mt-8 max-w-2xl">
           <CardHeader>
             <div className="flex flex-wrap items-start justify-between gap-3">

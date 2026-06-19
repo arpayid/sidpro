@@ -1,8 +1,7 @@
 'use client';
 
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { apiClient, API_BASE, API_PREFIX } from '@/lib/api-client';
-import { getAccessToken } from '@/lib/auth';
+import { apiClient, downloadBinary } from '@/lib/api-client';
 
 export interface PopulationReport {
   byGender: { gender: string; _count: { id: number } }[];
@@ -59,18 +58,7 @@ export function useFinanceReport(year?: number) {
 }
 
 async function downloadReportExport(path: string, filename: string) {
-  const token = getAccessToken();
-  const response = await fetch(`${API_BASE}${API_PREFIX}${path}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
-  if (!response.ok) throw new Error('Export gagal');
-  const blob = await response.blob();
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = filename;
-  anchor.click();
-  URL.revokeObjectURL(url);
+  await downloadBinary(path, filename);
 }
 
 export function useExportPopulationReport() {

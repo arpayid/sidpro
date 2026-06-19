@@ -40,16 +40,70 @@ async function fetchAuthProfile(accessToken: string): Promise<AuthUser | null> {
   return body.data ?? null;
 }
 
+function profileClaimsChanged(previous: AuthUser | null, next: AuthUser): boolean {
+  if (!previous) return false;
+  const signature = (values: string[]) => [...values].sort().join('\0');
+  return (
+    signature(previous.permissions) !== signature(next.permissions) ||
+    signature(previous.roles) !== signature(next.roles)
+  );
+}
+
 export async function syncAuthProfile(): Promise<AuthUser | null> {
   const accessToken = getAccessToken();
   const refreshToken = getRefreshToken();
   if (!accessToken || !refreshToken) return null;
 
-  const profile = await fetchAuthProfile(accessToken);
-  if (!profile) return null;
+  let profile = await fetchAuthProfile(accessToken);
+  if (!profile) {
+    const newToken = await refreshAccessToken();
+    if (!newToken) return null;
+    return getStoredUser();
+  }
+
+  const stored = getStoredUser();
+  if (profileClaimsChanged(stored, profile)) {
+    const newToken = await refreshAccessToken();
+    if (newToken) {
+      profile = (await fetchAuthProfile(newToken)) ?? profile;
+      updateStoredUser(profile);
+      return profile;
+    }
+  }
 
   updateStoredUser(profile);
   return profile;
+}
+
+export async function downloadBinary(path: string, filename: string): Promise<void> {
+  const doFetch = async (token: string | null) =>
+    fetch(`${API_BASE}${API_PREFIX}${path}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+
+  let response = await doFetch(getAccessToken());
+
+  if (response.status === 401) {
+    const newToken = await refreshAccessToken();
+    if (!newToken) {
+      handleUnauthorized();
+      throw new ApiError('Sesi berakhir. Silakan login kembali.', 401, 'UNAUTHORIZED');
+    }
+    response = await doFetch(newToken);
+  }
+
+  if (!response.ok) {
+    if (response.status === 401) handleUnauthorized();
+    throw new ApiError('Export gagal', response.status);
+  }
+
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
 }
 
 async function refreshAccessToken(): Promise<string | null> {

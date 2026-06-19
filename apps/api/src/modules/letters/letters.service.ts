@@ -430,24 +430,35 @@ export class LettersService {
       throw new BadRequestException(parsed.error.flatten().fieldErrors);
     }
 
-    const [letterType, resident] = await Promise.all([
-      this.prisma.letterType.findFirst({
-        where: { id: parsed.data.letterTypeId, tenantId, isActive: true },
-      }),
-      this.prisma.resident.findFirst({
-        where: { id: parsed.data.residentId, tenantId, deletedAt: null },
-      }),
-    ]);
+    const isCitizenRequester =
+      user.roles.includes('warga') &&
+      !user.roles.some((role) =>
+        ['admin_desa', 'operator_desa', 'superadmin_system', 'admin_kabupaten'].includes(role),
+      );
 
+    let residentId = parsed.data.residentId;
+    if (!residentId) {
+      if (!isCitizenRequester) {
+        throw new BadRequestException({ residentId: ['Penduduk pemohon wajib diisi'] });
+      }
+    } else {
+      const resident = await this.prisma.resident.findFirst({
+        where: { id: residentId, tenantId, deletedAt: null },
+      });
+      if (!resident) throw new BadRequestException('Penduduk pemohon tidak ditemukan');
+    }
+
+    const letterType = await this.prisma.letterType.findFirst({
+      where: { id: parsed.data.letterTypeId, tenantId, isActive: true },
+    });
     if (!letterType) throw new BadRequestException('Jenis surat tidak ditemukan');
-    if (!resident) throw new BadRequestException('Penduduk pemohon tidak ditemukan');
 
     const request = await this.prisma.letterRequest.create({
       data: {
         tenantId,
         requesterId: user.sub,
         letterTypeId: parsed.data.letterTypeId,
-        residentId: parsed.data.residentId,
+        residentId: residentId ?? null,
         purpose: parsed.data.purpose,
         formData: parsed.data.formData as object,
         status: 'submitted',

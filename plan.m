@@ -1150,7 +1150,24 @@ PR dibuka → tunggu Codex review
 
 | Point | PR | Status |
 |-------|-----|--------|
-| 47–49 | — | 🚧 in progress |
+| 47–49 | #29 | ✅ merged → `mvp-tenant-v1` |
+
+---
+
+## 22. Wave 11 — Codex P2 Backlog Batch (2026-06-19)
+
+| Point | Scope | Tag |
+|-------|--------|-----|
+| 50 | `syncAuthProfile` without JWT reissue | `mvp-ux-v1` |
+| 51 | Export binary without token refresh | `mvp-ux-v1` |
+| 52 | `residentId` required for warga letter requests | `mvp-ux-v1` |
+| 53 | Stale surat tracking results on error | `mvp-ux-v1` |
+
+### Wave 11 Execution Log
+
+| Point | PR | Status |
+|-------|-----|--------|
+| 50–53 | — | 🚧 in progress |
 
 ---
 

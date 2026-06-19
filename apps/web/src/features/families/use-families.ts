@@ -2,8 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { CreateFamilyInput, CreateResidentInput } from '@sidpro/validators';
-import { apiClient, buildQuery, API_BASE, API_PREFIX } from '@/lib/api-client';
-import { getAccessToken } from '@/lib/auth';
+import { apiClient, buildQuery, downloadBinary } from '@/lib/api-client';
 import type { PaginationMeta } from '@sidpro/types';
 import type { Resident } from '@/features/residents/use-residents';
 
@@ -130,20 +129,7 @@ export function useDeleteFamily() {
 
 export function useExportFamilies() {
   return useMutation({
-    mutationFn: async () => {
-      const token = getAccessToken();
-      const response = await fetch(`${API_BASE}${API_PREFIX}/families/export`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (!response.ok) throw new Error('Export gagal');
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = 'keluarga-export.xlsx';
-      anchor.click();
-      URL.revokeObjectURL(url);
-    },
+    mutationFn: () => downloadBinary('/families/export', 'keluarga-export.xlsx'),
   });
 }
 
