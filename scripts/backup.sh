@@ -15,7 +15,17 @@ if [ -z "${DATABASE_URL:-}" ]; then
 fi
 
 DB_URL="${DATABASE_URL%%\?*}"
-pg_dump "$DB_URL" | gzip > "$DB_BACKUP_FILE"
+
+if [ -x /usr/lib/postgresql/17/bin/pg_dump ]; then
+  PG_DUMP=/usr/lib/postgresql/17/bin/pg_dump
+elif command -v pg_dump >/dev/null 2>&1; then
+  PG_DUMP=pg_dump
+else
+  echo "[backup] ERROR: pg_dump not found"
+  exit 1
+fi
+
+"$PG_DUMP" "$DB_URL" | gzip > "$DB_BACKUP_FILE"
 echo "[backup] Database backup saved: $DB_BACKUP_FILE"
 
 if [ -d "${UPLOAD_DIR:-./uploads}" ]; then
