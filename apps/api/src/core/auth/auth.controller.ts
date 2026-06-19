@@ -27,6 +27,23 @@ export class AuthController {
     return this.authService.verifyTwoFactorLogin(body.twoFactorToken, body.token, req.ip);
   }
 
+  @Public()
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @Post('2fa/enroll-login/setup')
+  setupEnrollLogin(@Body() body: { enrollmentToken: string }) {
+    return this.authService.setupEnrollLogin(body.enrollmentToken);
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @Post('2fa/enroll-login/complete')
+  completeEnrollLogin(
+    @Body() body: { enrollmentToken: string; token: string },
+    @Req() req: Request,
+  ) {
+    return this.authService.completeEnrollLogin(body.enrollmentToken, body.token, req.ip);
+  }
+
   @UseGuards(JwtAuthGuard)
   @Post('2fa/setup')
   setupTwoFactor(@CurrentUser('sub') userId: string) {

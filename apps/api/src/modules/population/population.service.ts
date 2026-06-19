@@ -7,8 +7,11 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { Response } from 'express';
-import * as XLSX from 'xlsx';
 import { PrismaService } from '../../database/prisma.service';
+import {
+  sendXlsxDownload,
+  xlsxBufferToJson,
+} from '../../common/utils/spreadsheet.util';
 import { AuditLogsService } from '../../core/audit-logs/audit-logs.service';
 import { JwtPayload } from '../../common/decorators/current-user.decorator';
 import {
@@ -380,11 +383,6 @@ export class PopulationService {
       residentStatus: r.residentStatus,
     }));
 
-    const worksheet = XLSX.utils.json_to_sheet(rows);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Penduduk');
-    const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
-
     await this.auditLogs.log({
       tenantId,
       actorId: user.sub,
@@ -395,12 +393,7 @@ export class PopulationService {
       ipAddress,
     });
 
-    res.setHeader(
-      'Content-Type',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    );
-    res.setHeader('Content-Disposition', 'attachment; filename="residents-export.xlsx"');
-    res.send(buffer);
+    await sendXlsxDownload(res, [{ name: 'Penduduk', rows }], 'residents-export.xlsx');
   }
 
   private validateImportRow(row: Record<string, unknown>, rowNumber: number): RowValidationError | null {
@@ -424,12 +417,8 @@ export class PopulationService {
     return { row: rowNumber, errors };
   }
 
-  private parseImportRows(buffer: Buffer): Record<string, unknown>[] {
-    const workbook = XLSX.read(buffer, { type: 'buffer' });
-    const sheetName = workbook.SheetNames[0];
-    if (!sheetName) return [];
-    const sheet = workbook.Sheets[sheetName];
-    return XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
+  private async parseImportRows(buffer: Buffer): Promise<Record<string, unknown>[]> {
+    return xlsxBufferToJson(buffer);
   }
 
   async importResidents(
@@ -439,7 +428,7 @@ export class PopulationService {
     ipAddress?: string,
   ) {
     const tenantId = this.requireTenant(user);
-    const rawRows = this.parseImportRows(buffer);
+    const rawRows = await this.parseImportRows(buffer);
 
     if (rawRows.length === 0) {
       return successResponse({ totalRows: 0, validRows: 0, errors: [], imported: 0 }, 'Tidak ada data');

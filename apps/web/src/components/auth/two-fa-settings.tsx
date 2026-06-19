@@ -9,6 +9,7 @@ import {
   useEnableTwoFactor,
   useSetupTwoFactor,
 } from '@/features/auth/use-two-fa';
+import { useSecuritySettings } from '@/features/settings/use-security-settings';
 
 export function TwoFaSettings() {
   const { user, syncProfile } = useAuth();
@@ -22,6 +23,8 @@ export function TwoFaSettings() {
   const [disablePassword, setDisablePassword] = useState('');
   const [message, setMessage] = useState('');
 
+  const { data: securitySettings } = useSecuritySettings();
+  const require2FaAdmin = securitySettings?.require2FaAdmin ?? false;
   const enabled = Boolean(user?.twoFaEnabled);
 
   async function handleSetup() {
@@ -97,40 +100,48 @@ export function TwoFaSettings() {
 
         {enabled && (
           <div className="space-y-3 rounded-md border border-slate-200 p-4">
-            <div>
-              <label className="form-label" htmlFor="disable-token">
-                Kode 2FA saat ini
-              </label>
-              <Input
-                id="disable-token"
-                inputMode="numeric"
-                maxLength={6}
-                value={disableToken}
-                onChange={(e) => setDisableToken(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="form-label" htmlFor="disable-password">
-                Password
-              </label>
-              <Input
-                id="disable-password"
-                type="password"
-                value={disablePassword}
-                onChange={(e) => setDisablePassword(e.target.value)}
-              />
-            </div>
-            <Button
-              variant="outline"
-              onClick={handleDisable}
-              disabled={
-                disableMutation.isPending ||
-                disableToken.length < 6 ||
-                disablePassword.length < 1
-              }
-            >
-              {disableMutation.isPending ? 'Menonaktifkan...' : 'Nonaktifkan 2FA'}
-            </Button>
+            {require2FaAdmin ? (
+              <p className="text-amber-700">
+                2FA wajib untuk admin sesuai kebijakan keamanan tenant. Nonaktivasi dinonaktifkan.
+              </p>
+            ) : (
+              <>
+                <div>
+                  <label className="form-label" htmlFor="disable-token">
+                    Kode 2FA saat ini
+                  </label>
+                  <Input
+                    id="disable-token"
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={disableToken}
+                    onChange={(e) => setDisableToken(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="form-label" htmlFor="disable-password">
+                    Password
+                  </label>
+                  <Input
+                    id="disable-password"
+                    type="password"
+                    value={disablePassword}
+                    onChange={(e) => setDisablePassword(e.target.value)}
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={handleDisable}
+                  disabled={
+                    disableMutation.isPending ||
+                    disableToken.length < 6 ||
+                    disablePassword.length < 1
+                  }
+                >
+                  {disableMutation.isPending ? 'Menonaktifkan...' : 'Nonaktifkan 2FA'}
+                </Button>
+              </>
+            )}
           </div>
         )}
       </CardContent>

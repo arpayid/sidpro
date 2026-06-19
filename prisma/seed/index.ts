@@ -340,6 +340,16 @@ async function main() {
     },
   });
 
+  await prisma.setting.upsert({
+    where: { tenantId_key: { tenantId: tenant.id, key: 'security.require_2fa_admin' } },
+    update: {},
+    create: {
+      tenantId: tenant.id,
+      key: 'security.require_2fa_admin',
+      value: { enabled: false },
+    },
+  });
+
   const agendaSeeds = [
     {
       title: 'Rapat Koordinasi BPD',
