@@ -56,6 +56,7 @@ export class FilesController {
   @Post('upload')
   @RequirePermissions(
     'settings.manage',
+    'cms.manage',
     'complaints.create',
     'complaints.update',
     'letters.create',
@@ -89,6 +90,8 @@ export class FilesController {
   @Get(':id/download')
   @RequirePermissions(
     'settings.manage',
+    'cms.read',
+    'cms.manage',
     'complaints.read',
     'complaints.create',
     'letters.create',
