@@ -161,8 +161,7 @@ jobs:
         run: docker rm -f redis || true
 
       - name: Dependency audit
-        run: pnpm audit --audit-level=high
-        continue-on-error: true
+        run: pnpm audit --audit-level=high --ignore-unfixable
 
       - name: Docker Compose config
         run: docker compose config

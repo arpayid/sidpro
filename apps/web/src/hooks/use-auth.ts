@@ -10,7 +10,7 @@ import {
   hasAnyPermission,
   isAuthenticated,
 } from '@/lib/auth';
-import { apiClient } from '@/lib/api-client';
+import { apiClient, syncAuthProfile } from '@/lib/api-client';
 
 export function useAuth() {
   const router = useRouter();
@@ -37,10 +37,17 @@ export function useAuth() {
     router.push('/login');
   }, [router]);
 
+  const syncProfile = useCallback(async () => {
+    const profile = await syncAuthProfile();
+    if (profile) setUser(profile);
+    return profile;
+  }, []);
+
   return {
     user,
     isAuthenticated: isAuthenticated(),
     logout,
+    syncProfile,
     can: (permission: string) => hasPermission(user, permission),
     canAny: (permissions: string[]) => hasAnyPermission(user, permissions),
   };

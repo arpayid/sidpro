@@ -5,6 +5,7 @@ export interface AuthUser {
   tenantId: string | null;
   roles: string[];
   permissions: string[];
+  twoFaEnabled?: boolean;
 }
 
 export interface LoginRequest {
@@ -16,6 +17,23 @@ export interface LoginResponse {
   accessToken: string;
   refreshToken: string;
   user: AuthUser;
+}
+
+export interface TwoFactorChallengeResponse {
+  requiresTwoFactor: true;
+  twoFactorToken: string;
+}
+
+export type LoginResult = LoginResponse | TwoFactorChallengeResponse;
+
+export interface TwoFactorVerifyLoginRequest {
+  twoFactorToken: string;
+  token: string;
+}
+
+export interface TwoFactorSetupResponse {
+  secret: string;
+  otpauthUrl: string;
 }
 
 export interface RefreshTokenRequest {

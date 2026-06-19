@@ -1067,7 +1067,23 @@ Planning skill     : .ai/skills/02-planning-skill.md
 
 | Point | PR | Status |
 |-------|-----|--------|
-| 33–35 | pending | 🟡 in progress |
+| 33–35 | #25 | ✅ merged → `mvp-portal-v3` |
+
+---
+
+## 18. Wave 8 — Security & Portal Nav (2026-06-19)
+
+| Point | Scope | Tag |
+|-------|--------|-----|
+| 36 | 2FA admin foundation (TOTP setup/login) | `mvp-security-v1` |
+| 37 | CI dependency audit enforced | `mvp-security-v1` |
+| 38 | Portal header nav canonical config | `mvp-portal-v4` |
+
+### Wave 8 Execution Log
+
+| Point | PR | Status |
+|-------|-----|--------|
+| 36–38 | pending | 🟡 in progress |
 
 ---
 

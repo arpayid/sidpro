@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { Button, cn } from '@sidpro/ui';
 import { Menu, X, Shield } from 'lucide-react';
-import { publicNavItems } from '@/lib/demo-data';
+import { publicNavItems } from '@/lib/portal-navigation';
 
 export function PublicHeader() {
   const pathname = usePathname();
