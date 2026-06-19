@@ -6,10 +6,8 @@ import {
   apiClient,
   apiUpload,
   buildQuery,
-  API_BASE,
-  API_PREFIX,
+  downloadBinary,
 } from '@/lib/api-client';
-import { getAccessToken } from '@/lib/auth';
 import type { PaginationMeta } from '@sidpro/types';
 
 export interface ResidentAddress {
@@ -53,18 +51,7 @@ function residentsKey(params: ResidentsListParams) {
 }
 
 async function downloadFile(path: string, filename: string) {
-  const token = getAccessToken();
-  const response = await fetch(`${API_BASE}${API_PREFIX}${path}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
-  if (!response.ok) throw new Error('Export gagal');
-  const blob = await response.blob();
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = filename;
-  anchor.click();
-  URL.revokeObjectURL(url);
+  await downloadBinary(path, filename);
 }
 
 function downloadCsv(rows: Resident[], filename: string) {

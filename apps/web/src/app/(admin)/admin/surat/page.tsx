@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { createLetterRequestSchema } from '@sidpro/validators';
+import { adminCreateLetterRequestSchema } from '@sidpro/validators';
 import type { z } from 'zod';
 import { Button, Input } from '@sidpro/ui';
 import { Plus, Check, X, FileText, Download } from 'lucide-react';
@@ -29,7 +29,7 @@ import {
 } from '@/features/letters/use-letters';
 import { useResidents } from '@/features/residents/use-residents';
 
-type CreateForm = z.infer<typeof createLetterRequestSchema>;
+type CreateForm = z.infer<typeof adminCreateLetterRequestSchema>;
 
 const STATUS_FILTER_OPTIONS = [
   { value: '', label: 'Semua Status' },
@@ -70,7 +70,7 @@ export default function SuratPage() {
   const downloadMutation = useDownloadLetterPdf();
 
   const createForm = useForm<CreateForm>({
-    resolver: zodResolver(createLetterRequestSchema),
+    resolver: zodResolver(adminCreateLetterRequestSchema),
     defaultValues: { letterTypeId: '', residentId: '', purpose: '' },
   });
 

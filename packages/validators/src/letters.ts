@@ -2,10 +2,20 @@ import { z } from 'zod';
 
 export const createLetterRequestSchema = z.object({
   letterTypeId: z.string().uuid(),
-  residentId: z.string().uuid(),
+  residentId: z.string().uuid().optional(),
+  applicantNik: z
+    .string()
+    .length(16, 'NIK harus 16 digit')
+    .regex(/^\d{16}$/, 'NIK harus berisi angka')
+    .optional(),
   purpose: z.string().min(5).max(1000),
   formData: z.record(z.unknown()).optional(),
 });
+
+export const adminCreateLetterRequestSchema = createLetterRequestSchema.refine(
+  (data) => Boolean(data.residentId),
+  { message: 'Pilih penduduk pemohon', path: ['residentId'] },
+);
 
 export const verifyLetterSchema = z.object({
   notes: z.string().optional(),
@@ -62,5 +72,6 @@ export const publicLetterTrackSchema = z.object({
 export type PublicLetterTrackInput = z.infer<typeof publicLetterTrackSchema>;
 
 export type CreateLetterRequestInput = z.infer<typeof createLetterRequestSchema>;
+export type AdminCreateLetterRequestInput = z.infer<typeof adminCreateLetterRequestSchema>;
 export type UpdateLetterSettingsInput = z.infer<typeof updateLetterSettingsSchema>;
 export type UpdateLetterTemplateInput = z.infer<typeof updateLetterTemplateSchema>;

@@ -135,6 +135,7 @@ export class LettersController {
     body: {
       letterTypeId: string;
       residentId?: string;
+      applicantNik?: string;
       purpose: string;
       formData?: Record<string, unknown>;
     },

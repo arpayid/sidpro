@@ -419,6 +419,7 @@ export class LettersService {
     body: {
       letterTypeId: string;
       residentId?: string;
+      applicantNik?: string;
       purpose: string;
       formData?: Record<string, unknown>;
     },
@@ -430,26 +431,45 @@ export class LettersService {
       throw new BadRequestException(parsed.error.flatten().fieldErrors);
     }
 
-    const [letterType, resident] = await Promise.all([
-      this.prisma.letterType.findFirst({
-        where: { id: parsed.data.letterTypeId, tenantId, isActive: true },
-      }),
-      this.prisma.resident.findFirst({
-        where: { id: parsed.data.residentId, tenantId, deletedAt: null },
-      }),
-    ]);
+    const isCitizenRequester =
+      user.roles.includes('warga') &&
+      !user.roles.some((role) =>
+        ['admin_desa', 'operator_desa', 'superadmin_system', 'admin_kabupaten'].includes(role),
+      );
 
+    let residentId = parsed.data.residentId;
+    if (!residentId) {
+      if (!isCitizenRequester) {
+        throw new BadRequestException({ residentId: ['Penduduk pemohon wajib diisi'] });
+      }
+      if (!parsed.data.applicantNik) {
+        throw new BadRequestException({ applicantNik: ['NIK pemohon wajib diisi'] });
+      }
+    } else {
+      const resident = await this.prisma.resident.findFirst({
+        where: { id: residentId, tenantId, deletedAt: null },
+      });
+      if (!resident) throw new BadRequestException('Penduduk pemohon tidak ditemukan');
+    }
+
+    const letterType = await this.prisma.letterType.findFirst({
+      where: { id: parsed.data.letterTypeId, tenantId, isActive: true },
+    });
     if (!letterType) throw new BadRequestException('Jenis surat tidak ditemukan');
-    if (!resident) throw new BadRequestException('Penduduk pemohon tidak ditemukan');
+
+    const formData = {
+      ...(parsed.data.formData ?? {}),
+      ...(parsed.data.applicantNik ? { _applicantNik: parsed.data.applicantNik } : {}),
+    };
 
     const request = await this.prisma.letterRequest.create({
       data: {
         tenantId,
         requesterId: user.sub,
         letterTypeId: parsed.data.letterTypeId,
-        residentId: parsed.data.residentId,
+        residentId: residentId ?? null,
         purpose: parsed.data.purpose,
-        formData: parsed.data.formData as object,
+        formData: Object.keys(formData).length ? (formData as object) : undefined,
         status: 'submitted',
       },
     });
@@ -830,11 +850,12 @@ export class LettersService {
         submitted_at: Date;
         updated_at: Date;
         resident_nik: string | null;
+        form_data: { _applicantNik?: string } | null;
         letter_type_name: string;
       }[]
     >`
       SELECT lr.id, lr.status, lr.purpose, lr.letter_number, lr.submitted_at, lr.updated_at,
-             r.nik AS resident_nik, lt.name AS letter_type_name
+             r.nik AS resident_nik, lr.form_data, lt.name AS letter_type_name
       FROM letter_requests lr
       INNER JOIN letter_types lt ON lt.id = lr.letter_type_id
       LEFT JOIN residents r ON r.id = lr.resident_id
@@ -844,11 +865,15 @@ export class LettersService {
     `;
 
     const row = requests[0];
-    if (!row?.resident_nik) {
+    const verificationNik =
+      row?.resident_nik ??
+      (typeof row?.form_data?._applicantNik === 'string' ? row.form_data._applicantNik : null);
+
+    if (!row || !verificationNik) {
       throw new NotFoundException('Permohonan surat tidak ditemukan');
     }
 
-    const nikLast4 = row.resident_nik.slice(-4);
+    const nikLast4 = verificationNik.slice(-4);
     if (nikLast4 !== parsed.data.nikLast4) {
       throw new NotFoundException('Permohonan surat tidak ditemukan');
     }
