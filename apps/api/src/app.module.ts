@@ -10,6 +10,7 @@ import { PermissionsModule } from './core/permissions/permissions.module';
 import { TenantsModule } from './core/tenants/tenants.module';
 import { AuditLogsModule } from './core/audit-logs/audit-logs.module';
 import { FilesModule } from './core/files/files.module';
+import { QueueModule } from './core/queue/queue.module';
 import { SettingsModule } from './core/settings/settings.module';
 import { NotificationsModule } from './core/notifications/notifications.module';
 import { VillageProfileModule } from './modules/village-profile/village-profile.module';
@@ -44,6 +45,7 @@ import { StorageModule } from './core/storage/storage.module';
     PermissionsModule,
     TenantsModule,
     AuditLogsModule,
+    QueueModule,
     FilesModule,
     SettingsModule,
     NotificationsModule,

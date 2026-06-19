@@ -16,6 +16,7 @@ import {
 import { PrismaService } from '../../database/prisma.service';
 import { AuditLogsService } from '../../core/audit-logs/audit-logs.service';
 import { FilesService } from '../../core/files/files.service';
+import { NotificationQueueService } from '../../core/queue/notification-queue.service';
 import { JwtPayload } from '../../common/decorators/current-user.decorator';
 import { paginatedResponse, successResponse } from '../../common/utils/response.util';
 
@@ -51,6 +52,7 @@ export class ComplaintsService {
     private prisma: PrismaService,
     private auditLogs: AuditLogsService,
     private filesService: FilesService,
+    private notificationQueue: NotificationQueueService,
   ) {}
 
   private requireTenant(user: JwtPayload): string {
@@ -87,6 +89,36 @@ export class ComplaintsService {
 
   private formatTicketId(id: string): string {
     return `PGD-${id.slice(0, 8).toUpperCase()}`;
+  }
+
+  private async notifyComplaintStatusChange(
+    tenantId: string,
+    complaint: {
+      id: string;
+      title: string;
+      reporterEmail: string | null;
+      reporterName: string | null;
+    },
+    fromStatus: string,
+    toStatus: string,
+    note?: string | null,
+  ) {
+    if (!complaint.reporterEmail || fromStatus === toStatus) return;
+
+    await this.notificationQueue.enqueueComplaintStatusEmail({
+      tenantId,
+      complaintId: complaint.id,
+      ticket: this.formatTicketId(complaint.id),
+      title: complaint.title,
+      reporterEmail: complaint.reporterEmail,
+      reporterName: complaint.reporterName,
+      fromStatus,
+      toStatus,
+      fromStatusLabel: COMPLAINT_STATUS_LABELS[fromStatus] ?? fromStatus,
+      statusLabel: COMPLAINT_STATUS_LABELS[toStatus] ?? toStatus,
+      note: note ?? null,
+      appUrl: process.env.APP_URL,
+    });
   }
 
   private parseTicketPrefix(ticket: string): string {
@@ -426,6 +458,8 @@ export class ComplaintsService {
       ipAddress,
     });
 
+    await this.notifyComplaintStatusChange(tenantId, existing, existing.status, nextStatus, note);
+
     return successResponse(complaint, 'Status pengaduan diperbarui');
   }
 
@@ -473,6 +507,8 @@ export class ComplaintsService {
       ipAddress,
     });
 
+    await this.notifyComplaintStatusChange(tenantId, existing, existing.status, nextStatus);
+
     return successResponse(complaint, 'Pengaduan berhasil ditugaskan');
   }
 
@@ -488,7 +524,7 @@ export class ComplaintsService {
 
     const nextStatus = parsed.data.status ?? 'in_progress';
 
-    const [response] = await this.prisma.$transaction([
+    const [response, updatedComplaint] = await this.prisma.$transaction([
       this.prisma.complaintResponse.create({
         data: {
           complaintId: id,
@@ -521,6 +557,14 @@ export class ComplaintsService {
       metadata: { status: nextStatus },
       ipAddress,
     });
+
+    await this.notifyComplaintStatusChange(
+      tenantId,
+      existing,
+      existing.status,
+      updatedComplaint.status,
+      parsed.data.response,
+    );
 
     return successResponse(response, 'Tanggapan berhasil dikirim');
   }

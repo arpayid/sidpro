@@ -21,7 +21,15 @@ Response includes complaint `id` — shown to citizen as ticket reference (`PGD-
 4. Admin melihat di /admin/pengaduan
 5. Admin verifikasi → assign petugas → tanggapan → selesai → tutup
 6. Lampiran dapat diunggah admin via POST /files/upload (ownerType=complaint)
+7. Saat status berubah, email notifikasi dikirim ke reporterEmail via BullMQ queue `notifications` (job `complaint-status-email`)
 ```
+
+## Email notifications (NT.4.2)
+
+- Trigger: status change via `PATCH /complaints/:id/status`, assign, atau respond yang mengubah status
+- Queue: BullMQ `notifications` → worker memproses job `complaint-status-email`
+- Adapter: `console` (default, log ke stdout) atau `smtp` bila `SMTP_HOST` dikonfigurasi
+- Env: `REDIS_URL`, `APP_URL`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM`, dll. (lihat `.env.example`)
 
 ## Workflow
 
