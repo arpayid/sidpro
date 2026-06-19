@@ -1083,7 +1083,7 @@ Planning skill     : .ai/skills/02-planning-skill.md
 
 | Point | PR | Status |
 |-------|-----|--------|
-| 36–38 | pending | 🟡 in progress |
+| 36–38 | #26 | ✅ merged → `mvp-security-v1`, `mvp-portal-v4` |
 
 ---
 
