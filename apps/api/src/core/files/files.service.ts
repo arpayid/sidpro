@@ -13,7 +13,15 @@ import { paginatedResponse, successResponse } from '../../common/utils/response.
 import { assertMimeMatchesBuffer } from '../../common/utils/file-mime.util';
 
 const CMS_GALLERY_OWNER = 'gallery';
-const BROAD_FILE_PERMISSIONS = ['settings.manage'] as const;
+const BROAD_FILE_PERMISSIONS = [
+  'settings.manage',
+  'complaints.create',
+  'complaints.update',
+  'complaints.read',
+  'letters.create',
+  'letters.download',
+  'population.import',
+] as const;
 
 @Injectable()
 export class FilesService {
@@ -31,14 +39,17 @@ export class FilesService {
   private hasBroadFileAccess(user: JwtPayload): boolean {
     return (
       user.roles.includes('superadmin_system') ||
-      BROAD_FILE_PERMISSIONS.some((permission) => user.permissions.includes(permission))
+      user.permissions.includes('settings.manage')
     );
   }
 
   private isCmsScopedUser(user: JwtPayload): boolean {
     const hasCms =
       user.permissions.includes('cms.read') || user.permissions.includes('cms.manage');
-    return hasCms && !this.hasBroadFileAccess(user);
+    const hasOtherFileAccess = BROAD_FILE_PERMISSIONS.some((permission) =>
+      user.permissions.includes(permission),
+    );
+    return hasCms && !hasOtherFileAccess && !user.roles.includes('superadmin_system');
   }
 
   private assertUploadOwnerType(user: JwtPayload, ownerType: string) {
