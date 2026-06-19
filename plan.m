@@ -1002,7 +1002,24 @@ Planning skill     : .ai/skills/02-planning-skill.md
 
 | Point | PR | Status |
 |-------|-----|--------|
-| 21–22 | pending | 🟡 in progress |
+| 21–22 | #21 | ✅ merged |
+
+---
+
+## 14. Wave 4 — Enterprise Admin UI (2026-06-19)
+
+| Point | Scope | Tag |
+|-------|--------|-----|
+| 23 | Finance report summary fix (API) | `mvp-enterprise-v1` |
+| 24 | Admin keuangan live UI | `mvp-enterprise-v1` |
+| 25 | Admin aset live UI | `mvp-enterprise-v1` |
+| 26 | Admin bantuan sosial live UI | `mvp-enterprise-v1` |
+
+### Wave 4 Execution Log
+
+| Point | PR | Status |
+|-------|-----|--------|
+| 23–26 | pending | 🟡 in progress |
 
 ---
 
