@@ -1019,7 +1019,23 @@ Planning skill     : .ai/skills/02-planning-skill.md
 
 | Point | PR | Status |
 |-------|-----|--------|
-| 23–26 | pending | 🟡 in progress |
+| 23–26 | #22 | ✅ merged → `mvp-enterprise-v1` |
+
+---
+
+## 15. Wave 5 — Staging & Hardening (2026-06-19)
+
+| Point | Scope | Tag |
+|-------|--------|-----|
+| 27 | Staging deploy docs + worker checklist | `mvp-staging-ops-v2` |
+| 28 | Admin wilayah (dusun/RT/RW) UI | `mvp-population-v3` |
+| 29 | CI Redis for smoke (REDIS_URL) | `mvp-smoke-green-v3` |
+
+### Wave 5 Execution Log
+
+| Point | PR | Status |
+|-------|-----|--------|
+| 27–29 | pending | 🟡 in progress |
 
 ---
 

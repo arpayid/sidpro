@@ -35,6 +35,8 @@ Copy `.env.example` to `/etc/sidpro/sidpro.env` and set:
 | `SEED_ADMIN_EMAIL` | Admin email for `prisma:seed` (optional) |
 | `SEED_ADMIN_PASSWORD` | **Required** for staging seed |
 | `STAGING_ADMIN_PASSWORD` | Same value for `./scripts/smoke-test.sh` |
+| `REDIS_URL` | `redis://localhost:6379` — required for email notifications queue |
+| `APP_URL` | Public web URL for links in notification emails |
 
 ```bash
 sudo mkdir -p /etc/sidpro
@@ -67,11 +69,11 @@ pnpm prisma:seed
 # 4. Build
 pnpm build
 
-# 5. Systemd (see below)
+# 5. Systemd (see below) — API, web, and worker
 sudo cp scripts/systemd/sidpro-*.service.example /etc/systemd/system/
 # rename .example suffix as needed
-sudo systemctl enable sidpro-api sidpro-web
-sudo systemctl start sidpro-api sidpro-web
+sudo systemctl enable sidpro-api sidpro-web sidpro-worker
+sudo systemctl start sidpro-api sidpro-web sidpro-worker
 
 # 6. Healthcheck & smoke test
 ./scripts/healthcheck.sh
@@ -82,7 +84,7 @@ MinIO bucket `MINIO_BUCKET` is auto-created when the API starts (`StorageService
 
 ## Systemd deployment
 
-Templates: `scripts/systemd/sidpro-api.service.example`, `scripts/systemd/sidpro-web.service.example`
+Templates: `scripts/systemd/sidpro-api.service.example`, `scripts/systemd/sidpro-web.service.example`, `scripts/systemd/sidpro-worker.service.example`
 
 ### 1. Install unit files
 
@@ -90,6 +92,7 @@ Templates: `scripts/systemd/sidpro-api.service.example`, `scripts/systemd/sidpro
 sudo useradd -r -s /usr/sbin/nologin -d /var/lib/sidpro sidpro 2>/dev/null || true
 sudo cp scripts/systemd/sidpro-api.service.example /etc/systemd/system/sidpro-api.service
 sudo cp scripts/systemd/sidpro-web.service.example /etc/systemd/system/sidpro-web.service
+sudo cp scripts/systemd/sidpro-worker.service.example /etc/systemd/system/sidpro-worker.service
 sudo chown -R sidpro:sidpro /opt/sidpro
 sudo mkdir -p /opt/sidpro/.cache/corepack
 sudo chown -R sidpro:sidpro /opt/sidpro/.cache
@@ -101,26 +104,27 @@ Deploy path is **`/opt/sidpro`** — no `chmod o+x /root` required.
 ### 2. Enable and start
 
 ```bash
-sudo systemctl enable sidpro-api sidpro-web
-sudo systemctl start sidpro-api sidpro-web
+sudo systemctl enable sidpro-api sidpro-web sidpro-worker
+sudo systemctl start sidpro-api sidpro-web sidpro-worker
 ```
 
 ### 3. Operations
 
 | Action | Command |
 |--------|---------|
-| Status | `sudo systemctl status sidpro-api sidpro-web` |
-| Restart | `sudo systemctl restart sidpro-api sidpro-web` |
-| Stop | `sudo systemctl stop sidpro-api sidpro-web` |
+| Status | `sudo systemctl status sidpro-api sidpro-web sidpro-worker` |
+| Restart | `sudo systemctl restart sidpro-api sidpro-web sidpro-worker sidpro-worker` |
+| Stop | `sudo systemctl stop sidpro-api sidpro-web sidpro-worker` |
 | API logs | `sudo journalctl -u sidpro-api -f` |
 | Web logs | `sudo journalctl -u sidpro-web -f` |
+| Worker logs | `sudo journalctl -u sidpro-worker -f` |
 
 After code or env changes:
 
 ```bash
 cd /opt/sidpro
 git pull && pnpm install && pnpm build
-sudo systemctl restart sidpro-api sidpro-web
+sudo systemctl restart sidpro-api sidpro-web sidpro-worker
 ./scripts/healthcheck.sh
 ```
 
@@ -176,7 +180,7 @@ mkdir -p /tmp/sidpro-restore && tar -xzf /var/backups/sidpro/uploads_YYYYMMDD_HH
 **After restore:**
 
 ```bash
-sudo systemctl restart sidpro-api sidpro-web
+sudo systemctl restart sidpro-api sidpro-web sidpro-worker
 ./scripts/healthcheck.sh
 ```
 
@@ -186,7 +190,7 @@ sudo systemctl restart sidpro-api sidpro-web
 2. `pnpm install && pnpm build`
 3. `pnpm prisma migrate deploy` (review migration notes)
 4. Restore from `/var/backups/sidpro/` if needed
-5. `sudo systemctl restart sidpro-api sidpro-web`
+5. `sudo systemctl restart sidpro-api sidpro-web sidpro-worker sidpro-worker`
 6. `./scripts/healthcheck.sh`
 
 ## Health Endpoints

@@ -20,6 +20,7 @@ import {
   ScrollText,
   Shield,
   Images,
+  MapPin,
   X,
   ChevronLeft,
   ChevronRight,
@@ -31,6 +32,7 @@ import { useAuth } from '@/hooks/use-auth';
 const iconMap = {
   'layout-dashboard': LayoutDashboard,
   users: Users,
+  'map-pin': MapPin,
   home: Home,
   'file-text': FileText,
   'file-cog': FileCog,
