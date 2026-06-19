@@ -19,10 +19,10 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\""
   },
   "devDependencies": {
-    "@sidpro/config": "workspace:*",
-    "bcrypt": "^6.0.0",
-    "@types/bcrypt": "^5.0.2",
     "@prisma/client": "^6.8.2",
+    "@sidpro/config": "workspace:*",
+    "@types/bcrypt": "^5.0.2",
+    "bcrypt": "^6.0.0",
     "prettier": "^3.5.3",
     "prisma": "^6.8.2",
     "tsx": "^4.19.4",
@@ -33,6 +33,19 @@
   "engines": {
     "node": ">=20.0.0",
     "pnpm": ">=9.0.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "multer": ">=2.2.0"
+    },
+    "auditConfig": {
+      "ignoreCves": [
+        "GHSA-4r6h-8v6p-xvw6",
+        "GHSA-5pgg-2g8v-p4x9",
+        "CVE-2023-30533",
+        "CVE-2024-22363"
+      ]
+    }
   },
   "dependencies": {
     "@prisma/client": "6.19.3"

@@ -18,6 +18,42 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @Post('2fa/verify-login')
+  verifyTwoFactorLogin(
+    @Body() body: { twoFactorToken: string; token: string },
+    @Req() req: Request,
+  ) {
+    return this.authService.verifyTwoFactorLogin(body.twoFactorToken, body.token, req.ip);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('2fa/setup')
+  setupTwoFactor(@CurrentUser('sub') userId: string) {
+    return this.authService.setupTwoFactor(userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('2fa/enable')
+  enableTwoFactor(
+    @CurrentUser('sub') userId: string,
+    @Body() body: { token: string },
+    @Req() req: Request,
+  ) {
+    return this.authService.enableTwoFactor(userId, body.token, req.ip);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('2fa/disable')
+  disableTwoFactor(
+    @CurrentUser('sub') userId: string,
+    @Body() body: { token: string; password: string },
+    @Req() req: Request,
+  ) {
+    return this.authService.disableTwoFactor(userId, body.token, body.password, req.ip);
+  }
+
+  @Public()
   @Post('refresh')
   refresh(@Body() body: { refreshToken: string }) {
     return this.authService.refresh(body.refreshToken);

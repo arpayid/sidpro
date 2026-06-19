@@ -223,18 +223,7 @@ export const adminNavItems = [
   { href: '/admin/audit-logs', label: 'Audit Log', icon: 'scroll-text' },
 ] as const;
 
-export const publicNavItems = [
-  { href: '/', label: 'Beranda' },
-  { href: '/profil-desa', label: 'Profil Desa' },
-  { href: '/berita', label: 'Berita' },
-  { href: '/agenda', label: 'Agenda' },
-  { href: '/galeri', label: 'Galeri' },
-  { href: '/layanan', label: 'Layanan' },
-  { href: '/transparansi', label: 'Transparansi' },
-  { href: '/pengaduan', label: 'Pengaduan' },
-  { href: '/surat/cek', label: 'Cek Surat' },
-  { href: '/verifikasi-surat', label: 'Verifikasi Surat' },
-] as const;
+export { publicNavItems } from './portal-navigation';
 
 export function getNewsBySlug(slug: string): NewsItem | undefined {
   return demoNews.find((item) => item.slug === slug);

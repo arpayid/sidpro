@@ -9,6 +9,7 @@ import {
   useVillageProfile,
   type UpdateVillageProfileInput,
 } from '@/features/village-profile/use-village-profile';
+import { TwoFaSettings } from '@/components/auth/two-fa-settings';
 
 export function PengaturanContent() {
   const { can } = useAuth();
@@ -193,6 +194,8 @@ export function PengaturanContent() {
             )}
           </CardContent>
         </Card>
+
+        <TwoFaSettings />
 
         <Card>
           <CardHeader>
