@@ -10,6 +10,18 @@ import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { StorageService } from '../storage/storage.service';
 import { JwtPayload } from '../../common/decorators/current-user.decorator';
 import { paginatedResponse, successResponse } from '../../common/utils/response.util';
+import { assertMimeMatchesBuffer } from '../../common/utils/file-mime.util';
+
+const CMS_GALLERY_OWNER = 'gallery';
+const BROAD_FILE_PERMISSIONS = [
+  'settings.manage',
+  'complaints.create',
+  'complaints.update',
+  'complaints.read',
+  'letters.create',
+  'letters.download',
+  'population.import',
+] as const;
 
 @Injectable()
 export class FilesService {
@@ -22,6 +34,55 @@ export class FilesService {
   private requireTenant(user: JwtPayload): string {
     if (!user.tenantId) throw new ForbiddenException('Tenant scope required');
     return user.tenantId;
+  }
+
+  private hasBroadFileAccess(user: JwtPayload): boolean {
+    return (
+      user.roles.includes('superadmin_system') ||
+      user.permissions.includes('settings.manage')
+    );
+  }
+
+  private isCmsScopedUser(user: JwtPayload): boolean {
+    const hasCms =
+      user.permissions.includes('cms.read') || user.permissions.includes('cms.manage');
+    const hasOtherFileAccess = BROAD_FILE_PERMISSIONS.some((permission) =>
+      user.permissions.includes(permission),
+    );
+    return hasCms && !hasOtherFileAccess && !user.roles.includes('superadmin_system');
+  }
+
+  private assertUploadOwnerType(user: JwtPayload, ownerType: string) {
+    if (this.isCmsScopedUser(user) && ownerType !== CMS_GALLERY_OWNER) {
+      throw new ForbiddenException('Upload CMS hanya diizinkan untuk galeri');
+    }
+  }
+
+  private assertDownloadOwnerType(user: JwtPayload, ownerType: string) {
+    if (this.isCmsScopedUser(user) && ownerType !== CMS_GALLERY_OWNER) {
+      throw new ForbiddenException('Unduhan CMS hanya diizinkan untuk file galeri');
+    }
+  }
+
+  private async purgeStalePublicComplaintFiles(tenantId: string, maxAgeHours = 24) {
+    const cutoff = new Date(Date.now() - maxAgeHours * 60 * 60 * 1000);
+    const stale = await this.prisma.file.findMany({
+      where: {
+        tenantId,
+        ownerType: 'complaint_public',
+        ownerId: null,
+        createdAt: { lt: cutoff },
+      },
+    });
+
+    for (const file of stale) {
+      try {
+        await this.storage.deleteFile(file.path);
+      } catch {
+        // ignore storage cleanup errors for stale orphans
+      }
+      await this.prisma.file.delete({ where: { id: file.id } });
+    }
   }
 
   async findAll(
@@ -66,6 +127,8 @@ export class FilesService {
   ) {
     const tenantId = this.requireTenant(user);
     const ownerType = body.ownerType ?? 'upload';
+    this.assertUploadOwnerType(user, ownerType);
+    assertMimeMatchesBuffer(file.mimetype, file.buffer);
     const key = `${tenantId}/${ownerType}/${randomUUID()}-${file.originalname}`;
     const checksum = createHash('sha256').update(file.buffer).digest('hex');
 
@@ -102,6 +165,9 @@ export class FilesService {
     file: { buffer: Buffer; originalname: string; mimetype: string; size: number },
     ipAddress?: string,
   ) {
+    assertMimeMatchesBuffer(file.mimetype, file.buffer);
+    await this.purgeStalePublicComplaintFiles(tenantId);
+
     const key = `${tenantId}/complaint_public/${randomUUID()}-${file.originalname}`;
     const checksum = createHash('sha256').update(file.buffer).digest('hex');
 
@@ -158,6 +224,7 @@ export class FilesService {
     const tenantId = this.requireTenant(user);
     const file = await this.prisma.file.findFirst({ where: { id, tenantId } });
     if (!file) throw new NotFoundException('File tidak ditemukan');
+    this.assertDownloadOwnerType(user, file.ownerType);
 
     const url = await this.storage.getSignedUrl(file.path);
     return successResponse({ url, expiresIn: 3600 });

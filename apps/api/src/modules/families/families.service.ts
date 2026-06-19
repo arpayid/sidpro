@@ -195,9 +195,16 @@ export class FamiliesService {
     });
     if (!existing) throw new NotFoundException('Keluarga tidak ditemukan');
 
-    await this.prisma.family.update({
-      where: { id },
-      data: { deletedAt: new Date() },
+    await this.prisma.$transaction(async (tx) => {
+      await tx.familyMember.deleteMany({ where: { familyId: id, tenantId } });
+      await tx.resident.updateMany({
+        where: { familyId: id, tenantId },
+        data: { familyId: null },
+      });
+      await tx.family.update({
+        where: { id },
+        data: { deletedAt: new Date(), headResidentId: null },
+      });
     });
 
     await this.auditLogs.log({
