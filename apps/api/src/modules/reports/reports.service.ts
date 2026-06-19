@@ -162,10 +162,19 @@ export class ReportsService {
       {} as Record<string, { planned: number; realized: number }>,
     );
 
+    const totalPlanned = budgetYear?.items.reduce((sum, item) => sum + Number(item.planned), 0) ?? 0;
+    const totalRealized = budgetYear?.items.reduce((sum, item) => sum + Number(item.realized), 0) ?? 0;
+
     return successResponse({
       year: targetYear,
       budgetYear,
       byCategory,
+      summary: {
+        totalBudget: budgetYear ? Number(budgetYear.totalBudget) : 0,
+        totalPlanned,
+        totalRealized,
+        absorptionRate: totalPlanned > 0 ? Math.round((totalRealized / totalPlanned) * 100) : 0,
+      },
     });
   }
 
