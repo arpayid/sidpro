@@ -8,6 +8,8 @@ export interface VillageProfile {
   vision: string;
   mission: string;
   description: string;
+  contactPhone?: string | null;
+  contactEmail?: string | null;
 }
 
 export interface DashboardStat {

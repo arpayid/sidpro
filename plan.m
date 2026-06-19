@@ -1044,14 +1044,30 @@ Planning skill     : .ai/skills/02-planning-skill.md
 | Point | Scope | Tag |
 |-------|--------|-----|
 | 30 | Admin peristiwa sipil UI | `mvp-population-v4` |
-| 31 | Portal layanan canonical config (bukan demo) | `mvp-portal-v2` |
-| 32 | CI backup script verification | `mvp-backup-v1` |
+| 31 | Portal layanan canonical config (bukan demo) | `mvp-portal-services-v1` |
+| 32 | CI backup script verification | `mvp-backup-ci-v1` |
 
 ### Wave 6 Execution Log
 
 | Point | PR | Status |
 |-------|-----|--------|
-| 30–32 | #24 | ✅ merged → `mvp-population-v4`, `mvp-portal-v2`, `mvp-backup-v1` |
+| 30–32 | #24 | ✅ merged → `mvp-population-v4`, `mvp-portal-services-v1`, `mvp-backup-ci-v1` |
+
+---
+
+## 17. Wave 7 — Portal CMS & Contact (2026-06-19)
+
+| Point | Scope | Tag |
+|-------|--------|-----|
+| 33 | Public footer live village + kontak | `mvp-portal-v3` |
+| 34 | Admin CMS agenda UI | `mvp-portal-v3` |
+| 35 | Seed agenda + village contact setting | `mvp-portal-v3` |
+
+### Wave 7 Execution Log
+
+| Point | PR | Status |
+|-------|-----|--------|
+| 33–35 | pending | 🟡 in progress |
 
 ---
 

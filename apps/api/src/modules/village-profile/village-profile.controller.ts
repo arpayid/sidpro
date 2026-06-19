@@ -39,6 +39,8 @@ export class VillageProfileController {
       vision?: string;
       mission?: string;
       description?: string;
+      contactPhone?: string;
+      contactEmail?: string;
     },
     @Req() req: Request,
   ) {

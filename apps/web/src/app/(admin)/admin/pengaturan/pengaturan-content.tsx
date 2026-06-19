@@ -26,6 +26,8 @@ export function PengaturanContent() {
       vision: '',
       mission: '',
       description: '',
+      contactPhone: '',
+      contactEmail: '',
     },
   });
 
@@ -42,6 +44,8 @@ export function PengaturanContent() {
       vision: v.vision ?? '',
       mission: v.mission ?? '',
       description: v.description ?? '',
+      contactPhone: data.contact?.phone ?? '',
+      contactEmail: data.contact?.email ?? '',
     });
   }, [data, form]);
 
@@ -146,6 +150,31 @@ export function PengaturanContent() {
                     className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
                     {...form.register('description')}
                   />
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="form-label" htmlFor="contactPhone">
+                      Telepon Kontak
+                    </label>
+                    <Input
+                      id="contactPhone"
+                      disabled={!canManage}
+                      placeholder="(0298) 123456"
+                      {...form.register('contactPhone')}
+                    />
+                  </div>
+                  <div>
+                    <label className="form-label" htmlFor="contactEmail">
+                      Email Kontak
+                    </label>
+                    <Input
+                      id="contactEmail"
+                      type="email"
+                      disabled={!canManage}
+                      placeholder="info@desa.go.id"
+                      {...form.register('contactEmail')}
+                    />
+                  </div>
                 </div>
                 {updateMutation.isSuccess && (
                   <p className="text-sm text-emerald-600">Profil desa berhasil disimpan.</p>
