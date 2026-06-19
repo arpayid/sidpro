@@ -1035,7 +1035,23 @@ Planning skill     : .ai/skills/02-planning-skill.md
 
 | Point | PR | Status |
 |-------|-----|--------|
-| 27–29 | pending | 🟡 in progress |
+| 27–29 | #23 | ✅ merged → `mvp-staging-ops-v2`, `mvp-population-v3`, `mvp-smoke-green-v3` |
+
+---
+
+## 16. Wave 6 — Population & Portal Polish (2026-06-19)
+
+| Point | Scope | Tag |
+|-------|--------|-----|
+| 30 | Admin peristiwa sipil UI | `mvp-population-v4` |
+| 31 | Portal layanan canonical config (bukan demo) | `mvp-portal-v2` |
+| 32 | CI backup script verification | `mvp-backup-v1` |
+
+### Wave 6 Execution Log
+
+| Point | PR | Status |
+|-------|-----|--------|
+| 30–32 | pending | 🟡 in progress |
 
 ---
 

@@ -77,6 +77,15 @@ jobs:
       - name: Seed database
         run: pnpm prisma:seed
 
+      - name: Verify backup script
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client
+          export BACKUP_DIR=$(mktemp -d)
+          pnpm backup
+          test -n "$(ls -1 "$BACKUP_DIR"/db_*.sql.gz 2>/dev/null)" || (echo "Backup file missing" && exit 1)
+          echo "Backup OK: $(ls -1 "$BACKUP_DIR"/db_*.sql.gz)"
+
       - name: Start Redis
         run: |
           docker run -d --name redis -p 6379:6379 redis:7-alpine

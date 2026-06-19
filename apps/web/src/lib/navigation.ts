@@ -2,6 +2,7 @@ export const adminNavItems = [
   { href: '/admin/dashboard', label: 'Dashboard', icon: 'layout-dashboard' },
   { href: '/admin/penduduk', label: 'Penduduk', icon: 'users', permission: 'population.read' },
   { href: '/admin/wilayah', label: 'Wilayah', icon: 'map-pin', permission: 'population.read' },
+  { href: '/admin/peristiwa', label: 'Peristiwa Sipil', icon: 'calendar-heart', permission: 'population.read' },
   { href: '/admin/keluarga', label: 'Keluarga / KK', icon: 'home', permission: 'families.read' },
   { href: '/admin/surat', label: 'Layanan Surat', icon: 'file-text', permission: 'letters.read' },
   { href: '/admin/surat/pengaturan', label: 'Pengaturan Surat', icon: 'file-cog', permission: 'letters.manage' },

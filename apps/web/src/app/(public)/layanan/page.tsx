@@ -7,7 +7,7 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@sidpro/ui';
-import { demoServices } from '@/lib/demo-data';
+import { portalServices } from '@/lib/portal-services';
 import type { Metadata } from 'next';
 
 const icons = {
@@ -30,7 +30,7 @@ export default function LayananPage() {
       </p>
 
       <div className="mt-8 grid gap-6 md:grid-cols-2">
-        {demoServices.map((service) => {
+        {portalServices.map((service) => {
           const Icon = icons[service.icon as keyof typeof icons] ?? FileText;
           return (
             <Link key={service.id} href={service.href}>

@@ -13,10 +13,8 @@ import {
   fetchPublicStats,
   fetchPublicNews,
 } from '@/lib/public-api';
-import {
-  demoServices,
-  formatDate,
-} from '@/lib/demo-data';
+import { portalServices } from '@/lib/portal-services';
+import { formatDate } from '@/lib/demo-data';
 import { Users, Home, FileStack, AlertCircle } from 'lucide-react';
 
 const serviceIcons = {
@@ -91,7 +89,7 @@ export default async function HomePage() {
           </Link>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {demoServices.map((service) => {
+          {portalServices.map((service) => {
             const Icon = serviceIcons[service.icon as keyof typeof serviceIcons] ?? FileText;
             return (
               <Link key={service.id} href={service.href}>
