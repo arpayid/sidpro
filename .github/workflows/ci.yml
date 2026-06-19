@@ -36,6 +36,7 @@ jobs:
       MINIO_BUCKET: sidpro-files
       MINIO_USE_SSL: 'false'
       SEED_ADMIN_PASSWORD: Admin123!
+      SEED_ADMIN_EMAIL: admin@demo-desa.id
       REDIS_URL: redis://localhost:6379
 
     steps:

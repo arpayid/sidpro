@@ -14,7 +14,7 @@ fi
 API_BASE="${API_URL:-http://localhost:4000}"
 API="${API_BASE%/}/api/v1"
 WEB="${APP_URL:-http://localhost:3000}"
-ADMIN_EMAIL="${STAGING_ADMIN_EMAIL:-admin@demo-desa.id}"
+ADMIN_EMAIL="${STAGING_ADMIN_EMAIL:-${SEED_ADMIN_EMAIL:-admin@demo-desa.id}}"
 ADMIN_PASSWORD="${STAGING_ADMIN_PASSWORD:-}"
 SMOKE_RUN_SEED="${SMOKE_RUN_SEED:-1}"
 SMOKE_SKIP_WEB="${SMOKE_SKIP_WEB:-0}"
@@ -31,6 +31,8 @@ if [ -z "$ADMIN_PASSWORD" ]; then
   echo "[smoke-test]        For local dev after seed, you may set SEED_ADMIN_PASSWORD in .env instead."
   exit 1
 fi
+
+echo "[smoke-test] Admin login: $ADMIN_EMAIL"
 
 if [ "$SMOKE_RUN_SEED" = "1" ]; then
   echo "[smoke-test] Running prisma seed (permissions sync). Re-login required after permission changes."

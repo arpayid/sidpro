@@ -27,5 +27,5 @@ if [ -z "${DATABASE_URL:-}" ]; then
 fi
 
 echo "[restore-db] WARNING: Overwriting database from $BACKUP_FILE"
-gunzip -c "$BACKUP_FILE" | psql "$DATABASE_URL"
+gunzip -c "$BACKUP_FILE" | psql "$DATABASE_URL" -v ON_ERROR_STOP=1 --single-transaction
 echo "[restore-db] Database restored successfully."
