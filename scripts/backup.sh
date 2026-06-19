@@ -14,7 +14,8 @@ if [ -z "${DATABASE_URL:-}" ]; then
   exit 1
 fi
 
-pg_dump "$DATABASE_URL" | gzip > "$DB_BACKUP_FILE"
+DB_URL="${DATABASE_URL%%\?*}"
+pg_dump "$DB_URL" | gzip > "$DB_BACKUP_FILE"
 echo "[backup] Database backup saved: $DB_BACKUP_FILE"
 
 if [ -d "${UPLOAD_DIR:-./uploads}" ]; then
