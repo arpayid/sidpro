@@ -25,14 +25,6 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
-      minio:
-        image: minio/minio:latest
-        env:
-          MINIO_ROOT_USER: sidpro
-          MINIO_ROOT_PASSWORD: sidpro_secret
-        ports:
-          - 9000:9000
-
     env:
       DATABASE_URL: postgresql://sidpro:sidpro_secret@localhost:5432/sidpro?schema=public
       JWT_SECRET: ci-test-secret-key-not-for-production
@@ -84,8 +76,13 @@ jobs:
       - name: Seed database
         run: pnpm prisma:seed
 
-      - name: Wait for MinIO
+      - name: Start MinIO
         run: |
+          docker run -d --name minio \
+            -p 9000:9000 \
+            -e MINIO_ROOT_USER=sidpro \
+            -e MINIO_ROOT_PASSWORD=sidpro_secret \
+            minio/minio server /data --address :9000
           for i in $(seq 1 30); do
             if curl -sf http://localhost:9000/minio/health/live >/dev/null; then
               echo "MinIO ready"
@@ -93,6 +90,7 @@ jobs:
             fi
             sleep 2
           done
+          docker logs minio || true
           echo "MinIO not ready"
           exit 1
 
@@ -122,6 +120,10 @@ jobs:
         if: always()
         run: |
           if [ -f /tmp/api.pid ]; then kill "$(cat /tmp/api.pid)" || true; fi
+
+      - name: Stop MinIO
+        if: always()
+        run: docker rm -f minio || true
 
       - name: Dependency audit
         run: pnpm audit --audit-level=high
