@@ -960,4 +960,27 @@ Planning skill     : .ai/skills/02-planning-skill.md
 
 ---
 
+## 12. Wave 2 Execution Plan (2026-06-18)
+
+| Point | Scope | Tag |
+|-------|--------|-----|
+| 11 | Public complaint attachments (NT.4.1) | `mvp-complaints-v2.1` |
+| 12 | Email notifications on status change (NT.4.2) | `mvp-complaints-v2.2` |
+| 13 | Family export API + UI | `mvp-population-v2` |
+| 14 | Admin profil desa UI | `mvp-portal-v2` |
+| 15 | Reports export endpoints (NT.5.3) | `mvp-dashboard-v2` |
+| 16 | Admin berita CMS CRUD | `mvp-portal-v2` |
+| 17 | Galeri real MinIO URLs | `mvp-portal-v2` |
+| 18 | Transparansi dev projects public | `mvp-portal-v2` |
+| 19 | CI smoke test in GitHub Actions | `mvp-smoke-green-v2` |
+| 20 | Admin galeri + pembangunan UI | `mvp-portal-v2` |
+
+### Wave 2 Execution Log
+
+| Point | PR | Status |
+|-------|-----|--------|
+| 11 | pending | 🟡 in progress |
+
+---
+
 *Dokumen ini adalah living plan. Update versi dan tanggal setiap kali scope berubah.*

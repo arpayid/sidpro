@@ -8,9 +8,10 @@ import {
   Param,
   Query,
   Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
-import { Request } from 'express';
+import { Request, Response } from 'express';
 import { FamiliesService } from './families.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
@@ -31,6 +32,12 @@ export class FamiliesController {
     @Query('search') search?: string,
   ) {
     return this.familiesService.findAll(user, parseInt(page, 10), parseInt(limit, 10), search);
+  }
+
+  @Get('export')
+  @RequirePermissions('families.export')
+  exportFamilies(@CurrentUser() user: JwtPayload, @Req() req: Request, @Res() res: Response) {
+    return this.familiesService.exportFamilies(user, req.ip, res);
   }
 
   @Get(':id')
