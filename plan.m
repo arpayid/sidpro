@@ -1134,7 +1134,7 @@ PR dibuka → tunggu Codex review
 
 | Point | PR | Status |
 |-------|-----|--------|
-| 42–46 | — | 🚧 in progress |
+| 42–46 | #28 | ✅ merged → `mvp-security-v3` |
 
 ---
 
