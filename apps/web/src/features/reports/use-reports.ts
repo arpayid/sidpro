@@ -1,7 +1,8 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { apiClient, API_BASE, API_PREFIX } from '@/lib/api-client';
+import { getAccessToken } from '@/lib/auth';
 
 export interface PopulationReport {
   byGender: { gender: string; _count: { id: number } }[];
@@ -53,6 +54,43 @@ export function useFinanceReport(year?: number) {
       const res = await apiClient<FinanceReport>(`/reports/finance${query}`);
       if (!res.data) throw new Error('Laporan keuangan tidak tersedia');
       return res.data;
+    },
+  });
+}
+
+async function downloadReportExport(path: string, filename: string) {
+  const token = getAccessToken();
+  const response = await fetch(`${API_BASE}${API_PREFIX}${path}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!response.ok) throw new Error('Export gagal');
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+export function useExportPopulationReport() {
+  return useMutation({
+    mutationFn: () => downloadReportExport('/reports/population/export', 'laporan-kependudukan.xlsx'),
+  });
+}
+
+export function useExportLettersReport() {
+  return useMutation({
+    mutationFn: () => downloadReportExport('/reports/letters/export', 'laporan-surat.xlsx'),
+  });
+}
+
+export function useExportFinanceReport(year?: number) {
+  return useMutation({
+    mutationFn: () => {
+      const query = year ? `?year=${year}` : '';
+      const filename = year ? `laporan-keuangan-${year}.xlsx` : 'laporan-keuangan.xlsx';
+      return downloadReportExport(`/reports/finance/export${query}`, filename);
     },
   });
 }

@@ -1,4 +1,5 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, Req, Res, UseGuards } from '@nestjs/common';
+import { Request, Response } from 'express';
 import { ReportsService } from './reports.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
@@ -14,6 +15,42 @@ export class ReportsController {
   @RequirePermissions('reports.read')
   getDashboard(@CurrentUser() user: JwtPayload) {
     return this.reportsService.getDashboard(user);
+  }
+
+  @Get('population/export')
+  @RequirePermissions('reports.export')
+  exportPopulationReport(
+    @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
+    return this.reportsService.exportPopulationReport(user, req.ip, res);
+  }
+
+  @Get('letters/export')
+  @RequirePermissions('reports.export')
+  exportLettersReport(
+    @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
+    return this.reportsService.exportLettersReport(user, req.ip, res);
+  }
+
+  @Get('finance/export')
+  @RequirePermissions('reports.export')
+  exportFinanceReport(
+    @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
+    @Res() res: Response,
+    @Query('year') year?: string,
+  ) {
+    return this.reportsService.exportFinanceReport(
+      user,
+      req.ip,
+      res,
+      year ? parseInt(year, 10) : undefined,
+    );
   }
 
   @Get('population')
