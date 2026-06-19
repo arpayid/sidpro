@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { AuthUser } from '@sidpro/types';
 import {
@@ -14,7 +14,13 @@ import { apiClient } from '@/lib/api-client';
 
 export function useAuth() {
   const router = useRouter();
-  const user = getStoredUser();
+  const [user, setUser] = useState<AuthUser | null>(() => getStoredUser());
+
+  useEffect(() => {
+    const sync = () => setUser(getStoredUser());
+    window.addEventListener('sidpro:auth-updated', sync);
+    return () => window.removeEventListener('sidpro:auth-updated', sync);
+  }, []);
 
   const logout = useCallback(async () => {
     try {
@@ -27,6 +33,7 @@ export function useAuth() {
       // ignore — still clear local session
     }
     clearAuthSession();
+    setUser(null);
     router.push('/login');
   }, [router]);
 

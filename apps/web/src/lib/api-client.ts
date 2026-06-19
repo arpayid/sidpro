@@ -1,10 +1,12 @@
 import type { ApiResponse } from '@sidpro/types';
+import type { AuthUser } from '@sidpro/types';
 import {
   getAccessToken,
   getRefreshToken,
   setAuthSession,
   clearAuthSession,
   getStoredUser,
+  updateStoredUser,
 } from './auth';
 
 export const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
@@ -28,6 +30,27 @@ export interface RequestOptions extends Omit<globalThis.RequestInit, 'body'> {
 }
 
 let refreshPromise: Promise<string | null> | null = null;
+
+async function fetchAuthProfile(accessToken: string): Promise<AuthUser | null> {
+  const res = await fetch(`${API_BASE}${API_PREFIX}/auth/me`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) return null;
+  const body = (await res.json()) as ApiResponse<AuthUser>;
+  return body.data ?? null;
+}
+
+export async function syncAuthProfile(): Promise<AuthUser | null> {
+  const accessToken = getAccessToken();
+  const refreshToken = getRefreshToken();
+  if (!accessToken || !refreshToken) return null;
+
+  const profile = await fetchAuthProfile(accessToken);
+  if (!profile) return null;
+
+  updateStoredUser(profile);
+  return profile;
+}
 
 async function refreshAccessToken(): Promise<string | null> {
   if (refreshPromise) return refreshPromise;
@@ -53,7 +76,8 @@ async function refreshAccessToken(): Promise<string | null> {
       const user = getStoredUser();
       if (!body.data || !user) return null;
 
-      setAuthSession(body.data.accessToken, body.data.refreshToken, user);
+      const profile = (await fetchAuthProfile(body.data.accessToken)) ?? user;
+      setAuthSession(body.data.accessToken, body.data.refreshToken, profile);
       return body.data.accessToken;
     } catch {
       return null;

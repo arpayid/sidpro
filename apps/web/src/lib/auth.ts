@@ -53,6 +53,13 @@ export function setAuthSession(
   localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
   localStorage.setItem(USER_KEY, JSON.stringify(user));
   setCookie(ACCESS_COOKIE, accessToken, COOKIE_MAX_AGE);
+  window.dispatchEvent(new CustomEvent('sidpro:auth-updated'));
+}
+
+export function updateStoredUser(user: AuthUser): void {
+  if (!isBrowser()) return;
+  localStorage.setItem(USER_KEY, JSON.stringify(user));
+  window.dispatchEvent(new CustomEvent('sidpro:auth-updated'));
 }
 
 export function clearAuthSession(): void {

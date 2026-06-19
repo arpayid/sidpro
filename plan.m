@@ -895,8 +895,8 @@ docs: <documentation>
 | ID | Risiko | Probabilitas | Dampak | Mitigasi |
 |----|--------|--------------|--------|----------|
 | R1 | Smoke test gagal login | Tinggi | Block A | Sync SEED + STAGING password |
-| R2 | JWT permission stale | Tinggi | 403 palsu | Dokumentasi re-login; opsional permission version |
-| R3 | Enumeration tiket pengaduan | Sedang | Privacy | Verifikasi HP + rate limit + pesan generik |
+| R2 | JWT permission stale | Tinggi | 403 palsu | ✅ Web sync `/auth/me` on admin load + refresh; re-login after seed |
+| R3 | Enumeration tiket pengaduan | Sedang | Privacy | ✅ Verifikasi HP + rate limit + pesan generik |
 | R4 | Import penduduk corrupt data | Sedang | Tinggi | Preview mode + backup sebelum import |
 | R5 | KK head ganda | Sedang | Sedang | Validasi service + UI |
 | R6 | Scope creep wilayah | Sedang | Delay B | MVP: inline dropdown tanpa halaman admin wilayah |
@@ -980,9 +980,29 @@ Planning skill     : .ai/skills/02-planning-skill.md
 | Point | PR | Status |
 |-------|-----|--------|
 | 11 | #12 | ✅ merged → `mvp-complaints-v2.1` |
+| 12 | #20 | ✅ merged → `mvp-complaints-v2.2` |
 | 13 | #13 | ✅ merged → `mvp-population-v2` |
-| 12 | — | ⏳ pending |
-| 14–20 | — | ⏳ pending |
+| 14 | #14 | ✅ merged → `mvp-portal-v2` |
+| 15 | #15 | ✅ merged → `mvp-dashboard-v2` |
+| 16 | #18 | ✅ merged → `mvp-portal-v2` |
+| 17–18 | #16 | ✅ merged → `mvp-portal-v2` |
+| 19 | #17 | ✅ merged → `mvp-smoke-green-v2` |
+| 20 | #19 | ✅ merged → `mvp-portal-v2` |
+
+---
+
+## 13. Wave 3 — Risk Mitigation (2026-06-19)
+
+| Point | Scope | Mitigates |
+|-------|--------|-----------|
+| 21 | Auth permission sync (`/auth/me` on admin load + refresh) | R2 |
+| 22 | Worker systemd + OPERATIONS docs | Email queue silent fail |
+
+### Wave 3 Execution Log
+
+| Point | PR | Status |
+|-------|-----|--------|
+| 21–22 | pending | 🟡 in progress |
 
 ---
 
