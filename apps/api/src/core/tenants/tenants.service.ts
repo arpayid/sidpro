@@ -3,12 +3,13 @@ import {
   NotFoundException,
   ConflictException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { JwtPayload } from '../../common/decorators/current-user.decorator';
 import { paginatedResponse, successResponse } from '../../common/utils/response.util';
-import { isRegencyAdmin } from './tenant-scope.util';
+import { isDistrictAdmin, isRegencyAdmin } from './tenant-scope.util';
 
 @Injectable()
 export class TenantsService {
@@ -24,6 +25,23 @@ export class TenantsService {
     if (!allowed) {
       throw new ForbiddenException('Akses tenant management ditolak');
     }
+  }
+
+  private async collectDescendantVillageIds(parentId: string): Promise<string[]> {
+    const children = await this.prisma.tenant.findMany({
+      where: { parentId, status: 'active' },
+      select: { id: true, level: true },
+    });
+
+    const villageIds: string[] = [];
+    for (const child of children) {
+      if (child.level === 'desa') {
+        villageIds.push(child.id);
+      } else {
+        villageIds.push(...(await this.collectDescendantVillageIds(child.id)));
+      }
+    }
+    return villageIds;
   }
 
   private async requireRegencyAdmin(user: JwtPayload) {
@@ -42,21 +60,25 @@ export class TenantsService {
     return tenant;
   }
 
-  private async getVillageTenantIds(regencyTenantId: string): Promise<string[]> {
-    const villages = await this.prisma.tenant.findMany({
-      where: { parentId: regencyTenantId, level: 'desa', status: 'active' },
-      select: { id: true },
-    });
-    return villages.map((v) => v.id);
+  private async requireDistrictAdmin(user: JwtPayload) {
+    if (!user.tenantId) {
+      throw new ForbiddenException('Tenant scope required');
+    }
+    if (!isDistrictAdmin(user.roles) && !user.permissions.includes('tenants.district_overview')) {
+      throw new ForbiddenException('Akses dashboard kecamatan ditolak');
+    }
+
+    const tenant = await this.prisma.tenant.findUnique({ where: { id: user.tenantId } });
+    if (!tenant || tenant.level !== 'kecamatan') {
+      throw new ForbiddenException('Tenant bukan level kecamatan');
+    }
+
+    return tenant;
   }
 
-  async getRegencyOverview(user: JwtPayload) {
-    const regency = await this.requireRegencyAdmin(user);
-    const villageIds = await this.getVillageTenantIds(regency.id);
-
+  private async buildVillageStats(villageIds: string[]) {
     if (!villageIds.length) {
-      return successResponse({
-        regency: { id: regency.id, name: regency.name, code: regency.code },
+      return {
         villageCount: 0,
         totals: {
           residents: 0,
@@ -66,8 +88,16 @@ export class TenantsService {
           complaints: 0,
           openComplaints: 0,
         },
-        villages: [],
-      });
+        villages: [] as {
+          id: string;
+          name: string;
+          code: string;
+          status: string;
+          residentCount: number;
+          openComplaintCount: number;
+          pendingLetterCount: number;
+        }[],
+      };
     }
 
     const tenantFilter = { tenantId: { in: villageIds } };
@@ -122,8 +152,7 @@ export class TenantsService {
       }),
     );
 
-    return successResponse({
-      regency: { id: regency.id, name: regency.name, code: regency.code },
+    return {
       villageCount: villages.length,
       totals: {
         residents,
@@ -134,7 +163,121 @@ export class TenantsService {
         openComplaints,
       },
       villages: villageStats,
+    };
+  }
+
+  async getRegencyOverview(user: JwtPayload) {
+    const regency = await this.requireRegencyAdmin(user);
+    const villageIds = await this.collectDescendantVillageIds(regency.id);
+    const stats = await this.buildVillageStats(villageIds);
+
+    return successResponse({
+      regency: { id: regency.id, name: regency.name, code: regency.code },
+      ...stats,
     });
+  }
+
+  async getDistrictOverview(user: JwtPayload) {
+    const district = await this.requireDistrictAdmin(user);
+    const villageIds = await this.collectDescendantVillageIds(district.id);
+    const stats = await this.buildVillageStats(villageIds);
+
+    return successResponse({
+      district: { id: district.id, name: district.name, code: district.code },
+      ...stats,
+    });
+  }
+
+  async getVillageSummary(user: JwtPayload, villageId: string) {
+    const regency = await this.requireRegencyAdmin(user);
+    const villageIds = await this.collectDescendantVillageIds(regency.id);
+    if (!villageIds.includes(villageId)) {
+      throw new ForbiddenException('Desa tidak berada di bawah kabupaten ini');
+    }
+
+    const village = await this.prisma.tenant.findUnique({
+      where: { id: villageId },
+      select: { id: true, name: true, code: true, status: true, level: true },
+    });
+    if (!village || village.level !== 'desa') {
+      throw new NotFoundException('Desa tidak ditemukan');
+    }
+
+    const profile = await this.prisma.village.findFirst({
+      where: { tenantId: villageId },
+      select: {
+        name: true,
+        regency: true,
+        district: true,
+        address: true,
+        province: true,
+      },
+    });
+
+    const [residents, families, pendingLetters, openComplaints, totalComplaints] =
+      await Promise.all([
+        this.prisma.resident.count({ where: { tenantId: villageId, deletedAt: null } }),
+        this.prisma.family.count({ where: { tenantId: villageId, deletedAt: null } }),
+        this.prisma.letterRequest.count({
+          where: { tenantId: villageId, status: { in: ['submitted', 'verified'] } },
+        }),
+        this.prisma.complaint.count({
+          where: { tenantId: villageId, status: { notIn: ['closed', 'rejected'] } },
+        }),
+        this.prisma.complaint.count({ where: { tenantId: villageId } }),
+      ]);
+
+    return successResponse({
+      village,
+      profile,
+      stats: {
+        residents,
+        families,
+        pendingLetters,
+        openComplaints,
+        totalComplaints,
+      },
+    });
+  }
+
+  async provisionVillage(
+    user: JwtPayload,
+    body: { name: string; code: string; parentId: string },
+    ipAddress?: string,
+  ) {
+    this.assertAccess(user);
+
+    const parent = await this.prisma.tenant.findUnique({ where: { id: body.parentId } });
+    if (!parent) throw new NotFoundException('Parent tenant tidak ditemukan');
+    if (!['kabupaten', 'kecamatan'].includes(parent.level)) {
+      throw new BadRequestException('Parent harus level kabupaten atau kecamatan');
+    }
+
+    const existing = await this.prisma.tenant.findUnique({ where: { code: body.code } });
+    if (existing) throw new ConflictException('Kode tenant sudah digunakan');
+
+    const tenant = await this.prisma.tenant.create({
+      data: {
+        name: body.name,
+        code: body.code,
+        level: 'desa',
+        parentId: parent.id,
+        status: 'active',
+      },
+    });
+
+    await this.auditLogs.log({
+      tenantId: parent.id,
+      actorId: user.sub,
+      action: 'provision_village',
+      module: 'tenants',
+      entityType: 'tenant',
+      entityId: tenant.id,
+      metadata: { name: body.name, code: body.code, parentId: body.parentId },
+      ipAddress,
+    });
+
+    return successResponse(tenant, 'Tenant desa berhasil diprovisikan');
   }
 
   async findAll(page = 1, limit = 20, search?: string) {

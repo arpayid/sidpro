@@ -9,12 +9,15 @@
 - [x] Rate limiting login (5 req/min on `/auth/login`)
 - [x] Admin route guard frontend (Next.js middleware + cookie)
 - [x] 2FA foundation (twoFaEnabled field on User)
+- [x] 2FA wajib admin via `security.require_2fa_admin` + enrollment login
+- [x] 2FA pending token blocked from protected JWT routes
 
 ## Authorization
 
 - [x] RBAC dengan role dan permission
 - [x] Permission guard di semua endpoint protected
 - [x] Tenant scope filtering
+- [x] Hierarki tenant kabupaten → kecamatan → desa
 - [x] Least privilege default roles
 
 ## Data Protection
@@ -42,6 +45,9 @@
 - [x] Staging deploy guide (`docs/STAGING_DEPLOY.md`)
 - [ ] HTTPS di production (deploy time)
 - [x] Dependency audit di CI (`pnpm audit --audit-level=high`)
+- [x] Public complaint rate limit (10 req/min per endpoint)
+- [x] Dokumentasi rollout 2FA (`docs/2FA_ROLLOUT.md`)
+- [x] Web OOM mitigation docs (`docs/OPERATIONS.md`)
 
 ## File Upload
 

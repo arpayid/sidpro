@@ -26,6 +26,8 @@ import {
   type FamilyMember,
 } from '@/features/families/use-families';
 import { useResidents } from '@/features/residents/use-residents';
+import { maskNik } from '@/lib/mask-nik';
+import { maskKk } from '@/lib/mask-kk';
 
 type CreateFamilyForm = z.infer<typeof createFamilySchema>;
 type EditFamilyForm = z.input<typeof updateFamilySchema>;
@@ -203,7 +205,7 @@ export default function KeluargaPage() {
                 className="font-mono text-xs"
                 title={can('families.view_sensitive') ? row.kkNumber : 'Nomor KK disamarkan'}
               >
-                {row.kkNumber}
+                {can('families.view_sensitive') ? row.kkNumber : maskKk(row.kkNumber)}
               </span>
             ),
           },
@@ -350,7 +352,9 @@ export default function KeluargaPage() {
             <dl className="grid gap-3 text-sm sm:grid-cols-2">
               <div>
                 <dt className="text-slate-500">Nomor KK</dt>
-                <dd className="font-mono font-medium">{familyDetail.kkNumber}</dd>
+                <dd className="font-mono font-medium">
+                  {can('families.view_sensitive') ? familyDetail.kkNumber : maskKk(familyDetail.kkNumber)}
+                </dd>
               </div>
               <div>
                 <dt className="text-slate-500">Status Ekonomi</dt>
@@ -402,7 +406,11 @@ export default function KeluargaPage() {
                       {familyDetail.familyMembers.map((member) => (
                         <tr key={member.id} className="border-b border-slate-100 last:border-0">
                           <td className="px-3 py-2">{member.resident.fullName}</td>
-                          <td className="px-3 py-2 font-mono text-xs">{member.resident.nik}</td>
+                          <td className="px-3 py-2 font-mono text-xs">
+                            {can('families.view_sensitive') || can('population.view_sensitive')
+                              ? member.resident.nik
+                              : maskNik(member.resident.nik)}
+                          </td>
                           <td className="px-3 py-2">{member.relationship}</td>
                           <td className="px-3 py-2">
                             {member.isHead ? (
@@ -521,7 +529,7 @@ export default function KeluargaPage() {
               <option value="">— Pilih —</option>
               {(residentsData?.data ?? []).map((r) => (
                 <option key={r.id} value={r.id}>
-                  {r.fullName} ({r.nik})
+                  {r.fullName} ({can('population.view_sensitive') ? r.nik : maskNik(r.nik)})
                 </option>
               ))}
             </select>
@@ -566,7 +574,11 @@ export default function KeluargaPage() {
       <ConfirmDialog
         open={Boolean(deleteFamilyTarget)}
         title="Hapus Kartu Keluarga"
-        message={`Hapus KK ${deleteFamilyTarget?.kkNumber}? Data akan di-soft delete.`}
+        message={`Hapus KK ${can('families.view_sensitive') ? deleteFamilyTarget?.kkNumber : maskKk(deleteFamilyTarget?.kkNumber ?? '')}? Semua anggota akan dilepas dan data di-soft delete.${
+          deleteFamilyTarget?.familyMembers?.some((m) => m.isHead)
+            ? ' Kartu ini memiliki kepala keluarga.'
+            : ''
+        }`}
         confirmLabel="Hapus"
         variant="destructive"
         loading={deleteFamilyMutation.isPending}

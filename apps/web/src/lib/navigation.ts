@@ -7,6 +7,13 @@ export const adminNavItems = [
     permission: 'tenants.regency_overview',
     regencyOnly: true,
   },
+  {
+    href: '/admin/kecamatan',
+    label: 'Dashboard Kecamatan',
+    icon: 'landmark',
+    permission: 'tenants.district_overview',
+    districtOnly: true,
+  },
   { href: '/admin/penduduk', label: 'Penduduk', icon: 'users', permission: 'population.read' },
   { href: '/admin/wilayah', label: 'Wilayah', icon: 'map-pin', permission: 'population.read' },
   { href: '/admin/peristiwa', label: 'Peristiwa Sipil', icon: 'calendar-heart', permission: 'population.read' },

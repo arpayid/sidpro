@@ -97,6 +97,21 @@ check "Login admin" "$([ -n "$ACCESS" ] && echo 1 || echo 0)"
 
 AUTH="Authorization: Bearer $ACCESS"
 
+# 3b. Regency + district overview (before extra logins — auth login throttle 5/min)
+REGENCY_LOGIN=$(curl -sf -X POST "$API/auth/login" -H 'Content-Type: application/json' \
+  -d "{\"email\":\"admin.kab@demo-kabupaten.id\",\"password\":\"$ADMIN_PASSWORD\"}" 2>/dev/null || echo '{}')
+REGENCY_ACCESS=$(echo "$REGENCY_LOGIN" | json_field "console.log(j.data?.accessToken||'')")
+REGENCY_AUTH="Authorization: Bearer $REGENCY_ACCESS"
+REGENCY_OVERVIEW=$(curl -sf -H "$REGENCY_AUTH" "$API/tenants/regency/overview" 2>/dev/null | grep -c success || true)
+check "Regency admin overview" "$([ -n "$REGENCY_ACCESS" ] && [ "$REGENCY_OVERVIEW" -ge 1 ] && echo 1 || echo 0)"
+
+DISTRICT_LOGIN=$(curl -sf -X POST "$API/auth/login" -H 'Content-Type: application/json' \
+  -d "{\"email\":\"admin.kec@demo-kecamatan.id\",\"password\":\"$ADMIN_PASSWORD\"}" 2>/dev/null || echo '{}')
+DISTRICT_ACCESS=$(echo "$DISTRICT_LOGIN" | json_field "console.log(j.data?.accessToken||'')")
+DISTRICT_AUTH="Authorization: Bearer $DISTRICT_ACCESS"
+DISTRICT_OVERVIEW=$(curl -sf -H "$DISTRICT_AUTH" "$API/tenants/district/overview" 2>/dev/null | grep -c success || true)
+check "District admin overview" "$([ -n "$DISTRICT_ACCESS" ] && [ "$DISTRICT_OVERVIEW" -ge 1 ] && echo 1 || echo 0)"
+
 # 4. Dashboard
 DASH=$(curl -sf -H "$AUTH" "$API/reports/dashboard" | grep -c success || true)
 check "Dashboard fetch API" "$([ "$DASH" -ge 1 ] && echo 1 || echo 0)"
@@ -245,13 +260,9 @@ RESP_CMP=$(curl -sf -X POST "$API/complaints/$CMP_ID/responses" -H "$AUTH" -H 'C
   -d '{"response":"Ditindaklanjuti oleh smoke test","status":"resolved"}' | grep -c success || true)
 check "Complaints add response" "$([ "$RESP_CMP" -ge 1 ] && echo 1 || echo 0)"
 
-# 13. Regency admin overview (Wave 10)
-REGENCY_LOGIN=$(curl -sf -X POST "$API/auth/login" -H 'Content-Type: application/json' \
-  -d "{\"email\":\"admin.kab@demo-kabupaten.id\",\"password\":\"$ADMIN_PASSWORD\"}" 2>/dev/null || echo '{}')
-REGENCY_ACCESS=$(echo "$REGENCY_LOGIN" | json_field "console.log(j.data?.accessToken||'')")
-REGENCY_AUTH="Authorization: Bearer $REGENCY_ACCESS"
-REGENCY_OVERVIEW=$(curl -sf -H "$REGENCY_AUTH" "$API/tenants/regency/overview" 2>/dev/null | grep -c success || true)
-check "Regency admin overview" "$([ -n "$REGENCY_ACCESS" ] && [ "$REGENCY_OVERVIEW" -ge 1 ] && echo 1 || echo 0)"
+# 13. Complaints SLA stats (Wave 19)
+SLA_STATS=$(curl -sf -H "$AUTH" "$API/complaints/sla-stats" 2>/dev/null | grep -c success || true)
+check "Complaints SLA stats" "$([ "$SLA_STATS" -ge 1 ] && echo 1 || echo 0)"
 
 # 14. Logout
 LOGOUT=$(curl -sf -X POST "$API/auth/logout" -H "$AUTH" -H 'Content-Type: application/json' \

@@ -28,6 +28,7 @@ import {
   type LetterRequest,
 } from '@/features/letters/use-letters';
 import { useResidents } from '@/features/residents/use-residents';
+import { maskNik } from '@/lib/mask-nik';
 
 type CreateForm = z.infer<typeof adminCreateLetterRequestSchema>;
 
@@ -78,11 +79,6 @@ export default function SuratPage() {
     await createMutation.mutateAsync(values);
     setCreateOpen(false);
     createForm.reset();
-  }
-
-  function maskNik(nik: string) {
-    if (nik.length <= 4) return nik;
-    return `${'*'.repeat(nik.length - 4)}${nik.slice(-4)}`;
   }
 
   function openDetail(request: LetterRequest) {

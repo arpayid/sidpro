@@ -1283,7 +1283,7 @@ Wave 12 (hardening)
 
 | Point | PR | Status |
 |-------|-----|--------|
-| 68–72 | — | ⏳ queued |
+| 68–72 | #34 | ✅ merged → `mvp-letters-v2` |
 
 ---
 
@@ -1301,7 +1301,7 @@ Wave 12 (hardening)
 
 | Point | PR | Status |
 |-------|-----|--------|
-| 73–77 | — | ⏳ queued |
+| 73–77 | #35 | ⏳ PR open → `mvp-population-v2` |
 
 ---
 
@@ -1318,7 +1318,7 @@ Wave 12 (hardening)
 
 | Point | PR | Status |
 |-------|-----|--------|
-| 78–81 | — | ⏳ queued |
+| 78–81 | #35 | ⏳ PR open → `mvp-dashboard-v2` |
 
 ---
 
@@ -1335,7 +1335,7 @@ Wave 12 (hardening)
 
 | Point | PR | Status |
 |-------|-----|--------|
-| 82–85 | — | ⏳ queued |
+| 82–85 | #35 | ⏳ PR open → `mvp-tenant-v2` |
 
 **Prasyarat:** Wave 10 (`mvp-tenant-v1`) merged.
 
@@ -1355,7 +1355,7 @@ Wave 12 (hardening)
 
 | Point | PR | Status |
 |-------|-----|--------|
-| 86–90 | — | ⏳ queued |
+| 86–90 | #35 | ⏳ PR open → `mvp-security-v4`, `mvp-complaints-v3` |
 
 ---
 

@@ -72,9 +72,11 @@ export function AdminSidebar({
   const pathname = usePathname();
   const { can, user } = useAuth();
   const isRegencyAdmin = user?.roles.includes('admin_kabupaten') ?? false;
+  const isDistrictAdmin = user?.roles.includes('admin_kecamatan') ?? false;
 
   const items = adminNavItems.filter((item) => {
     if ('regencyOnly' in item && item.regencyOnly && !isRegencyAdmin) return false;
+    if ('districtOnly' in item && item.districtOnly && !isDistrictAdmin) return false;
     if ('permission' in item && item.permission && !can(item.permission)) return false;
     return true;
   });

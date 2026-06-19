@@ -23,6 +23,7 @@ import {
   useDownloadComplaintFile,
   useUploadComplaintAttachment,
   useExportComplaints,
+  useComplaintSlaStats,
   COMPLAINT_STATUS_LABELS,
   COMPLAINT_PRIORITY_LABELS,
   type Complaint,
@@ -118,6 +119,7 @@ export default function AdminPengaduanPage() {
   const downloadMutation = useDownloadComplaintFile();
   const uploadMutation = useUploadComplaintAttachment();
   const exportMutation = useExportComplaints();
+  const slaStats = useComplaintSlaStats();
 
   const complaints = data?.data ?? [];
   const meta = data?.meta;
@@ -213,6 +215,38 @@ export default function AdminPengaduanPage() {
           </div>
         }
       />
+
+      {can('complaints.read') && (
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="surface-card p-4">
+            <p className="text-xs text-slate-500">Pengaduan Aktif</p>
+            <p className="mt-1 text-2xl font-semibold text-slate-900">
+              {slaStats.isLoading ? '—' : (slaStats.data?.openCount ?? 0)}
+            </p>
+          </div>
+          <div className="surface-card p-4">
+            <p className="text-xs text-slate-500">
+              Melewati SLA ({slaStats.data?.slaDays ?? 7} hari)
+            </p>
+            <p className="mt-1 text-2xl font-semibold text-amber-700">
+              {slaStats.isLoading ? '—' : (slaStats.data?.overdueCount ?? 0)}
+            </p>
+          </div>
+          <div className="surface-card p-4">
+            <p className="text-xs text-slate-500">Rata-rata Penyelesaian (30 hari)</p>
+            <p className="mt-1 text-2xl font-semibold text-slate-900">
+              {slaStats.isLoading
+                ? '—'
+                : `${slaStats.data?.avgResolutionDays ?? 0} hari`}
+            </p>
+          </div>
+          <div className="surface-card p-4">
+            <p className="text-xs text-slate-500">Rate Limit Publik</p>
+            <p className="mt-1 text-sm font-medium text-slate-700">10 req/menit per endpoint</p>
+            <p className="mt-0.5 text-xs text-slate-500">create · track · upload</p>
+          </div>
+        </div>
+      )}
 
       <div className="mt-6">
         <DataTable

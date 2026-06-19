@@ -118,6 +118,25 @@ Staging: enable `sidpro-worker.service` from `scripts/systemd/sidpro-worker.serv
 
 Detail instalasi: [`STAGING_DEPLOY.md`](./STAGING_DEPLOY.md#systemd-deployment).
 
+### Web process anti-OOM (Next.js)
+
+Next.js production dapat memakai memori tinggi pada VPS kecil. Mitigasi:
+
+| Langkah | Contoh |
+|---------|--------|
+| `NODE_OPTIONS` | `NODE_OPTIONS=--max-old-space-size=512` di `/etc/sidpro/sidpro.env` |
+| systemd `MemoryMax` | `MemoryMax=768M` di unit `sidpro-web.service` |
+| `Restart=on-failure` | Restart otomatis bila proses crash/OOM-killed |
+| Monitor | `journalctl -u sidpro-web` — cari `JavaScript heap out of memory` |
+
+Template systemd: `scripts/systemd/sidpro-web.service.example` — tambahkan `Environment=NODE_OPTIONS=--max-old-space-size=512` bila RAM VPS ≤ 2 GB.
+
+PM2 alternatif (non-systemd):
+
+```bash
+pm2 start pnpm --name sidpro-web -- start --filter @sidpro/web --max-memory-restart 600M
+```
+
 ## Release pipeline
 
 1. Pull code / checkout tag di `/opt/sidpro`

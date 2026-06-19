@@ -1,4 +1,5 @@
 export const REGENCY_ADMIN_ROLE = 'admin_kabupaten';
+export const DISTRICT_ADMIN_ROLE = 'admin_kecamatan';
 
 export const TENANT_LEVELS = ['kabupaten', 'kecamatan', 'desa'] as const;
 
@@ -6,6 +7,10 @@ export type TenantLevel = (typeof TENANT_LEVELS)[number];
 
 export function isRegencyAdmin(roles: string[]): boolean {
   return roles.includes(REGENCY_ADMIN_ROLE);
+}
+
+export function isDistrictAdmin(roles: string[]): boolean {
+  return roles.includes(DISTRICT_ADMIN_ROLE);
 }
 
 export interface TenantScopeContext {

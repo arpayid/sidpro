@@ -28,6 +28,27 @@ export class TenantsController {
     return this.tenantsService.getRegencyOverview(user);
   }
 
+  @Get('district/overview')
+  @RequirePermissions('tenants.district_overview')
+  getDistrictOverview(@CurrentUser() user: JwtPayload) {
+    return this.tenantsService.getDistrictOverview(user);
+  }
+
+  @Get('villages/:id/summary')
+  @RequirePermissions('tenants.regency_overview')
+  getVillageSummary(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    return this.tenantsService.getVillageSummary(user, id);
+  }
+
+  @Post('provision/village')
+  provisionVillage(
+    @CurrentUser() user: JwtPayload,
+    @Body() body: { name: string; code: string; parentId: string },
+    @Req() req: Request,
+  ) {
+    return this.tenantsService.provisionVillage(user, body, req.ip);
+  }
+
   @Get()
   findAll(
     @CurrentUser() user: JwtPayload,
