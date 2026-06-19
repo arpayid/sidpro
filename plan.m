@@ -1167,7 +1167,7 @@ PR dibuka → tunggu Codex review
 
 | Point | PR | Status |
 |-------|-----|--------|
-| 50–53 | — | 🚧 in progress |
+| 50–53 | #30 | ✅ merged → `mvp-ux-v1` |
 
 ---
 
