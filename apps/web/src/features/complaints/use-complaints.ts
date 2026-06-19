@@ -224,3 +224,22 @@ export function useExportComplaints() {
     mutationFn: () => downloadBinary('/complaints/export', 'pengaduan-export.csv'),
   });
 }
+
+export interface ComplaintSlaStats {
+  slaDays: number;
+  openCount: number;
+  overdueCount: number;
+  avgResolutionDays: number;
+  byStatus: { status: string; count: number }[];
+}
+
+export function useComplaintSlaStats() {
+  return useQuery({
+    queryKey: ['complaints', 'sla-stats'],
+    queryFn: async () => {
+      const res = await apiClient<ComplaintSlaStats>('/complaints/sla-stats');
+      if (!res.data) throw new Error('Gagal memuat statistik SLA');
+      return res.data;
+    },
+  });
+}

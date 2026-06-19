@@ -60,6 +60,7 @@ const PERMISSIONS = [
   { code: 'reports.letters', name: 'Letters Reports', module: 'reports' },
   { code: 'reports.finance', name: 'Finance Reports', module: 'reports' },
   { code: 'tenants.regency_overview', name: 'Regency Overview Dashboard', module: 'tenants' },
+  { code: 'tenants.district_overview', name: 'District Overview Dashboard', module: 'tenants' },
 ];
 
 const LETTER_TYPES = [
@@ -136,14 +137,26 @@ async function main() {
     },
   });
 
+  const districtTenant = await prisma.tenant.upsert({
+    where: { code: 'demo-kecamatan' },
+    update: { level: 'kecamatan', parentId: regencyTenant.id },
+    create: {
+      name: 'Kecamatan Demo',
+      code: 'demo-kecamatan',
+      level: 'kecamatan',
+      parentId: regencyTenant.id,
+      status: 'active',
+    },
+  });
+
   const tenant = await prisma.tenant.upsert({
     where: { code: 'demo-desa' },
-    update: { parentId: regencyTenant.id, level: 'desa' },
+    update: { parentId: districtTenant.id, level: 'desa' },
     create: {
       name: 'Desa Demo',
       code: 'demo-desa',
       level: 'desa',
-      parentId: regencyTenant.id,
+      parentId: districtTenant.id,
       status: 'active',
     },
   });
@@ -207,6 +220,12 @@ async function main() {
       scope: 'regency',
       tenantId: regencyTenant.id,
     },
+    {
+      code: 'admin_kecamatan',
+      name: 'Admin Kecamatan',
+      scope: 'district',
+      tenantId: districtTenant.id,
+    },
     { code: 'admin_desa', name: 'Admin Desa', scope: 'tenant', tenantId: tenant.id },
     { code: 'operator_desa', name: 'Operator Desa', scope: 'tenant', tenantId: tenant.id },
     { code: 'warga', name: 'Warga', scope: 'tenant', tenantId: tenant.id },
@@ -242,6 +261,18 @@ async function main() {
                 ].includes(p.code),
               )
               .map((p) => p.id)
+          : roleData.code === 'admin_kecamatan'
+            ? allPermissions
+                .filter((p) =>
+                  [
+                    'tenants.district_overview',
+                    'reports.read',
+                    'reports.population',
+                    'reports.letters',
+                    'audit.read',
+                  ].includes(p.code),
+                )
+                .map((p) => p.id)
           : roleData.code === 'operator_desa'
           ? allPermissions
               .filter((p) =>
@@ -328,6 +359,34 @@ async function main() {
       });
 
       console.log(`[seed] Regency admin ready: ${regencyAdminEmail}`);
+    }
+
+    const districtAdminRole = await prisma.role.findFirst({
+      where: { code: 'admin_kecamatan', tenantId: districtTenant.id },
+    });
+
+    if (districtAdminRole) {
+      const districtAdminEmail =
+        process.env.SEED_DISTRICT_ADMIN_EMAIL ?? 'admin.kec@demo-kecamatan.id';
+      const districtAdminUser = await prisma.user.upsert({
+        where: { email: districtAdminEmail },
+        update: { passwordHash },
+        create: {
+          email: districtAdminEmail,
+          name: 'Admin Kecamatan Demo',
+          passwordHash,
+          tenantId: districtTenant.id,
+          status: 'active',
+        },
+      });
+
+      await prisma.userRole.upsert({
+        where: { userId_roleId: { userId: districtAdminUser.id, roleId: districtAdminRole.id } },
+        update: {},
+        create: { userId: districtAdminUser.id, roleId: districtAdminRole.id },
+      });
+
+      console.log(`[seed] District admin ready: ${districtAdminEmail}`);
     }
 
     const wargaRole = await prisma.role.findFirst({

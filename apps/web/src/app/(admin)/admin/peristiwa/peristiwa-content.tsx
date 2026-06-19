@@ -16,6 +16,8 @@ import {
   type CivilEvent,
 } from '@/features/civil-events/use-civil-events';
 import { useResidents } from '@/features/residents/use-residents';
+import { maskNik } from '@/lib/mask-nik';
+import { StatusBadge } from '@/components/enterprise/status-badge';
 
 const EVENT_TYPE_LABELS: Record<string, string> = {
   birth: 'Kelahiran',
@@ -31,13 +33,15 @@ const EVENT_TYPE_OPTIONS = Object.entries(EVENT_TYPE_LABELS).map(([value, label]
   label,
 }));
 
-function maskNik(nik: string) {
-  if (nik.length < 8) return nik;
-  return `${nik.slice(0, 4)}****${nik.slice(-4)}`;
-}
-
 function formatEventType(type: string) {
   return EVENT_TYPE_LABELS[type] ?? type;
+}
+
+function eventTypeVariant(type: string): 'default' | 'success' | 'warning' | 'danger' | 'info' {
+  if (type === 'birth' || type === 'marriage') return 'success';
+  if (type === 'moved') return 'warning';
+  if (type === 'deceased' || type === 'divorce') return 'danger';
+  return 'info';
 }
 
 export function PeristiwaContent() {
@@ -130,7 +134,11 @@ export function PeristiwaContent() {
             {
               key: 'eventType',
               header: 'Jenis',
-              render: (row) => formatEventType(row.eventType),
+              render: (row) => (
+                <StatusBadge variant={eventTypeVariant(row.eventType)}>
+                  {formatEventType(row.eventType)}
+                </StatusBadge>
+              ),
             },
             {
               key: 'resident',

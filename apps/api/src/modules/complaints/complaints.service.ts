@@ -198,6 +198,53 @@ export class ComplaintsService {
     return where;
   }
 
+  async getSlaStats(user: JwtPayload) {
+    const tenantId = this.requireTenant(user);
+    const SLA_DAYS = 7;
+    const now = new Date();
+    const slaCutoff = new Date(now);
+    slaCutoff.setDate(slaCutoff.getDate() - SLA_DAYS);
+
+    const thirtyDaysAgo = new Date(now);
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const openWhere = { tenantId, status: { notIn: ['closed', 'rejected'] } };
+
+    const [openCount, overdueCount, byStatus, recentlyClosed] = await Promise.all([
+      this.prisma.complaint.count({ where: openWhere }),
+      this.prisma.complaint.count({
+        where: { ...openWhere, createdAt: { lt: slaCutoff } },
+      }),
+      this.prisma.complaint.groupBy({
+        by: ['status'],
+        where: { tenantId },
+        _count: { id: true },
+      }),
+      this.prisma.complaint.findMany({
+        where: { tenantId, status: 'closed', closedAt: { gte: thirtyDaysAgo } },
+        select: { createdAt: true, closedAt: true },
+      }),
+    ]);
+
+    let avgResolutionDays = 0;
+    const resolvedWithDates = recentlyClosed.filter((c) => c.closedAt);
+    if (resolvedWithDates.length) {
+      const totalMs = resolvedWithDates.reduce(
+        (sum, c) => sum + (c.closedAt!.getTime() - c.createdAt.getTime()),
+        0,
+      );
+      avgResolutionDays = Math.round(totalMs / resolvedWithDates.length / 86_400_000);
+    }
+
+    return successResponse({
+      slaDays: SLA_DAYS,
+      openCount,
+      overdueCount,
+      avgResolutionDays,
+      byStatus: byStatus.map((s) => ({ status: s.status, count: s._count.id })),
+    });
+  }
+
   async findAll(
     user: JwtPayload,
     page = 1,

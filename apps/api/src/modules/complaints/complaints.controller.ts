@@ -75,6 +75,13 @@ export class ComplaintsController {
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Get('sla-stats')
+  @RequirePermissions('complaints.read')
+  getSlaStats(@CurrentUser() user: JwtPayload) {
+    return this.complaintsService.getSlaStats(user);
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Get('export')
   @RequirePermissions('complaints.read')
   exportCsv(@CurrentUser() user: JwtPayload, @Req() req: Request, @Res() res: Response) {

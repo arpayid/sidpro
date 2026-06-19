@@ -14,6 +14,7 @@ import { ConfirmDialog } from '@/components/enterprise/confirm-dialog';
 import { FileUpload } from '@/components/enterprise/file-upload';
 import { AddressFields } from '@/components/enterprise/address-fields';
 import { useAuth } from '@/hooks/use-auth';
+import { maskNik } from '@/lib/mask-nik';
 import {
   useResidents,
   useCreateResident,
@@ -333,7 +334,7 @@ export default function PendudukPage() {
             header: 'NIK',
             render: (row) => (
               <span className="font-mono text-xs" title={can('population.view_sensitive') ? row.nik : 'NIK disamarkan'}>
-                {row.nik}
+                {can('population.view_sensitive') ? row.nik : maskNik(row.nik)}
               </span>
             ),
           },

@@ -1,8 +1,14 @@
 'use client';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@sidpro/ui';
-import { Building2, Users, FileText, MessageSquare } from 'lucide-react';
+import { useState } from 'react';
+import { Button, Card, CardContent, CardHeader, CardTitle, Input } from '@sidpro/ui';
+import { Building2, Users, FileText, MessageSquare, Plus } from 'lucide-react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { DetailDrawer } from '@/components/enterprise/detail-drawer';
+import { useAuth } from '@/hooks/use-auth';
+import { apiClient } from '@/lib/api-client';
 import { useRegencyOverview } from '@/features/tenants/use-regency-overview';
+import { useVillageSummary } from '@/features/tenants/use-village-summary';
 
 function StatCard({
   label,
@@ -29,7 +35,31 @@ function StatCard({
 }
 
 export function KabupatenContent() {
+  const { can } = useAuth();
+  const queryClient = useQueryClient();
   const { data, isLoading, error } = useRegencyOverview();
+  const [selectedVillageId, setSelectedVillageId] = useState<string | null>(null);
+  const [provisionOpen, setProvisionOpen] = useState(false);
+  const [provisionName, setProvisionName] = useState('');
+  const [provisionCode, setProvisionCode] = useState('');
+  const villageSummary = useVillageSummary(selectedVillageId);
+
+  const provisionMutation = useMutation({
+    mutationFn: async (body: { name: string; code: string; parentId: string }) => {
+      const res = await apiClient('/tenants/provision/village', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      });
+      if (!res.success) throw new Error(res.message ?? 'Gagal memprovisikan desa');
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tenants', 'regency', 'overview'] });
+      setProvisionOpen(false);
+      setProvisionName('');
+      setProvisionCode('');
+    },
+  });
 
   if (isLoading) {
     return <p className="text-sm text-slate-500">Memuat dashboard kabupaten...</p>;
@@ -43,12 +73,24 @@ export function KabupatenContent() {
     );
   }
 
+  const canProvision = can('settings.manage');
+
   return (
     <div>
-      <h1 className="page-title">Dashboard Kabupaten</h1>
-      <p className="page-description">
-        Ringkasan agregat lintas desa — {data.regency.name} ({data.villageCount} desa).
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="page-title">Dashboard Kabupaten</h1>
+          <p className="page-description">
+            Ringkasan agregat lintas desa — {data.regency.name} ({data.villageCount} desa).
+          </p>
+        </div>
+        {canProvision && (
+          <Button size="sm" onClick={() => setProvisionOpen(true)}>
+            <Plus className="mr-1.5 h-4 w-4" />
+            Provision Desa
+          </Button>
+        )}
+      </div>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Total Penduduk" value={data.totals.residents} icon={Users} />
@@ -78,8 +120,12 @@ export function KabupatenContent() {
                 </thead>
                 <tbody>
                   {data.villages.map((village) => (
-                    <tr key={village.id} className="border-b border-slate-100">
-                      <td className="py-3 pr-4 font-medium">{village.name}</td>
+                    <tr
+                      key={village.id}
+                      className="cursor-pointer border-b border-slate-100 hover:bg-slate-50"
+                      onClick={() => setSelectedVillageId(village.id)}
+                    >
+                      <td className="py-3 pr-4 font-medium text-emerald-700">{village.name}</td>
                       <td className="py-3 pr-4 text-slate-600">{village.code}</td>
                       <td className="py-3 pr-4">{village.residentCount}</td>
                       <td className="py-3 pr-4">{village.pendingLetterCount}</td>
@@ -90,8 +136,122 @@ export function KabupatenContent() {
               </table>
             </div>
           )}
+          <p className="mt-3 text-xs text-slate-500">Klik baris desa untuk ringkasan read-only.</p>
         </CardContent>
       </Card>
+
+      <DetailDrawer
+        open={Boolean(selectedVillageId)}
+        onClose={() => setSelectedVillageId(null)}
+        title="Ringkasan Desa"
+        width="max-w-lg"
+      >
+        {villageSummary.isLoading ? (
+          <p className="text-sm text-slate-500">Memuat ringkasan...</p>
+        ) : villageSummary.error || !villageSummary.data ? (
+          <p className="text-sm text-red-600">
+            {(villageSummary.error as Error)?.message ?? 'Ringkasan tidak tersedia.'}
+          </p>
+        ) : (
+          <dl className="grid gap-3 text-sm sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <dt className="text-slate-500">Nama Desa</dt>
+              <dd className="font-medium">
+                {villageSummary.data.profile?.name ?? villageSummary.data.village.name}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">Kode Tenant</dt>
+              <dd>{villageSummary.data.village.code}</dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">Status</dt>
+              <dd className="capitalize">{villageSummary.data.village.status}</dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">Penduduk</dt>
+              <dd>{villageSummary.data.stats.residents.toLocaleString('id-ID')}</dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">Keluarga</dt>
+              <dd>{villageSummary.data.stats.families.toLocaleString('id-ID')}</dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">Surat Pending</dt>
+              <dd>{villageSummary.data.stats.pendingLetters}</dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">Pengaduan Aktif</dt>
+              <dd>{villageSummary.data.stats.openComplaints}</dd>
+            </div>
+            {villageSummary.data.profile?.address && (
+              <div className="sm:col-span-2">
+                <dt className="text-slate-500">Alamat</dt>
+                <dd>{villageSummary.data.profile.address}</dd>
+              </div>
+            )}
+          </dl>
+        )}
+      </DetailDrawer>
+
+      <DetailDrawer
+        open={provisionOpen}
+        onClose={() => setProvisionOpen(false)}
+        title="Provision Tenant Desa Baru"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setProvisionOpen(false)}>
+              Batal
+            </Button>
+            <Button
+              disabled={
+                provisionMutation.isPending || !provisionName.trim() || !provisionCode.trim()
+              }
+              onClick={() =>
+                provisionMutation.mutate({
+                  name: provisionName.trim(),
+                  code: provisionCode.trim(),
+                  parentId: data.regency.id,
+                })
+              }
+            >
+              {provisionMutation.isPending ? 'Menyimpan...' : 'Buat Desa'}
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="form-label" htmlFor="provision-name">
+              Nama Desa
+            </label>
+            <Input
+              id="provision-name"
+              value={provisionName}
+              onChange={(e) => setProvisionName(e.target.value)}
+              placeholder="Desa Baru"
+            />
+          </div>
+          <div>
+            <label className="form-label" htmlFor="provision-code">
+              Kode Tenant
+            </label>
+            <Input
+              id="provision-code"
+              value={provisionCode}
+              onChange={(e) => setProvisionCode(e.target.value)}
+              placeholder="desa-baru"
+            />
+          </div>
+          <p className="text-xs text-slate-500">
+            Desa baru akan dibuat di bawah kabupaten {data.regency.name}. Lengkapi profil desa dan
+            user admin setelah provisioning.
+          </p>
+          {provisionMutation.isError && (
+            <p className="form-error">{(provisionMutation.error as Error).message}</p>
+          )}
+        </div>
+      </DetailDrawer>
     </div>
   );
 }
