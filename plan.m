@@ -1359,7 +1359,72 @@ Wave 12 (hardening)
 
 ---
 
-## 32. Post-MVP Backlog (tidak masuk auto-wave)
+## 34. Wave 20 — Stabilisasi Staging (Point A)
+
+| Point | Scope | Tag |
+|-------|--------|-----|
+| 91 | `docs/STAGING_STABILIZATION.md` checklist | `mvp-staging-v2` |
+| 92 | `scripts/staging-validate.sh` | `mvp-staging-v2` |
+| 93 | Update MVP blueprint status di plan.m | `mvp-staging-v2` |
+
+### Wave 20 Execution Log
+
+| Point | PR | Status |
+|-------|-----|--------|
+| 91–93 | — | ⏳ PR open → `mvp-staging-v2` |
+
+---
+
+## 35. Wave 21 — Tenant Provisioning Lengkap (Point B)
+
+| Point | Scope | Tag |
+|-------|--------|-----|
+| 94 | Provision: profil desa + role + GIS setting | `mvp-tenant-v3` |
+| 95 | Provision: admin desa opsional (SEED_ADMIN_PASSWORD) | `mvp-tenant-v3` |
+| 96 | Parent kecamatan/kabupaten + UI parent selector | `mvp-tenant-v3` |
+| 97 | Permission `tenants.provision_village` | `mvp-tenant-v3` |
+
+### Wave 21 Execution Log
+
+| Point | PR | Status |
+|-------|-----|--------|
+| 94–97 | — | ⏳ PR open → `mvp-tenant-v3` |
+
+---
+
+## 36. Wave 22 — Modul Operasional Desa (Point C)
+
+| Point | Scope | Tag |
+|-------|--------|-----|
+| 98 | Seed demo: bantuan, aset, BUMDes | `mvp-ops-v1` |
+| 99 | Smoke: aid, assets, development, finance, bumdes | `mvp-ops-v1` |
+| 100 | Admin BUMDes UI foundation | `mvp-ops-v1` |
+
+### Wave 22 Execution Log
+
+| Point | PR | Status |
+|-------|-----|--------|
+| 98–100 | — | ⏳ PR open → `mvp-ops-v1` |
+
+---
+
+## 37. Wave 23 — Post-MVP Foundation (Point D)
+
+| Point | Scope | Tag |
+|-------|--------|-----|
+| 101 | BUMDes schema + API | `mvp-bumdes-v1` |
+| 102 | GIS public `/peta-desa` + map API | `mvp-gis-v1` |
+| 103 | AI assistant FAQ static + `/bantuan-ai` | `mvp-ai-v1` |
+
+### Wave 23 Execution Log
+
+| Point | PR | Status |
+|-------|-----|--------|
+| 101–103 | — | ⏳ PR open → `mvp-bumdes-v1`, `mvp-gis-v1`, `mvp-ai-v1` |
+
+---
+
+## 38. Post-MVP Backlog (lanjutan manual)
 
 | Modul | Prioritas | Trigger mulai |
 |-------|-----------|---------------|
@@ -1389,22 +1454,24 @@ Dokumen acuan: `docs/modules/roadmap-post-mvp.md`, `docs/SID_ENTERPRISE_BLUEPRIN
 [ ] Lanjut wave berikutnya tanpa menunggu prompt user
 ```
 
-### Status MVP Blueprint (revisi 2026-06-19)
+### Status MVP Blueprint (revisi 2026-06-19, update Wave 20)
 
 ```txt
  1. Auth + RBAC              ✅
- 2. Profil desa               🟡 → Wave 14
- 3. Portal publik             🟡 → Wave 14
- 4. Data penduduk             ✅ partial → Wave 16
- 5. Data KK                   🟡 → Wave 16
- 6. Layanan surat             🟡 → Wave 15
- 7. Template surat PDF        🟡 → Wave 15
- 8. QR validasi surat         🟡 → Wave 15
- 9. Pengaduan warga           ✅ → Wave 19 (SLA)
-10. Dashboard admin           🟡 → Wave 17
+ 2. Profil desa               ✅
+ 3. Portal publik             ✅
+ 4. Data penduduk             ✅
+ 5. Data KK                   ✅
+ 6. Layanan surat             ✅
+ 7. Template surat PDF        ✅
+ 8. QR validasi surat         ✅
+ 9. Pengaduan warga           ✅
+10. Dashboard admin           ✅
 11. Audit log                 ✅
-12. Backup                    🔴 → Wave 13
-13. Multi-tenant kabupaten    🟡 → Wave 10 ✅, Wave 18 lanjutan
+12. Backup                    ✅
+13. Multi-tenant kabupaten    ✅ (Wave 10 + 18 + 21 provisioning)
+14. Modul operasional desa    🟡 (Wave 22 — foundation)
+15. Post-MVP (BUMDes/GIS/AI)  🟡 (Wave 23 — foundation)
 ```
 
 ---

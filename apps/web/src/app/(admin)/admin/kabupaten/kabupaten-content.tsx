@@ -9,6 +9,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { apiClient } from '@/lib/api-client';
 import { useRegencyOverview } from '@/features/tenants/use-regency-overview';
 import { useVillageSummary } from '@/features/tenants/use-village-summary';
+import { useProvisionParents } from '@/features/tenants/use-provision-parents';
 
 function StatCard({
   label,
@@ -42,10 +43,20 @@ export function KabupatenContent() {
   const [provisionOpen, setProvisionOpen] = useState(false);
   const [provisionName, setProvisionName] = useState('');
   const [provisionCode, setProvisionCode] = useState('');
+  const [provisionParentId, setProvisionParentId] = useState('');
+  const [provisionAdminEmail, setProvisionAdminEmail] = useState('');
+  const [provisionAdminName, setProvisionAdminName] = useState('');
   const villageSummary = useVillageSummary(selectedVillageId);
+  const provisionParents = useProvisionParents();
 
   const provisionMutation = useMutation({
-    mutationFn: async (body: { name: string; code: string; parentId: string }) => {
+    mutationFn: async (body: {
+      name: string;
+      code: string;
+      parentId: string;
+      adminEmail?: string;
+      adminName?: string;
+    }) => {
       const res = await apiClient('/tenants/provision/village', {
         method: 'POST',
         body: JSON.stringify(body),
@@ -73,7 +84,7 @@ export function KabupatenContent() {
     );
   }
 
-  const canProvision = can('settings.manage');
+  const canProvision = can('tenants.provision_village') || can('settings.manage');
 
   return (
     <div>
@@ -85,7 +96,13 @@ export function KabupatenContent() {
           </p>
         </div>
         {canProvision && (
-          <Button size="sm" onClick={() => setProvisionOpen(true)}>
+          <Button
+            size="sm"
+            onClick={() => {
+              setProvisionParentId(data.regency.id);
+              setProvisionOpen(true);
+            }}
+          >
             <Plus className="mr-1.5 h-4 w-4" />
             Provision Desa
           </Button>
@@ -205,13 +222,22 @@ export function KabupatenContent() {
             </Button>
             <Button
               disabled={
-                provisionMutation.isPending || !provisionName.trim() || !provisionCode.trim()
+                provisionMutation.isPending ||
+                !provisionName.trim() ||
+                !provisionCode.trim() ||
+                !provisionParentId
               }
               onClick={() =>
                 provisionMutation.mutate({
                   name: provisionName.trim(),
                   code: provisionCode.trim(),
-                  parentId: data.regency.id,
+                  parentId: provisionParentId,
+                  ...(provisionAdminEmail.trim()
+                    ? {
+                        adminEmail: provisionAdminEmail.trim(),
+                        adminName: provisionAdminName.trim() || undefined,
+                      }
+                    : {}),
                 })
               }
             >
@@ -221,6 +247,24 @@ export function KabupatenContent() {
         }
       >
         <div className="space-y-4">
+          <div>
+            <label className="form-label" htmlFor="provision-parent">
+              Parent (Kabupaten/Kecamatan)
+            </label>
+            <select
+              id="provision-parent"
+              className="h-10 w-full rounded-md border border-slate-300 px-3 text-sm"
+              value={provisionParentId}
+              onChange={(e) => setProvisionParentId(e.target.value)}
+            >
+              <option value="">— Pilih —</option>
+              {(provisionParents.data ?? []).map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} ({p.level})
+                </option>
+              ))}
+            </select>
+          </div>
           <div>
             <label className="form-label" htmlFor="provision-name">
               Nama Desa
@@ -243,9 +287,32 @@ export function KabupatenContent() {
               placeholder="desa-baru"
             />
           </div>
+          <div>
+            <label className="form-label" htmlFor="provision-admin-email">
+              Email Admin Desa (opsional, butuh SEED_ADMIN_PASSWORD di API)
+            </label>
+            <Input
+              id="provision-admin-email"
+              type="email"
+              value={provisionAdminEmail}
+              onChange={(e) => setProvisionAdminEmail(e.target.value)}
+              placeholder="admin@desa-baru.id"
+            />
+          </div>
+          <div>
+            <label className="form-label" htmlFor="provision-admin-name">
+              Nama Admin Desa
+            </label>
+            <Input
+              id="provision-admin-name"
+              value={provisionAdminName}
+              onChange={(e) => setProvisionAdminName(e.target.value)}
+              placeholder="Admin Desa Baru"
+            />
+          </div>
           <p className="text-xs text-slate-500">
-            Desa baru akan dibuat di bawah kabupaten {data.regency.name}. Lengkapi profil desa dan
-            user admin setelah provisioning.
+            Provisioning otomatis membuat profil desa, role admin/operator/warga, dan pengaturan GIS
+            dasar.
           </p>
           {provisionMutation.isError && (
             <p className="form-error">{(provisionMutation.error as Error).message}</p>

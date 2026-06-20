@@ -61,6 +61,9 @@ const PERMISSIONS = [
   { code: 'reports.finance', name: 'Finance Reports', module: 'reports' },
   { code: 'tenants.regency_overview', name: 'Regency Overview Dashboard', module: 'tenants' },
   { code: 'tenants.district_overview', name: 'District Overview Dashboard', module: 'tenants' },
+  { code: 'tenants.provision_village', name: 'Provision Village Tenant', module: 'tenants' },
+  { code: 'bumdes.read', name: 'Read BUMDes', module: 'bumdes' },
+  { code: 'bumdes.manage', name: 'Manage BUMDes', module: 'bumdes' },
 ];
 
 const LETTER_TYPES = [
@@ -253,6 +256,7 @@ async function main() {
               .filter((p) =>
                 [
                   'tenants.regency_overview',
+                  'tenants.provision_village',
                   'reports.read',
                   'reports.population',
                   'reports.letters',
@@ -702,6 +706,57 @@ async function main() {
       },
     });
   }
+
+  const aidCount = await prisma.aidProgram.count({ where: { tenantId: tenant.id } });
+  if (aidCount === 0) {
+    await prisma.aidProgram.create({
+      data: {
+        tenantId: tenant.id,
+        code: 'BLT-2026',
+        name: 'Bantuan Langsung Tunai Desa',
+        description: 'Program bantuan sosial untuk keluarga kurang mampu.',
+        status: 'active',
+      },
+    });
+  }
+
+  const assetCount = await prisma.asset.count({ where: { tenantId: tenant.id } });
+  if (assetCount === 0) {
+    await prisma.asset.create({
+      data: {
+        tenantId: tenant.id,
+        code: 'AST-001',
+        name: 'Balai Desa',
+        category: 'Bangunan',
+        condition: 'good',
+        location: 'Kantor Desa',
+        value: 350000000,
+      },
+    });
+  }
+
+  const bumdesCount = await prisma.bumdesUnit.count({ where: { tenantId: tenant.id } });
+  if (bumdesCount === 0) {
+    await prisma.bumdesUnit.create({
+      data: {
+        tenantId: tenant.id,
+        code: 'BMD-001',
+        name: 'BUMDes Makmur Jaya',
+        businessType: 'Unit Usaha Simpan Pinjam',
+        description: 'Unit usaha desa percontohan SIDPRO.',
+      },
+    });
+  }
+
+  await prisma.setting.upsert({
+    where: { tenantId_key: { tenantId: tenant.id, key: 'gis.map_center' } },
+    update: {},
+    create: {
+      tenantId: tenant.id,
+      key: 'gis.map_center',
+      value: { lat: -5.1477, lng: 119.4327, zoom: 14 },
+    },
+  });
 
   console.log('Seed completed!');
 }

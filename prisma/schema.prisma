@@ -46,6 +46,7 @@ model Tenant {
   developmentProjects DevelopmentProject[]
   budgetYears       BudgetYear[]
   financeDocuments  FinanceDocument[]
+  bumdesUnits       BumdesUnit[]
 
   @@index([parentId, level])
   @@map("tenants")
@@ -714,4 +715,22 @@ model FinanceDocument {
 
   @@index([tenantId, type, year])
   @@map("finance_documents")
+}
+
+model BumdesUnit {
+  id           String   @id @default(uuid())
+  tenantId     String   @map("tenant_id")
+  name         String
+  code         String
+  businessType String?  @map("business_type")
+  status       String   @default("active")
+  description  String?
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, code])
+  @@index([tenantId, status])
+  @@map("bumdes_units")
 }

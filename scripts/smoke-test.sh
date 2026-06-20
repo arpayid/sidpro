@@ -264,6 +264,27 @@ check "Complaints add response" "$([ "$RESP_CMP" -ge 1 ] && echo 1 || echo 0)"
 SLA_STATS=$(curl -sf -H "$AUTH" "$API/complaints/sla-stats" 2>/dev/null | grep -c success || true)
 check "Complaints SLA stats" "$([ "$SLA_STATS" -ge 1 ] && echo 1 || echo 0)"
 
+# 13b. Operational modules (Wave 21)
+AID_OK=$(curl -sf -H "$AUTH" "$API/social-assistance/programs?limit=1" 2>/dev/null | grep -c success || true)
+check "Social assistance programs" "$([ "$AID_OK" -ge 1 ] && echo 1 || echo 0)"
+ASSET_OK=$(curl -sf -H "$AUTH" "$API/assets?limit=1" 2>/dev/null | grep -c success || true)
+check "Assets list" "$([ "$ASSET_OK" -ge 1 ] && echo 1 || echo 0)"
+DEV_OK=$(curl -sf -H "$AUTH" "$API/development/projects?limit=1" 2>/dev/null | grep -c success || true)
+check "Development projects" "$([ "$DEV_OK" -ge 1 ] && echo 1 || echo 0)"
+FIN_OK=$(curl -sf -H "$AUTH" "$API/finance/budget-years?limit=1" 2>/dev/null | grep -c success || true)
+check "Finance budget years" "$([ "$FIN_OK" -ge 1 ] && echo 1 || echo 0)"
+BUMDES_OK=$(curl -sf -H "$AUTH" "$API/bumdes/units?limit=1" 2>/dev/null | grep -c success || true)
+check "BUMDes units" "$([ "$BUMDES_OK" -ge 1 ] && echo 1 || echo 0)"
+
+# 13c. Post-MVP public (Wave 23)
+MAP_OK=$(curl -sf "$API/public/map?tenantCode=demo-desa" 2>/dev/null | grep -c success || true)
+check "Public village map" "$([ "$MAP_OK" -ge 1 ] && echo 1 || echo 0)"
+FAQ_OK=$(curl -sf "$API/assistant/public/faq" 2>/dev/null | grep -c success || true)
+check "Assistant FAQ" "$([ "$FAQ_OK" -ge 1 ] && echo 1 || echo 0)"
+ASK_OK=$(curl -sf -X POST "$API/assistant/public/ask?tenantCode=demo-desa" -H 'Content-Type: application/json' \
+  -d '{"question":"cara ajukan surat domisili"}' 2>/dev/null | grep -c success || true)
+check "Assistant ask" "$([ "$ASK_OK" -ge 1 ] && echo 1 || echo 0)"
+
 # 14. Logout
 LOGOUT=$(curl -sf -X POST "$API/auth/logout" -H "$AUTH" -H 'Content-Type: application/json' \
   -d "{\"refreshToken\":\"$REFRESH\"}" | grep -c success || true)

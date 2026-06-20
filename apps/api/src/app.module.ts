@@ -26,6 +26,8 @@ import { AssetsModule } from './modules/assets/assets.module';
 import { DevelopmentModule } from './modules/development/development.module';
 import { FinanceModule } from './modules/finance/finance.module';
 import { ReportsModule } from './modules/reports/reports.module';
+import { BumdesModule } from './modules/bumdes/bumdes.module';
+import { AssistantModule } from './modules/assistant/assistant.module';
 import { PublicModule } from './modules/public/public.module';
 import { HealthModule } from './health/health.module';
 import { StorageModule } from './core/storage/storage.module';
@@ -62,6 +64,8 @@ import { StorageModule } from './core/storage/storage.module';
     DevelopmentModule,
     FinanceModule,
     ReportsModule,
+    BumdesModule,
+    AssistantModule,
     PublicModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

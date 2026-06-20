@@ -7,8 +7,8 @@ export class PublicController {
   constructor(private publicService: PublicService) {}
 
   @Public()
-  @Get('stats')
-  getStats(@Query('tenantCode') tenantCode: string) {
-    return this.publicService.getStats(tenantCode);
+  @Get('map')
+  getMap(@Query('tenantCode') tenantCode: string) {
+    return this.publicService.getMapCenter(tenantCode);
   }
 }
