@@ -1371,7 +1371,7 @@ Wave 12 (hardening)
 
 | Point | PR | Status |
 |-------|-----|--------|
-| 91–93 | — | ⏳ PR open → `mvp-staging-v2` |
+| 91–93 | #36 | ✅ merged → `mvp-staging-v2` |
 
 ---
 
@@ -1388,7 +1388,7 @@ Wave 12 (hardening)
 
 | Point | PR | Status |
 |-------|-----|--------|
-| 94–97 | — | ⏳ PR open → `mvp-tenant-v3` |
+| 94–97 | #36 | ✅ merged → `mvp-tenant-v3` |
 
 ---
 
@@ -1404,7 +1404,7 @@ Wave 12 (hardening)
 
 | Point | PR | Status |
 |-------|-----|--------|
-| 98–100 | — | ⏳ PR open → `mvp-ops-v1` |
+| 98–100 | #36 | ✅ merged → `mvp-ops-v1` |
 
 ---
 
@@ -1420,7 +1420,7 @@ Wave 12 (hardening)
 
 | Point | PR | Status |
 |-------|-----|--------|
-| 101–103 | — | ⏳ PR open → `mvp-bumdes-v1`, `mvp-gis-v1`, `mvp-ai-v1` |
+| 101–103 | #36 | ✅ merged → `mvp-bumdes-v1`, `mvp-gis-v1`, `mvp-ai-v1` |
 
 ---
 
