@@ -6,6 +6,7 @@ import { Badge, Button, Input } from '@sidpro/ui';
 import { Plus } from 'lucide-react';
 import { DataTable } from '@/components/shared/data-table';
 import { DetailDrawer } from '@/components/enterprise/detail-drawer';
+import { ErrorState } from '@/components/enterprise/error-state';
 import { useAuth } from '@/hooks/use-auth';
 import {
   useAidPrograms,
@@ -23,7 +24,7 @@ const emptyForm: AidProgramInput = {
 export function BantuanSosialContent() {
   const { can } = useAuth();
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const { data, isLoading, error } = useAidPrograms();
+  const { data, isLoading, error, refetch } = useAidPrograms();
   const createMutation = useCreateAidProgram();
   const form = useForm<AidProgramInput>({ defaultValues: emptyForm });
 
@@ -55,7 +56,7 @@ export function BantuanSosialContent() {
         {isLoading ? (
           <p className="text-sm text-slate-500">Memuat program...</p>
         ) : error ? (
-          <p className="text-sm text-red-600">Gagal memuat program bantuan.</p>
+          <ErrorState message="Gagal memuat program bantuan." onRetry={() => refetch()} />
         ) : (
           <DataTable
             data={programs}

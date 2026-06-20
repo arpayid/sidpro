@@ -6,6 +6,7 @@ import { Button, Input } from '@sidpro/ui';
 import { Plus, Trash2 } from 'lucide-react';
 import { DataTable } from '@/components/shared/data-table';
 import { DetailDrawer } from '@/components/enterprise/detail-drawer';
+import { ErrorState } from '@/components/enterprise/error-state';
 import { useAuth } from '@/hooks/use-auth';
 import {
   useAssets,
@@ -34,7 +35,7 @@ const emptyForm: AssetInput = {
 export function AsetContent() {
   const { can } = useAuth();
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const { data, isLoading, error } = useAssets();
+  const { data, isLoading, error, refetch } = useAssets();
   const createMutation = useCreateAsset();
   const deleteMutation = useDeleteAsset();
   const form = useForm<AssetInput>({ defaultValues: emptyForm });
@@ -72,7 +73,7 @@ export function AsetContent() {
         {isLoading ? (
           <p className="text-sm text-slate-500">Memuat aset...</p>
         ) : error ? (
-          <p className="text-sm text-red-600">Gagal memuat daftar aset.</p>
+          <ErrorState message="Gagal memuat daftar aset." onRetry={() => refetch()} />
         ) : (
           <DataTable
             data={assets}

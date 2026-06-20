@@ -1,10 +1,10 @@
 # Stabilisasi Staging SIDPRO
 
-Checklist setelah Waves 12–19 selesai, sebelum modul Post-MVP penuh.
+Checklist setelah Waves 20–23 selesai, sebelum Post-MVP penuh.
 
 ## Prasyarat
 
-- Tag terbaru: `mvp-tenant-v2`, `mvp-security-v4`, `mvp-complaints-v3`
+- Tag terbaru: `mvp-staging-v2`, `mvp-tenant-v3`, `mvp-ops-v1`, `mvp-bumdes-v1`, `mvp-gis-v1`, `mvp-ai-v1`
 - Branch `main` CI hijau (lint, typecheck, test, build, smoke)
 
 ## Checklist deploy staging
@@ -22,6 +22,7 @@ Checklist setelah Waves 12–19 selesai, sebelum modul Post-MVP penuh.
 
 ```bash
 ./scripts/staging-validate.sh
+./scripts/staging-readiness.sh
 ```
 
 ## Kriteria stabil (2 minggu)
@@ -29,6 +30,7 @@ Checklist setelah Waves 12–19 selesai, sebelum modul Post-MVP penuh.
 - Smoke CI hijau setiap merge ke `main`
 - Tidak ada incident restore/backup gagal
 - Tidak ada temuan P1/P2 security terbuka
+- 2FA wajib admin aktif di staging (`docs/STAGING_2WEEK_RUNBOOK.md`)
 
 ## Rollback
 
@@ -38,4 +40,4 @@ cd /opt/sidpro && pnpm install && pnpm build
 sudo systemctl restart sidpro-api sidpro-web sidpro-worker
 ```
 
-Lihat juga: [`STAGING_DEPLOY.md`](./STAGING_DEPLOY.md), [`OPERATIONS.md`](./OPERATIONS.md)
+Lihat juga: [`STAGING_DEPLOY.md`](./STAGING_DEPLOY.md), [`OPERATIONS.md`](./OPERATIONS.md), [`STAGING_2WEEK_RUNBOOK.md`](./STAGING_2WEEK_RUNBOOK.md)

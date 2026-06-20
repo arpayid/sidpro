@@ -2,7 +2,7 @@ export interface PortalService {
   id: string;
   title: string;
   description: string;
-  icon: 'file-text' | 'message-square' | 'shield-check' | 'bar-chart' | 'search';
+  icon: 'file-text' | 'message-square' | 'shield-check' | 'bar-chart' | 'search' | 'map' | 'bot';
   href: string;
 }
 
@@ -42,6 +42,20 @@ export const portalServices: PortalService[] = [
     description: 'Periksa keaslian surat desa menggunakan kode QR.',
     icon: 'shield-check',
     href: '/verifikasi-surat',
+  },
+  {
+    id: 'peta-desa',
+    title: 'Peta Desa',
+    description: 'Lihat lokasi pusat administrasi dan titik penting desa.',
+    icon: 'map',
+    href: '/peta-desa',
+  },
+  {
+    id: 'bantuan-ai',
+    title: 'Asisten Layanan Desa',
+    description: 'FAQ otomatis untuk pertanyaan umum layanan administrasi.',
+    icon: 'bot',
+    href: '/bantuan-ai',
   },
   {
     id: 'transparansi',

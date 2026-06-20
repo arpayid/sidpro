@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Button, Card, CardContent, CardHeader, CardTitle, Input } from '@sidpro/ui';
 import { useAuth } from '@/hooks/use-auth';
@@ -14,6 +14,11 @@ import {
   useSecuritySettings,
   useUpdateSecuritySettings,
 } from '@/features/settings/use-security-settings';
+import {
+  useGisSettings,
+  useUpdateGisSettings,
+  type MapLayer,
+} from '@/features/settings/use-gis-settings';
 
 export function PengaturanContent() {
   const { can } = useAuth();
@@ -21,6 +26,13 @@ export function PengaturanContent() {
   const updateMutation = useUpdateVillageProfile();
   const { data: securitySettings, isLoading: securityLoading } = useSecuritySettings();
   const updateSecurityMutation = useUpdateSecuritySettings();
+  const { data: gisSettings, isLoading: gisLoading } = useGisSettings();
+  const updateGisMutation = useUpdateGisSettings();
+  const [gisLat, setGisLat] = useState('');
+  const [gisLng, setGisLng] = useState('');
+  const [gisZoom, setGisZoom] = useState('13');
+  const [gisLayersJson, setGisLayersJson] = useState('[]');
+  const [gisFormError, setGisFormError] = useState<string | null>(null);
 
   const form = useForm<UpdateVillageProfileInput>({
     defaultValues: {
@@ -56,11 +68,44 @@ export function PengaturanContent() {
     });
   }, [data, form]);
 
+  useEffect(() => {
+    if (!gisSettings) return;
+    setGisLat(String(gisSettings.center.lat));
+    setGisLng(String(gisSettings.center.lng));
+    setGisZoom(String(gisSettings.center.zoom));
+    setGisLayersJson(JSON.stringify(gisSettings.layers, null, 2));
+  }, [gisSettings]);
+
   async function onSubmit(values: UpdateVillageProfileInput) {
     await updateMutation.mutateAsync(values);
   }
 
   const canManage = can('settings.manage');
+
+  async function onSaveGis() {
+    setGisFormError(null);
+    let layers: MapLayer[] = [];
+    try {
+      const parsed = JSON.parse(gisLayersJson) as unknown;
+      if (!Array.isArray(parsed)) throw new Error('Format layer harus array JSON');
+      layers = parsed as MapLayer[];
+    } catch {
+      setGisFormError('JSON layer tidak valid');
+      return;
+    }
+    try {
+      await updateGisMutation.mutateAsync({
+        center: {
+          lat: Number(gisLat),
+          lng: Number(gisLng),
+          zoom: Number(gisZoom),
+        },
+        layers,
+      });
+    } catch (err) {
+      setGisFormError((err as Error).message);
+    }
+  }
 
   return (
     <div>
@@ -236,6 +281,94 @@ export function PengaturanContent() {
                   <p className="text-red-600">
                     {(updateSecurityMutation.error as Error).message}
                   </p>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Peta Desa (GIS)</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 text-sm text-slate-600">
+            {gisLoading ? (
+              <p className="text-slate-500">Memuat pengaturan peta...</p>
+            ) : (
+              <>
+                <p className="text-xs text-slate-500">
+                  Koordinat pusat desa dan titik layer ditampilkan di portal `/peta-desa`.
+                </p>
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <div>
+                    <label className="form-label" htmlFor="gisLat">
+                      Latitude
+                    </label>
+                    <Input
+                      id="gisLat"
+                      type="number"
+                      step="any"
+                      disabled={!canManage}
+                      value={gisLat}
+                      onChange={(e) => setGisLat(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="form-label" htmlFor="gisLng">
+                      Longitude
+                    </label>
+                    <Input
+                      id="gisLng"
+                      type="number"
+                      step="any"
+                      disabled={!canManage}
+                      value={gisLng}
+                      onChange={(e) => setGisLng(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="form-label" htmlFor="gisZoom">
+                      Zoom
+                    </label>
+                    <Input
+                      id="gisZoom"
+                      type="number"
+                      min={1}
+                      max={18}
+                      disabled={!canManage}
+                      value={gisZoom}
+                      onChange={(e) => setGisZoom(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="form-label" htmlFor="gisLayers">
+                    Layer titik (JSON)
+                  </label>
+                  <textarea
+                    id="gisLayers"
+                    rows={6}
+                    disabled={!canManage}
+                    className="w-full rounded-md border border-slate-300 px-3 py-2 font-mono text-xs"
+                    value={gisLayersJson}
+                    onChange={(e) => setGisLayersJson(e.target.value)}
+                  />
+                </div>
+                {gisFormError && <p className="text-red-600">{gisFormError}</p>}
+                {updateGisMutation.isSuccess && (
+                  <p className="text-emerald-600">Pengaturan GIS berhasil disimpan.</p>
+                )}
+                {updateGisMutation.isError && !gisFormError && (
+                  <p className="text-red-600">{(updateGisMutation.error as Error).message}</p>
+                )}
+                {canManage && (
+                  <Button
+                    type="button"
+                    disabled={updateGisMutation.isPending}
+                    onClick={() => void onSaveGis()}
+                  >
+                    {updateGisMutation.isPending ? 'Menyimpan...' : 'Simpan Peta Desa'}
+                  </Button>
                 )}
               </>
             )}

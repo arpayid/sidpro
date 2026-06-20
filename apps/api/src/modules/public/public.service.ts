@@ -46,14 +46,19 @@ export class PublicService {
     const setting = await this.prisma.setting.findUnique({
       where: { tenantId_key: { tenantId, key: 'gis.map_center' } },
     });
+    const layersSetting = await this.prisma.setting.findUnique({
+      where: { tenantId_key: { tenantId, key: 'gis.map_layers' } },
+    });
     const center = (setting?.value ?? { lat: -3.668, lng: 119.974, zoom: 13 }) as {
       lat: number;
       lng: number;
       zoom: number;
     };
+    const layers = Array.isArray(layersSetting?.value) ? layersSetting.value : [];
     return successResponse({
       villageName: tenant?.villages[0]?.name ?? tenant?.name ?? tenantCode,
       center,
+      layers,
     });
   }
 }

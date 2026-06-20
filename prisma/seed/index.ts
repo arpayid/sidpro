@@ -748,6 +748,27 @@ async function main() {
     });
   }
 
+  const bumdesUnit = await prisma.bumdesUnit.findFirst({
+    where: { tenantId: tenant.id, code: 'BMD-001' },
+  });
+  if (
+    bumdesUnit &&
+    (await prisma.bumdesFinancialRecord.count({
+      where: { tenantId: tenant.id, unitId: bumdesUnit.id },
+    })) === 0
+  ) {
+    await prisma.bumdesFinancialRecord.create({
+      data: {
+        tenantId: tenant.id,
+        unitId: bumdesUnit.id,
+        type: 'revenue',
+        amount: 12500000,
+        description: 'Pendapatan simpan pinjam bulan ini',
+        recordDate: new Date(),
+      },
+    });
+  }
+
   await prisma.setting.upsert({
     where: { tenantId_key: { tenantId: tenant.id, key: 'gis.map_center' } },
     update: {},
@@ -755,6 +776,31 @@ async function main() {
       tenantId: tenant.id,
       key: 'gis.map_center',
       value: { lat: -5.1477, lng: 119.4327, zoom: 14 },
+    },
+  });
+
+  await prisma.setting.upsert({
+    where: { tenantId_key: { tenantId: tenant.id, key: 'gis.map_layers' } },
+    update: {},
+    create: {
+      tenantId: tenant.id,
+      key: 'gis.map_layers',
+      value: [
+        {
+          id: 'office',
+          name: 'Kantor Desa',
+          lat: -5.1477,
+          lng: 119.4327,
+          layerType: 'office',
+        },
+        {
+          id: 'market',
+          name: 'Pasar Desa',
+          lat: -5.149,
+          lng: 119.434,
+          layerType: 'asset',
+        },
+      ],
     },
   });
 
