@@ -285,6 +285,24 @@ ASK_OK=$(curl -sf -X POST "$API/assistant/public/ask?tenantCode=demo-desa" -H 'C
   -d '{"question":"cara ajukan surat domisili"}' 2>/dev/null | grep -c success || true)
 check "Assistant ask" "$([ "$ASK_OK" -ge 1 ] && echo 1 || echo 0)"
 
+BUMDES_FIN=$(curl -sf -H "$AUTH" "$API/bumdes/financial-records?limit=1" 2>/dev/null | grep -c success || true)
+check "BUMDes financial records" "$([ "$BUMDES_FIN" -ge 1 ] && echo 1 || echo 0)"
+
+GIS_SETTINGS=$(curl -sf -H "$AUTH" "$API/settings/gis.map_center" 2>/dev/null | grep -c success || true)
+check "GIS map center setting" "$([ "$GIS_SETTINGS" -ge 1 ] && echo 1 || echo 0)"
+
+# 13d. Public web pages (Wave 24)
+if [ "$SMOKE_SKIP_WEB" = "1" ]; then
+  echo "[SKIP] Public web pages (SMOKE_SKIP_WEB=1)"
+  check "Public /peta-desa page (skipped)" "1"
+  check "Public /bantuan-ai page (skipped)" "1"
+else
+  PETA_HTTP=$(curl -s -o /dev/null -w "%{http_code}" "$WEB/peta-desa" 2>/dev/null || echo "000")
+  check "Public /peta-desa page" "$([ "$PETA_HTTP" = "200" ] && echo 1 || echo 0)"
+  AI_HTTP=$(curl -s -o /dev/null -w "%{http_code}" "$WEB/bantuan-ai" 2>/dev/null || echo "000")
+  check "Public /bantuan-ai page" "$([ "$AI_HTTP" = "200" ] && echo 1 || echo 0)"
+fi
+
 # 14. Logout
 LOGOUT=$(curl -sf -X POST "$API/auth/logout" -H "$AUTH" -H 'Content-Type: application/json' \
   -d "{\"refreshToken\":\"$REFRESH\"}" | grep -c success || true)

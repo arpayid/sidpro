@@ -21,8 +21,9 @@ export default function PetaDesaPage() {
     );
   }
 
-  const { lat, lng } = data.center;
-  const mapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${lng - 0.02}%2C${lat - 0.02}%2C${lng + 0.02}%2C${lat + 0.02}&layer=mapnik&marker=${lat}%2C${lng}`;
+  const { lat, lng, zoom } = data.center;
+  const delta = 0.02 + (18 - zoom) * 0.002;
+  const mapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${lng - delta}%2C${lat - delta}%2C${lng + delta}%2C${lat + delta}&layer=mapnik&marker=${lat}%2C${lng}`;
 
   return (
     <div className="container-page py-10">
@@ -36,8 +37,26 @@ export default function PetaDesaPage() {
           loading="lazy"
         />
       </div>
+      {data.layers.length > 0 && (
+        <div className="mt-6">
+          <h2 className="text-lg font-semibold text-slate-900">Titik Layer Desa</h2>
+          <ul className="mt-3 space-y-2">
+            {data.layers.map((layer) => (
+              <li
+                key={layer.id}
+                className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm"
+              >
+                <span className="font-medium text-slate-800">{layer.name}</span>
+                <span className="text-slate-500">
+                  {layer.layerType ?? 'point'} · {layer.lat.toFixed(4)}, {layer.lng.toFixed(4)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <p className="mt-3 text-xs text-slate-500">
-        Peta interaktif dasar (Post-MVP GIS). Koordinat dapat diatur admin desa via pengaturan GIS.
+        Peta interaktif dasar (Post-MVP GIS). Koordinat dan layer dapat diatur admin desa di Pengaturan → Peta Desa.
       </p>
     </div>
   );

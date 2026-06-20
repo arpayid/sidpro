@@ -59,4 +59,35 @@ export class BumdesController {
   remove(@CurrentUser() user: JwtPayload, @Param('id') id: string, @Req() req: Request) {
     return this.bumdesService.remove(user, id, req.ip);
   }
+
+  @Get('financial-records')
+  @RequirePermissions('bumdes.read')
+  findAllFinancialRecords(
+    @CurrentUser() user: JwtPayload,
+    @Query('page') page = '1',
+    @Query('limit') limit = '20',
+  ) {
+    return this.bumdesService.findAllFinancialRecords(
+      user,
+      parseInt(page, 10),
+      parseInt(limit, 10),
+    );
+  }
+
+  @Post('financial-records')
+  @RequirePermissions('bumdes.manage')
+  createFinancialRecord(
+    @CurrentUser() user: JwtPayload,
+    @Body()
+    body: {
+      unitId: string;
+      type: 'revenue' | 'expense';
+      amount: number;
+      description?: string;
+      recordDate: string;
+    },
+    @Req() req: Request,
+  ) {
+    return this.bumdesService.createFinancialRecord(user, body, req.ip);
+  }
 }

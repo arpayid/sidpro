@@ -6,6 +6,7 @@ import { Button, Card, CardContent, CardHeader, CardTitle, Input } from '@sidpro
 import { Plus } from 'lucide-react';
 import { DataTable } from '@/components/shared/data-table';
 import { DetailDrawer } from '@/components/enterprise/detail-drawer';
+import { ErrorState } from '@/components/enterprise/error-state';
 import { useAuth } from '@/hooks/use-auth';
 import {
   useBudgetYears,
@@ -26,7 +27,7 @@ export function KeuanganContent() {
   const [yearDrawerOpen, setYearDrawerOpen] = useState(false);
   const [itemDrawerOpen, setItemDrawerOpen] = useState(false);
 
-  const { data, isLoading, error } = useBudgetYears();
+  const { data, isLoading, error, refetch } = useBudgetYears();
   const createYear = useCreateBudgetYear();
   const createItem = useCreateBudgetItem();
 
@@ -132,7 +133,7 @@ export function KeuanganContent() {
         {isLoading ? (
           <p className="text-sm text-slate-500">Memuat anggaran...</p>
         ) : error ? (
-          <p className="text-sm text-red-600">Gagal memuat data keuangan.</p>
+          <ErrorState message="Gagal memuat data keuangan." onRetry={() => refetch()} />
         ) : (
           <DataTable
             data={currentYear?.items ?? []}

@@ -6,6 +6,7 @@ import { Badge, Button, Input } from '@sidpro/ui';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { DataTable } from '@/components/shared/data-table';
 import { DetailDrawer } from '@/components/enterprise/detail-drawer';
+import { ErrorState } from '@/components/enterprise/error-state';
 import { useAuth } from '@/hooks/use-auth';
 import {
   useCreateDevelopmentProject,
@@ -48,7 +49,7 @@ export function PembangunanContent() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<DevelopmentProject | null>(null);
 
-  const { data, isLoading, error } = useDevelopmentProjects();
+  const { data, isLoading, error, refetch } = useDevelopmentProjects();
   const createMutation = useCreateDevelopmentProject();
   const updateMutation = useUpdateDevelopmentProject();
   const deleteMutation = useDeleteDevelopmentProject();
@@ -129,7 +130,7 @@ export function PembangunanContent() {
         {isLoading ? (
           <p className="text-sm text-slate-500">Memuat proyek...</p>
         ) : error ? (
-          <p className="text-sm text-red-600">Gagal memuat daftar proyek.</p>
+          <ErrorState message="Gagal memuat daftar proyek." onRetry={() => refetch()} />
         ) : (
           <DataTable
             data={projects}

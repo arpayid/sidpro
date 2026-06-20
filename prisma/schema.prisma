@@ -47,6 +47,7 @@ model Tenant {
   budgetYears       BudgetYear[]
   financeDocuments  FinanceDocument[]
   bumdesUnits       BumdesUnit[]
+  bumdesFinancialRecords BumdesFinancialRecord[]
 
   @@index([parentId, level])
   @@map("tenants")
@@ -729,8 +730,27 @@ model BumdesUnit {
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  financialRecords BumdesFinancialRecord[]
 
   @@unique([tenantId, code])
   @@index([tenantId, status])
   @@map("bumdes_units")
+}
+
+model BumdesFinancialRecord {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  unitId      String   @map("unit_id")
+  type        String
+  amount      Decimal  @db.Decimal(15, 2)
+  description String?
+  recordDate  DateTime @map("record_date") @db.Date
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  unit   BumdesUnit @relation(fields: [unitId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, unitId, recordDate])
+  @@map("bumdes_financial_records")
 }

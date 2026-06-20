@@ -6,6 +6,8 @@ import {
   BarChart3,
   Search,
   ArrowRight,
+  Map,
+  Bot,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@sidpro/ui';
 import { portalServices } from '@/lib/portal-services';
@@ -17,6 +19,8 @@ const icons = {
   'shield-check': ShieldCheck,
   'bar-chart': BarChart3,
   search: Search,
+  map: Map,
+  bot: Bot,
 } as const;
 
 export const metadata: Metadata = {
