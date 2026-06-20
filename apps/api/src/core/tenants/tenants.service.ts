@@ -5,11 +5,18 @@ import {
   ForbiddenException,
   BadRequestException,
 } from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../database/prisma.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { JwtPayload } from '../../common/decorators/current-user.decorator';
 import { paginatedResponse, successResponse } from '../../common/utils/response.util';
 import { isDistrictAdmin, isRegencyAdmin } from './tenant-scope.util';
+
+const EXCLUDED_DESA_PERMISSIONS = [
+  'tenants.regency_overview',
+  'tenants.district_overview',
+  'tenants.provision_village',
+];
 
 @Injectable()
 export class TenantsService {
@@ -24,6 +31,16 @@ export class TenantsService {
       user.permissions.includes('settings.manage');
     if (!allowed) {
       throw new ForbiddenException('Akses tenant management ditolak');
+    }
+  }
+
+  assertProvisionAccess(user: JwtPayload) {
+    const allowed =
+      user.roles.includes('superadmin_system') ||
+      user.permissions.includes('settings.manage') ||
+      user.permissions.includes('tenants.provision_village');
+    if (!allowed) {
+      throw new ForbiddenException('Akses provisioning desa ditolak');
     }
   }
 
@@ -240,12 +257,56 @@ export class TenantsService {
     });
   }
 
+  async getProvisionParents(user: JwtPayload) {
+    this.assertProvisionAccess(user);
+
+    let rootId = user.tenantId;
+    if (!rootId && user.roles.includes('superadmin_system')) {
+      const regency = await this.prisma.tenant.findFirst({
+        where: { level: 'kabupaten', status: 'active' },
+        orderBy: { name: 'asc' },
+      });
+      rootId = regency?.id ?? null;
+    }
+    if (!rootId) {
+      throw new ForbiddenException('Tenant scope required untuk opsi parent');
+    }
+
+    const root = await this.prisma.tenant.findUnique({ where: { id: rootId } });
+    if (!root) throw new NotFoundException('Tenant tidak ditemukan');
+
+    const parents: { id: string; name: string; code: string; level: string }[] = [];
+
+    if (root.level === 'kabupaten') {
+      parents.push({ id: root.id, name: root.name, code: root.code, level: root.level });
+      const districts = await this.prisma.tenant.findMany({
+        where: { parentId: root.id, level: 'kecamatan', status: 'active' },
+        orderBy: { name: 'asc' },
+        select: { id: true, name: true, code: true, level: true },
+      });
+      parents.push(...districts);
+    } else if (root.level === 'kecamatan') {
+      parents.push({ id: root.id, name: root.name, code: root.code, level: root.level });
+    } else {
+      throw new ForbiddenException('Provisioning hanya dari tenant kabupaten/kecamatan');
+    }
+
+    return successResponse({ parents });
+  }
+
   async provisionVillage(
     user: JwtPayload,
-    body: { name: string; code: string; parentId: string },
+    body: {
+      name: string;
+      code: string;
+      parentId: string;
+      villageCode?: string;
+      adminEmail?: string;
+      adminName?: string;
+    },
     ipAddress?: string,
   ) {
-    this.assertAccess(user);
+    this.assertProvisionAccess(user);
 
     const parent = await this.prisma.tenant.findUnique({ where: { id: body.parentId } });
     if (!parent) throw new NotFoundException('Parent tenant tidak ditemukan');
@@ -256,14 +317,106 @@ export class TenantsService {
     const existing = await this.prisma.tenant.findUnique({ where: { code: body.code } });
     if (existing) throw new ConflictException('Kode tenant sudah digunakan');
 
-    const tenant = await this.prisma.tenant.create({
-      data: {
-        name: body.name,
-        code: body.code,
-        level: 'desa',
-        parentId: parent.id,
-        status: 'active',
-      },
+    const regency =
+      parent.level === 'kabupaten'
+        ? parent
+        : await this.prisma.tenant.findUnique({ where: { id: parent.parentId ?? '' } });
+    const districtName = parent.level === 'kecamatan' ? parent.name : null;
+
+    const adminPassword = process.env.SEED_ADMIN_PASSWORD;
+    if (body.adminEmail && !adminPassword) {
+      throw new BadRequestException(
+        'SEED_ADMIN_PASSWORD wajib di env untuk membuat admin desa saat provisioning',
+      );
+    }
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const tenant = await tx.tenant.create({
+        data: {
+          name: body.name,
+          code: body.code,
+          level: 'desa',
+          parentId: parent.id,
+          status: 'active',
+        },
+      });
+
+      const villageCode = (body.villageCode ?? body.code).toUpperCase().slice(0, 16);
+      await tx.village.create({
+        data: {
+          tenantId: tenant.id,
+          name: body.name,
+          code: villageCode,
+          regency: regency?.name ?? null,
+          district: districtName,
+          description: `Desa diprovisikan otomatis — ${new Date().toISOString().slice(0, 10)}`,
+        },
+      });
+
+      const allPermissions = await tx.permission.findMany();
+      const desaAdminPermIds = allPermissions
+        .filter((p) => !EXCLUDED_DESA_PERMISSIONS.includes(p.code))
+        .map((p) => p.id);
+      const operatorPermIds = allPermissions
+        .filter((p) =>
+          ['population', 'families', 'letters', 'complaints', 'cms'].some((m) =>
+            p.module.startsWith(m),
+          ),
+        )
+        .map((p) => p.id);
+      const wargaPermIds = allPermissions
+        .filter((p) => ['letters.create', 'complaints.create'].includes(p.code))
+        .map((p) => p.id);
+
+      const roleDefs = [
+        { code: 'admin_desa', name: 'Admin Desa', scope: 'tenant', permIds: desaAdminPermIds },
+        { code: 'operator_desa', name: 'Operator Desa', scope: 'tenant', permIds: operatorPermIds },
+        { code: 'warga', name: 'Warga', scope: 'tenant', permIds: wargaPermIds },
+      ];
+
+      let adminRoleId: string | null = null;
+      for (const roleDef of roleDefs) {
+        const role = await tx.role.create({
+          data: {
+            name: roleDef.name,
+            code: roleDef.code,
+            scope: roleDef.scope,
+            tenantId: tenant.id,
+          },
+        });
+        if (roleDef.code === 'admin_desa') adminRoleId = role.id;
+        for (const permissionId of roleDef.permIds) {
+          await tx.rolePermission.create({ data: { roleId: role.id, permissionId } });
+        }
+      }
+
+      await tx.setting.create({
+        data: {
+          tenantId: tenant.id,
+          key: 'gis.map_center',
+          value: { lat: -3.668, lng: 119.974, zoom: 13 },
+        },
+      });
+
+      let adminUser: { id: string; email: string } | null = null;
+      if (body.adminEmail && adminPassword && adminRoleId) {
+        const passwordHash = await bcrypt.hash(adminPassword, 12);
+        adminUser = await tx.user.create({
+          data: {
+            email: body.adminEmail,
+            name: body.adminName ?? `Admin ${body.name}`,
+            passwordHash,
+            tenantId: tenant.id,
+            status: 'active',
+          },
+          select: { id: true, email: true },
+        });
+        await tx.userRole.create({
+          data: { userId: adminUser.id, roleId: adminRoleId },
+        });
+      }
+
+      return { tenant, adminUser };
     });
 
     await this.auditLogs.log({
@@ -272,12 +425,26 @@ export class TenantsService {
       action: 'provision_village',
       module: 'tenants',
       entityType: 'tenant',
-      entityId: tenant.id,
-      metadata: { name: body.name, code: body.code, parentId: body.parentId },
+      entityId: result.tenant.id,
+      metadata: {
+        name: body.name,
+        code: body.code,
+        parentId: body.parentId,
+        adminEmail: body.adminEmail ?? null,
+      },
       ipAddress,
     });
 
-    return successResponse(tenant, 'Tenant desa berhasil diprovisikan');
+    return successResponse(
+      {
+        tenant: result.tenant,
+        adminUser: result.adminUser,
+        adminCreated: Boolean(result.adminUser),
+      },
+      result.adminUser
+        ? 'Tenant desa, profil, role, dan admin berhasil diprovisikan'
+        : 'Tenant desa, profil, dan role berhasil diprovisikan',
+    );
   }
 
   async findAll(page = 1, limit = 20, search?: string) {

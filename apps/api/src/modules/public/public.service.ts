@@ -36,4 +36,24 @@ export class PublicService {
       openComplaints,
     });
   }
+
+  async getMapCenter(tenantCode: string) {
+    const tenantId = await this.resolveTenantId(tenantCode);
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      include: { villages: { take: 1 } },
+    });
+    const setting = await this.prisma.setting.findUnique({
+      where: { tenantId_key: { tenantId, key: 'gis.map_center' } },
+    });
+    const center = (setting?.value ?? { lat: -3.668, lng: 119.974, zoom: 13 }) as {
+      lat: number;
+      lng: number;
+      zoom: number;
+    };
+    return successResponse({
+      villageName: tenant?.villages[0]?.name ?? tenant?.name ?? tenantCode,
+      center,
+    });
+  }
 }

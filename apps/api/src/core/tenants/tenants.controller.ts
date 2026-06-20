@@ -40,10 +40,23 @@ export class TenantsController {
     return this.tenantsService.getVillageSummary(user, id);
   }
 
+  @Get('provision/parents')
+  getProvisionParents(@CurrentUser() user: JwtPayload) {
+    return this.tenantsService.getProvisionParents(user);
+  }
+
   @Post('provision/village')
   provisionVillage(
     @CurrentUser() user: JwtPayload,
-    @Body() body: { name: string; code: string; parentId: string },
+    @Body()
+    body: {
+      name: string;
+      code: string;
+      parentId: string;
+      villageCode?: string;
+      adminEmail?: string;
+      adminName?: string;
+    },
     @Req() req: Request,
   ) {
     return this.tenantsService.provisionVillage(user, body, req.ip);
