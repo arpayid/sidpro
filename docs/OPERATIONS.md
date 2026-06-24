@@ -233,3 +233,23 @@ SMOKE_RUN_SEED=0 SEED_ADMIN_PASSWORD='your-dev-password' pnpm smoke
 **API-only mode:** `SMOKE_SKIP_WEB=1` skips the admin redirect check when web is not running.
 - Monitoring: [`docs/MONITORING.md`](./MONITORING.md)
 - Security: [`docs/SECURITY.md`](./SECURITY.md), [`docs/SECURITY_CHECKLIST.md`](./SECURITY_CHECKLIST.md)
+
+## Production Hardening Defaults
+
+The first production-readiness tranche enforces safer runtime defaults before SIDPRO is used with real citizen data:
+
+- `JWT_SECRET`, `DATABASE_URL`, `REDIS_URL`, `CORS_ORIGIN`, `MINIO_ENDPOINT`, `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD`, and `MINIO_BUCKET` are required when `NODE_ENV=production`.
+- Production startup rejects known demo/default values such as `change-me`, `sidpro_secret`, and short JWT secrets.
+- Swagger is disabled in production unless `ENABLE_SWAGGER=true` is explicitly configured. If enabled for staging/internal use, protect it with authentication, IP allowlisting, or reverse-proxy rules.
+- Public portal demo fallback is disabled in production unless `NEXT_PUBLIC_ENABLE_DEMO_FALLBACK=true` is explicitly configured. Production API failures should surface empty/error states instead of demo village content.
+- The worker no longer marks PDF jobs as completed while the real PDF queue processor is not wired. Keep `ENABLE_PDF_WORKER=false` until the worker is connected to a production PDF generator and persistence flow.
+
+Recommended production values:
+
+```bash
+NODE_ENV=production
+ENABLE_SWAGGER=false
+NEXT_PUBLIC_ENABLE_DEMO_FALLBACK=false
+ENABLE_PDF_WORKER=false
+JWT_SECRET=<long-random-secret-at-least-32-chars>
+```
