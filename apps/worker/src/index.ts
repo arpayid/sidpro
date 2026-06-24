@@ -19,6 +19,7 @@ const connection = {
 };
 
 const emailAdapter = createEmailAdapter();
+const pdfWorkerEnabled = process.env.ENABLE_PDF_WORKER === 'true';
 
 const queues = {
   pdf: new Queue('pdf-generation', { connection }),
@@ -30,7 +31,14 @@ const pdfWorker = new Worker(
   'pdf-generation',
   async (job) => {
     console.log(`[pdf-generation] Processing job ${job.id}:`, job.data);
-    return { status: 'completed', message: 'PDF generation placeholder' };
+
+    if (!pdfWorkerEnabled) {
+      throw new Error(
+        'PDF generation worker is not implemented/enabled. Set ENABLE_PDF_WORKER=true only after wiring a real PDF processor.',
+      );
+    }
+
+    throw new Error('PDF generation worker is not implemented yet.');
   },
   { connection },
 );
@@ -60,6 +68,7 @@ notificationWorker.on('failed', (job, err) =>
 
 console.log('SIDPRO Worker started');
 console.log('Email adapter:', process.env.SMTP_HOST ? 'smtp' : 'console');
+console.log('PDF worker enabled:', pdfWorkerEnabled ? 'yes' : 'no');
 console.log('Queues:', Object.keys(queues).join(', '));
 
 process.on('SIGTERM', async () => {
