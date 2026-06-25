@@ -199,3 +199,14 @@ sudo systemctl restart sidpro-api sidpro-web sidpro-worker
 - Web: `GET /`
 
 See `docs/MONITORING.md` for monitoring setup.
+
+## Production Compose handoff
+
+Staging currently documents the systemd-based VPS flow above. For production container deployment, use the separate Compose file from the repository root:
+
+```bash
+docker compose -f docker-compose.prod.yml config
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+Production Compose expects a server-local `.env` with real secrets and internal container hostnames such as `postgres`, `redis`, and `minio`; do not reuse local development defaults for citizen data.
