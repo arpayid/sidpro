@@ -1,5 +1,6 @@
 import type { ApiResponse } from '@sidpro/types';
 import type { AuthUser } from '@sidpro/types';
+import { API_PREFIX, buildApiUrl, getApiOrigin } from './api-url';
 import {
   getAccessToken,
   getRefreshToken,
@@ -9,8 +10,8 @@ import {
   updateStoredUser,
 } from './auth';
 
-export const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
-export const API_PREFIX = '/api/v1';
+export const API_BASE = getApiOrigin();
+export { API_PREFIX, buildApiUrl };
 
 export class ApiError extends Error {
   constructor(
@@ -32,7 +33,7 @@ export interface RequestOptions extends Omit<globalThis.RequestInit, 'body'> {
 let refreshPromise: Promise<string | null> | null = null;
 
 async function fetchAuthProfile(accessToken: string): Promise<AuthUser | null> {
-  const res = await fetch(`${API_BASE}${API_PREFIX}/auth/me`, {
+  const res = await fetch(buildApiUrl('/auth/me'), {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   if (!res.ok) return null;
@@ -77,7 +78,7 @@ export async function syncAuthProfile(): Promise<AuthUser | null> {
 
 export async function downloadBinary(path: string, filename: string): Promise<void> {
   const doFetch = async (token: string | null) =>
-    fetch(`${API_BASE}${API_PREFIX}${path}`, {
+    fetch(buildApiUrl(path), {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
 
@@ -114,7 +115,7 @@ async function refreshAccessToken(): Promise<string | null> {
     if (!refreshToken) return null;
 
     try {
-      const res = await fetch(`${API_BASE}${API_PREFIX}/auth/refresh`, {
+      const res = await fetch(buildApiUrl('/auth/refresh'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refreshToken }),
@@ -163,7 +164,7 @@ export async function apiClient<T>(
   const token = skipAuth ? null : getAccessToken();
 
   const doFetch = async (accessToken: string | null) => {
-    return fetch(`${API_BASE}${API_PREFIX}${path}`, {
+    return fetch(buildApiUrl(path), {
       ...rest,
       headers: {
         ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
@@ -202,12 +203,9 @@ export async function apiClient<T>(
   return json;
 }
 
-export async function apiUpload<T>(
-  path: string,
-  formData: FormData,
-): Promise<ApiResponse<T>> {
+export async function apiUpload<T>(path: string, formData: FormData): Promise<ApiResponse<T>> {
   const token = getAccessToken();
-  const response = await fetch(`${API_BASE}${API_PREFIX}${path}`, {
+  const response = await fetch(buildApiUrl(path), {
     method: 'POST',
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: formData,

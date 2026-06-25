@@ -18,7 +18,7 @@ export default function BantuanAiPage() {
     setError(null);
     try {
       const res = await apiFetch<{ question: string; answer: string }>(
-        `/api/v1/assistant/public/ask?tenantCode=${encodeURIComponent(getPublicTenantCode())}`,
+        `/assistant/public/ask?tenantCode=${encodeURIComponent(getPublicTenantCode())}`,
         { method: 'POST', body: JSON.stringify({ question: question.trim() }) },
       );
       setAnswer(res.data?.answer ?? 'Tidak ada jawaban.');

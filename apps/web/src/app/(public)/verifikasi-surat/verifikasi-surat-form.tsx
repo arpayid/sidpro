@@ -4,7 +4,7 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Badge } from '@sidpro/ui';
 import { ShieldCheck, CheckCircle2, XCircle } from 'lucide-react';
-import { API_BASE, API_PREFIX } from '@/lib/api-client';
+import { buildApiUrl } from '@/lib/api-client';
 
 interface VerificationResult {
   valid: boolean;
@@ -35,7 +35,7 @@ export function VerifikasiSuratForm() {
 
     try {
       const res = await fetch(
-        `${API_BASE}${API_PREFIX}/letters/verify/${encodeURIComponent(verificationCode.trim())}`,
+        buildApiUrl(`/letters/verify/${encodeURIComponent(verificationCode.trim())}`),
       );
       const body = await res.json().catch(() => ({}));
 
@@ -118,9 +118,7 @@ export function VerifikasiSuratForm() {
           {result && (
             <div
               className={`mt-6 rounded-lg border p-4 ${
-                result.valid
-                  ? 'border-emerald-200 bg-emerald-50'
-                  : 'border-red-200 bg-red-50'
+                result.valid ? 'border-emerald-200 bg-emerald-50' : 'border-red-200 bg-red-50'
               }`}
             >
               <div className="flex items-center gap-2">

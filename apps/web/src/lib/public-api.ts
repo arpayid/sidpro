@@ -14,8 +14,6 @@ import {
   type GalleryItem,
 } from '@/lib/demo-data';
 
-const API_PREFIX = '/api/v1';
-
 const DEMO_FALLBACK_ENABLED =
   process.env.NEXT_PUBLIC_ENABLE_DEMO_FALLBACK === 'true' ||
   (process.env.NODE_ENV !== 'production' &&
@@ -68,7 +66,7 @@ export async function fetchPublicVillage(): Promise<VillageProfile> {
     contact?: { phone?: string | null; email?: string | null };
     officials?: { name: string; title: string }[];
   }>(
-    `${API_PREFIX}/village-profile?${tenantQuery()}`,
+    `/village-profile?${tenantQuery()}`,
     DEMO_FALLBACK_ENABLED
       ? {
           tenant: { name: demoVillage.name, code: demoVillage.code },
@@ -110,7 +108,7 @@ export async function fetchPublicStats(): Promise<DashboardStat[]> {
     families: number;
     lettersThisMonth: number;
     openComplaints: number;
-  }>(`${API_PREFIX}/public/stats?${tenantQuery()}`, {
+  }>(`/public/stats?${tenantQuery()}`, {
     residents: 0,
     families: 0,
     lettersThisMonth: 0,
@@ -139,7 +137,7 @@ export async function fetchPublicStats(): Promise<DashboardStat[]> {
 
 export async function fetchPublicNews(): Promise<NewsItem[]> {
   const payload = await apiFetchWithFallback<unknown>(
-    `${API_PREFIX}/cms/posts?${tenantQuery()}&limit=12`,
+    `/cms/posts?${tenantQuery()}&limit=12`,
     DEMO_FALLBACK_ENABLED ? demoNews : [],
   );
 
@@ -175,7 +173,7 @@ export async function fetchPublicNewsBySlug(slug: string): Promise<NewsItem | nu
     content?: string | null;
     category?: string | null;
     publishedAt?: string | null;
-  } | null>(`${API_PREFIX}/cms/posts/${encodeURIComponent(slug)}?${tenantQuery()}`, null);
+  } | null>(`/cms/posts/${encodeURIComponent(slug)}?${tenantQuery()}`, null);
 
   if (!post) {
     return DEMO_FALLBACK_ENABLED ? (demoNews.find((item) => item.slug === slug) ?? null) : null;
@@ -195,7 +193,7 @@ export async function fetchPublicNewsBySlug(slug: string): Promise<NewsItem | nu
 
 export async function fetchPublicAgenda(): Promise<AgendaItem[]> {
   const payload = await apiFetchWithFallback<unknown>(
-    `${API_PREFIX}/cms/agendas?${tenantQuery()}&limit=20`,
+    `/cms/agendas?${tenantQuery()}&limit=20`,
     DEMO_FALLBACK_ENABLED ? demoAgenda : [],
   );
 
@@ -220,7 +218,7 @@ export async function fetchPublicAgenda(): Promise<AgendaItem[]> {
 
 export async function fetchPublicGallery(): Promise<GalleryItem[]> {
   const payload = await apiFetchWithFallback<unknown>(
-    `${API_PREFIX}/cms/gallery?${tenantQuery()}&limit=24`,
+    `/cms/gallery?${tenantQuery()}&limit=24`,
     DEMO_FALLBACK_ENABLED ? demoGallery : [],
   );
 
@@ -259,20 +257,22 @@ export async function fetchPublicTransparency() {
         absorptionRate: number;
       };
       publicDocuments: { id: string; title: string }[];
-    }>(`${API_PREFIX}/finance/transparency?${tenantQueryStr}`, {
+    }>(`/finance/transparency?${tenantQueryStr}`, {
       year: new Date().getFullYear(),
       budgetYear: null,
       summary: { totalBudget: 0, totalPlanned: 0, totalRealized: 0, absorptionRate: 0 },
       publicDocuments: [],
     }),
-    apiFetchWithFallback<{
-      id: string;
-      name: string;
-      budget: number | null;
-      progress: number;
-      status: string;
-      location?: string | null;
-    }[]>(`${API_PREFIX}/development/public/projects?${tenantQueryStr}&limit=20`, []),
+    apiFetchWithFallback<
+      {
+        id: string;
+        name: string;
+        budget: number | null;
+        progress: number;
+        status: string;
+        location?: string | null;
+      }[]
+    >(`/development/public/projects?${tenantQueryStr}&limit=20`, []),
   ]);
 
   const items = data.budgetYear?.items ?? [];
@@ -282,8 +282,7 @@ export async function fetchPublicTransparency() {
     ? items.map((item) => {
         const planned = Number(item.planned);
         const realized = Number(item.realized);
-        const percentage =
-          planned > 0 ? `${Math.round((realized / planned) * 100)}%` : '0%';
+        const percentage = planned > 0 ? `${Math.round((realized / planned) * 100)}%` : '0%';
         return {
           category: item.category,
           amount: formatCurrency(realized),

@@ -1,6 +1,7 @@
 import type { ApiResponse } from '@sidpro/types';
+import { buildApiUrl, getApiOrigin } from '@/lib/api-url';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+const API_URL = getApiOrigin();
 
 export class ApiError extends Error {
   constructor(
@@ -28,7 +29,7 @@ export async function apiFetch<T>(
 ): Promise<ApiResponse<T>> {
   const { token, headers, ...rest } = options;
 
-  const response = await fetch(`${API_URL}${path}`, {
+  const response = await fetch(buildApiUrl(path), {
     ...rest,
     headers: {
       'Content-Type': 'application/json',
@@ -63,4 +64,4 @@ export async function apiFetchWithFallback<T>(
   }
 }
 
-export { API_URL };
+export { API_URL, buildApiUrl };
