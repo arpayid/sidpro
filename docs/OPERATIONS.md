@@ -102,9 +102,18 @@ Complaint status emails are queued via BullMQ (`REDIS_URL` required). The API en
 
 | Env | Purpose |
 |-----|---------|
-| `REDIS_URL` | BullMQ connection (API + worker) |
-| `SMTP_HOST` | Optional — use SMTP adapter; default is console log |
-| `APP_URL` | Tracking link in email body |
+| `REDIS_URL` | Required BullMQ connection for API producer and worker consumer, for example `redis://redis:6379` in Docker Compose or `redis://localhost:6379` locally. |
+| `SMTP_HOST` | SMTP server host. If unset, worker intentionally falls back to the console email adapter and logs the rendered email to stdout. |
+| `SMTP_PORT` | SMTP server port. Defaults to `587` when `SMTP_HOST` is set. |
+| `SMTP_FROM` | Sender address used by the SMTP adapter. Defaults to `noreply@sidpro.local` if omitted. |
+| `APP_URL` | Tracking link base URL in the email body. |
+
+Queue contract:
+
+- Queue name: `notifications`.
+- Complaint status email job name/type: `complaint-status-email`.
+- API producer: `NotificationQueueService.enqueueComplaintStatusEmail(...)`.
+- Worker consumer: `apps/worker` processes the job with the SMTP adapter when `SMTP_HOST` exists, otherwise with the console adapter.
 
 Local dev:
 

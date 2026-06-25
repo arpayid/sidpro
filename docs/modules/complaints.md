@@ -29,7 +29,7 @@ Response includes complaint `id` — shown to citizen as ticket reference (`PGD-
 - Trigger: status change via `PATCH /complaints/:id/status`, assign, atau respond yang mengubah status
 - Queue: BullMQ `notifications` → worker memproses job `complaint-status-email`
 - Adapter: `console` (default, log ke stdout) atau `smtp` bila `SMTP_HOST` dikonfigurasi
-- Env: `REDIS_URL`, `APP_URL`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM`, dll. (lihat `.env.example`)
+- Env wajib untuk queue: `REDIS_URL`. Env email: `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM`; bila `SMTP_HOST` tidak diset, worker memakai fallback console adapter dan menulis email ke stdout. `APP_URL` dipakai untuk link pelacakan. Lihat `.env.example`.
 
 ## Workflow
 

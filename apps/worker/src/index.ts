@@ -4,6 +4,7 @@
  */
 
 import { Worker, Queue } from 'bullmq';
+import { COMPLAINT_STATUS_EMAIL_JOB_NAME, NOTIFICATION_QUEUE_NAME } from '@sidpro/types';
 import type { ComplaintStatusEmailJob } from '@sidpro/types';
 import { createEmailAdapter } from './email/factory';
 import { processComplaintStatusEmail } from './jobs/complaint-status-email';
@@ -39,7 +40,7 @@ assertPdfWorkerConfig();
 const letterPdfProcessor = pdfWorkerEnabled ? createLetterPdfProcessor() : null;
 
 const queues = {
-  notifications: new Queue('notifications', { connection }),
+  notifications: new Queue(NOTIFICATION_QUEUE_NAME, { connection }),
   importExport: new Queue('import-export', { connection }),
   ...(pdfWorkerEnabled ? { pdf: new Queue('pdf-generation', { connection }) } : {}),
 };
@@ -56,9 +57,9 @@ const pdfWorker = pdfWorkerEnabled
   : null;
 
 const notificationWorker = new Worker(
-  'notifications',
+  NOTIFICATION_QUEUE_NAME,
   async (job) => {
-    if (job.name === 'complaint-status-email') {
+    if (job.name === COMPLAINT_STATUS_EMAIL_JOB_NAME) {
       return processComplaintStatusEmail(emailAdapter, job.data as ComplaintStatusEmailJob);
     }
 
