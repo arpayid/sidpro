@@ -166,3 +166,32 @@ jobs:
 
       - name: Docker Compose config
         run: docker compose config
+
+      - name: Docker Compose production config
+        env:
+          POSTGRES_USER: sidpro_prod
+          POSTGRES_PASSWORD: ci-production-db-password-not-secret
+          POSTGRES_DB: sidpro
+          DATABASE_URL: postgresql://sidpro_prod:ci-production-db-password-not-secret@postgres:5432/sidpro?schema=public
+          REDIS_URL: redis://redis:6379
+          JWT_SECRET: ci-production-secret-with-more-than-32-characters
+          CORS_ORIGIN: http://localhost
+          MINIO_ROOT_USER: sidpro_prod
+          MINIO_ROOT_PASSWORD: ci-production-minio-password-not-secret
+          MINIO_BUCKET: sidpro-files
+          NEXT_PUBLIC_API_URL: http://localhost
+          NEXT_PUBLIC_TENANT_CODE: demo-desa
+        run: docker compose -f docker-compose.prod.yml config
+
+      - name: Build production API image
+        run: docker build -f apps/api/Dockerfile -t sidpro-api:ci .
+
+      - name: Build production web image
+        run: |
+          docker build -f apps/web/Dockerfile -t sidpro-web:ci \
+            --build-arg NEXT_PUBLIC_API_URL=http://localhost \
+            --build-arg NEXT_PUBLIC_TENANT_CODE=demo-desa \
+            --build-arg NEXT_PUBLIC_ENABLE_DEMO_FALLBACK=false .
+
+      - name: Build production worker image
+        run: docker build -f apps/worker/Dockerfile -t sidpro-worker:ci .

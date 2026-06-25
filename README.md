@@ -133,3 +133,10 @@ docker compose config
 ## Lisensi
 
 Proprietary — SID Premium Enterprise
+
+## Production Readiness
+
+- Checklist go-live: [`docs/PRODUCTION_READINESS.md`](docs/PRODUCTION_READINESS.md)
+- Operasional Docker production: [`docs/OPERATIONS.md`](docs/OPERATIONS.md#docker-production-deployment)
+- Template env: `.env.development.example`, `.env.staging.example`, `.env.production.example`
+
