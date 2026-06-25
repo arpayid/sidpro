@@ -181,17 +181,14 @@ jobs:
           MINIO_BUCKET: sidpro-files
           NEXT_PUBLIC_API_URL: http://localhost
           NEXT_PUBLIC_TENANT_CODE: demo-desa
-        run: docker compose -f docker-compose.prod.yml config
+        run: cp .env.production.example .env && docker compose -f docker-compose.prod.yml config
 
       - name: Build production API image
-        run: docker build -f apps/api/Dockerfile -t sidpro-api:ci .
+        run: docker build -f Dockerfile.prod --build-arg SERVICE=@sidpro/api -t sidpro-api:ci .
 
       - name: Build production web image
         run: |
-          docker build -f apps/web/Dockerfile -t sidpro-web:ci \
-            --build-arg NEXT_PUBLIC_API_URL=http://localhost \
-            --build-arg NEXT_PUBLIC_TENANT_CODE=demo-desa \
-            --build-arg NEXT_PUBLIC_ENABLE_DEMO_FALLBACK=false .
+          docker build -f Dockerfile.prod --build-arg SERVICE=@sidpro/web -t sidpro-web:ci .
 
       - name: Build production worker image
-        run: docker build -f apps/worker/Dockerfile -t sidpro-worker:ci .
+        run: docker build -f Dockerfile.prod --build-arg SERVICE=@sidpro/worker -t sidpro-worker:ci .
