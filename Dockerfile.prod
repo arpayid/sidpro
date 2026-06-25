@@ -21,7 +21,7 @@ ENV ENABLE_SWAGGER=false
 ENV NEXT_PUBLIC_ENABLE_DEMO_FALLBACK=false
 ENV ENABLE_PDF_WORKER=false
 RUN pnpm exec turbo run build --filter="${SERVICE}..."
-RUN pnpm prune --prod
+RUN CI=true pnpm prune --prod
 
 FROM node:20-alpine AS runtime
 WORKDIR /app
