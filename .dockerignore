@@ -1,0 +1,44 @@
+# VCS and editor metadata
+.git
+.gitignore
+.github
+.vscode
+.idea
+*.log
+*.tmp
+.DS_Store
+
+# Dependencies and package-manager caches
+node_modules
+**/node_modules
+.pnpm-store
+.npm
+.yarn
+.turbo
+**/.turbo
+
+# Build outputs
+.next
+**/.next
+**/dist
+**/coverage
+out
+build
+
+# Tests and local-only artifacts
+**/test
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+
+# Documentation and operational notes not needed in image builds
+.ai
+docs
+*.md
+!README.md
