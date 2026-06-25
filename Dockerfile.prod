@@ -20,7 +20,7 @@ ENV NODE_ENV=production
 ENV ENABLE_SWAGGER=false
 ENV NEXT_PUBLIC_ENABLE_DEMO_FALLBACK=false
 ENV ENABLE_PDF_WORKER=false
-RUN pnpm --filter ${SERVICE} build
+RUN pnpm exec turbo run build --filter="${SERVICE}..."
 RUN pnpm prune --prod
 
 FROM node:20-alpine AS runtime
