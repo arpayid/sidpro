@@ -7,6 +7,7 @@ import { Worker, Queue } from 'bullmq';
 import type { ComplaintStatusEmailJob } from '@sidpro/types';
 import { createEmailAdapter } from './email/factory';
 import { processComplaintStatusEmail } from './jobs/complaint-status-email';
+import { createLetterPdfProcessor } from './jobs/letter-pdf';
 
 const redisUrl = process.env.REDIS_URL ?? 'redis://localhost:6379';
 const url = new URL(redisUrl);
@@ -20,6 +21,7 @@ const connection = {
 
 const emailAdapter = createEmailAdapter();
 const pdfWorkerEnabled = process.env.ENABLE_PDF_WORKER === 'true';
+const letterPdfProcessor = pdfWorkerEnabled ? createLetterPdfProcessor() : null;
 
 const queues = {
   pdf: new Queue('pdf-generation', { connection }),
@@ -38,7 +40,7 @@ const pdfWorker = new Worker(
       );
     }
 
-    throw new Error('PDF generation worker is not implemented yet.');
+    return letterPdfProcessor!.process(job.data);
   },
   { connection },
 );
@@ -72,6 +74,6 @@ console.log('PDF worker enabled:', pdfWorkerEnabled ? 'yes' : 'no');
 console.log('Queues:', Object.keys(queues).join(', '));
 
 process.on('SIGTERM', async () => {
-  await Promise.all([pdfWorker.close(), notificationWorker.close()]);
+  await Promise.all([pdfWorker.close(), notificationWorker.close(), letterPdfProcessor?.close()]);
   process.exit(0);
 });
