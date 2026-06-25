@@ -15,7 +15,7 @@ import { PermissionsGuard } from '../../common/guards/permissions.guard';
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        secret: config.getOrThrow<string>('JWT_SECRET'),
+        secret: config.get<string>('JWT_SECRET', 'change-me'),
         signOptions: {
           expiresIn: config.get('JWT_ACCESS_EXPIRES_IN', '15m') as `${number}m`,
         },

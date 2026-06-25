@@ -31,11 +31,10 @@ import { AssistantModule } from './modules/assistant/assistant.module';
 import { PublicModule } from './modules/public/public.module';
 import { HealthModule } from './health/health.module';
 import { StorageModule } from './core/storage/storage.module';
-import { validateEnv } from './config/env.validation';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
+    ConfigModule.forRoot({ isGlobal: true }),
     ThrottlerModule.forRoot({
       throttlers: [{ name: 'default', ttl: 60000, limit: 100 }],
     }),

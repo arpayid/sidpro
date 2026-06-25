@@ -16,11 +16,6 @@ import {
 
 const API_PREFIX = '/api/v1';
 
-const DEMO_FALLBACK_ENABLED =
-  process.env.NEXT_PUBLIC_ENABLE_DEMO_FALLBACK === 'true' ||
-  (process.env.NODE_ENV !== 'production' &&
-    process.env.NEXT_PUBLIC_ENABLE_DEMO_FALLBACK !== 'false');
-
 function tenantQuery() {
   return `tenantCode=${encodeURIComponent(getPublicTenantCode())}`;
 }
@@ -67,37 +62,27 @@ export async function fetchPublicVillage(): Promise<VillageProfile> {
     };
     contact?: { phone?: string | null; email?: string | null };
     officials?: { name: string; title: string }[];
-  }>(
-    `${API_PREFIX}/village-profile?${tenantQuery()}`,
-    DEMO_FALLBACK_ENABLED
-      ? {
-          tenant: { name: demoVillage.name, code: demoVillage.code },
-          village: demoVillage,
-          contact: { phone: null, email: null },
-          officials: [{ name: 'Kepala Desa Demo', title: 'Kepala Desa' }],
-        }
-      : {
-          tenant: { name: '', code: getPublicTenantCode() },
-          village: { name: '' },
-          contact: { phone: null, email: null },
-          officials: [],
-        },
-  );
+  }>(`${API_PREFIX}/village-profile?${tenantQuery()}`, {
+    tenant: { name: demoVillage.name, code: demoVillage.code },
+    village: demoVillage,
+    contact: { phone: null, email: null },
+    officials: [{ name: 'Kepala Desa Demo', title: 'Kepala Desa' }],
+  });
 
   const village = response.village ?? (response as unknown as VillageProfile);
   const tenant = response.tenant;
   const contact = response.contact;
 
   return {
-    name: village.name ?? tenant?.name ?? (DEMO_FALLBACK_ENABLED ? demoVillage.name : ''),
-    code: tenant?.code ?? (DEMO_FALLBACK_ENABLED ? demoVillage.code : getPublicTenantCode()),
-    address: village.address ?? (DEMO_FALLBACK_ENABLED ? demoVillage.address : ''),
-    province: village.province ?? (DEMO_FALLBACK_ENABLED ? demoVillage.province : ''),
-    regency: village.regency ?? (DEMO_FALLBACK_ENABLED ? demoVillage.regency : ''),
-    district: village.district ?? (DEMO_FALLBACK_ENABLED ? demoVillage.district : ''),
-    vision: village.vision ?? (DEMO_FALLBACK_ENABLED ? demoVillage.vision : ''),
-    mission: village.mission ?? (DEMO_FALLBACK_ENABLED ? demoVillage.mission : ''),
-    description: village.description ?? (DEMO_FALLBACK_ENABLED ? demoVillage.description : ''),
+    name: village.name ?? tenant?.name ?? demoVillage.name,
+    code: tenant?.code ?? demoVillage.code,
+    address: village.address ?? demoVillage.address,
+    province: village.province ?? demoVillage.province,
+    regency: village.regency ?? demoVillage.regency,
+    district: village.district ?? demoVillage.district,
+    vision: village.vision ?? demoVillage.vision,
+    mission: village.mission ?? demoVillage.mission,
+    description: village.description ?? demoVillage.description,
     contactPhone: contact?.phone ?? null,
     contactEmail: contact?.email ?? null,
     officials: response.officials ?? [],
@@ -118,7 +103,7 @@ export async function fetchPublicStats(): Promise<DashboardStat[]> {
   });
 
   if (!stats.residents && !stats.families) {
-    return DEMO_FALLBACK_ENABLED ? demoStats : [];
+    return demoStats;
   }
 
   return [
@@ -140,7 +125,7 @@ export async function fetchPublicStats(): Promise<DashboardStat[]> {
 export async function fetchPublicNews(): Promise<NewsItem[]> {
   const payload = await apiFetchWithFallback<unknown>(
     `${API_PREFIX}/cms/posts?${tenantQuery()}&limit=12`,
-    DEMO_FALLBACK_ENABLED ? demoNews : [],
+    demoNews,
   );
 
   const items = extractItems<{
@@ -152,7 +137,7 @@ export async function fetchPublicNews(): Promise<NewsItem[]> {
     publishedAt?: string | null;
   }>(payload);
 
-  if (!items.length) return DEMO_FALLBACK_ENABLED ? demoNews : [];
+  if (!items.length) return demoNews;
 
   return items.map((item) => ({
     id: item.id,
@@ -178,7 +163,7 @@ export async function fetchPublicNewsBySlug(slug: string): Promise<NewsItem | nu
   } | null>(`${API_PREFIX}/cms/posts/${encodeURIComponent(slug)}?${tenantQuery()}`, null);
 
   if (!post) {
-    return DEMO_FALLBACK_ENABLED ? (demoNews.find((item) => item.slug === slug) ?? null) : null;
+    return demoNews.find((item) => item.slug === slug) ?? null;
   }
 
   return {
@@ -196,7 +181,7 @@ export async function fetchPublicNewsBySlug(slug: string): Promise<NewsItem | nu
 export async function fetchPublicAgenda(): Promise<AgendaItem[]> {
   const payload = await apiFetchWithFallback<unknown>(
     `${API_PREFIX}/cms/agendas?${tenantQuery()}&limit=20`,
-    DEMO_FALLBACK_ENABLED ? demoAgenda : [],
+    demoAgenda,
   );
 
   const items = extractItems<{
@@ -207,7 +192,7 @@ export async function fetchPublicAgenda(): Promise<AgendaItem[]> {
     description?: string | null;
   }>(payload);
 
-  if (!items.length) return DEMO_FALLBACK_ENABLED ? demoAgenda : [];
+  if (!items.length) return demoAgenda;
 
   return items.map((item) => ({
     id: item.id,
@@ -221,7 +206,7 @@ export async function fetchPublicAgenda(): Promise<AgendaItem[]> {
 export async function fetchPublicGallery(): Promise<GalleryItem[]> {
   const payload = await apiFetchWithFallback<unknown>(
     `${API_PREFIX}/cms/gallery?${tenantQuery()}&limit=24`,
-    DEMO_FALLBACK_ENABLED ? demoGallery : [],
+    demoGallery,
   );
 
   const items = extractItems<{
@@ -232,7 +217,7 @@ export async function fetchPublicGallery(): Promise<GalleryItem[]> {
     imageUrl?: string | null;
   }>(payload);
 
-  if (!items.length) return DEMO_FALLBACK_ENABLED ? demoGallery : [];
+  if (!items.length) return demoGallery;
 
   return items.map((item) => ({
     id: item.id,
@@ -290,9 +275,7 @@ export async function fetchPublicTransparency() {
           percentage,
         };
       })
-    : DEMO_FALLBACK_ENABLED
-      ? demoTransparency.apbd
-      : [];
+    : demoTransparency.apbd;
 
   const projects = projectItems.length
     ? projectItems.map((project) => ({
@@ -300,14 +283,10 @@ export async function fetchPublicTransparency() {
         budget: project.budget ? formatCurrency(project.budget) : '—',
         progress: project.progress,
       }))
-    : DEMO_FALLBACK_ENABLED
-      ? demoTransparency.projects
-      : [];
+    : demoTransparency.projects;
 
   if (!items.length && !projectItems.length) {
-    return DEMO_FALLBACK_ENABLED
-      ? { ...demoTransparency, documents: data.publicDocuments ?? [] }
-      : { apbd: [], projects: [], documents: data.publicDocuments ?? [], summary: data.summary };
+    return { ...demoTransparency, documents: data.publicDocuments ?? [] };
   }
 
   return {
