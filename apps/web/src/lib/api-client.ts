@@ -30,6 +30,11 @@ export interface RequestOptions extends Omit<globalThis.RequestInit, 'body'> {
   skipRefresh?: boolean;
 }
 
+export interface UploadOptions extends Omit<globalThis.RequestInit, 'body' | 'method'> {
+  skipAuth?: boolean;
+  skipRefresh?: boolean;
+}
+
 let refreshPromise: Promise<string | null> | null = null;
 
 async function fetchAuthProfile(accessToken: string): Promise<AuthUser | null> {
@@ -74,37 +79,6 @@ export async function syncAuthProfile(): Promise<AuthUser | null> {
 
   updateStoredUser(profile);
   return profile;
-}
-
-export async function downloadBinary(path: string, filename: string): Promise<void> {
-  const doFetch = async (token: string | null) =>
-    fetch(buildApiUrl(path), {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
-
-  let response = await doFetch(getAccessToken());
-
-  if (response.status === 401) {
-    const newToken = await refreshAccessToken();
-    if (!newToken) {
-      handleUnauthorized();
-      throw new ApiError('Sesi berakhir. Silakan login kembali.', 401, 'UNAUTHORIZED');
-    }
-    response = await doFetch(newToken);
-  }
-
-  if (!response.ok) {
-    if (response.status === 401) handleUnauthorized();
-    throw new ApiError('Export gagal', response.status);
-  }
-
-  const blob = await response.blob();
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = filename;
-  anchor.click();
-  URL.revokeObjectURL(url);
 }
 
 async function refreshAccessToken(): Promise<string | null> {
@@ -155,26 +129,35 @@ function handleUnauthorized() {
   }
 }
 
-export async function apiClient<T>(
-  path: string,
-  options: RequestOptions = {},
-): Promise<ApiResponse<T>> {
-  const { body, skipAuth, skipRefresh, headers, ...rest } = options;
+function mergeHeaders(
+  headers: ConstructorParameters<typeof Headers>[0] | undefined,
+  values: Record<string, string | undefined>,
+): Headers {
+  const merged = new Headers(headers);
+  for (const [key, value] of Object.entries(values)) {
+    if (value) merged.set(key, value);
+  }
+  return merged;
+}
 
+function serializeJsonBody(body: unknown): globalThis.RequestInit['body'] {
+  if (body === undefined) return undefined;
+  if (typeof body === 'string' || body instanceof Blob || body instanceof FormData) {
+    return body;
+  }
+  return JSON.stringify(body);
+}
+
+async function parseJson<T>(response: Response): Promise<ApiResponse<T>> {
+  return (await response.json().catch(() => ({}))) as ApiResponse<T>;
+}
+
+async function requestWithAuthRetry(
+  doFetch: (accessToken: string | null) => Promise<Response>,
+  options: Pick<RequestOptions, 'skipAuth' | 'skipRefresh'>,
+): Promise<Response> {
+  const { skipAuth, skipRefresh } = options;
   const token = skipAuth ? null : getAccessToken();
-
-  const doFetch = async (accessToken: string | null) => {
-    return fetch(buildApiUrl(path), {
-      ...rest,
-      headers: {
-        ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
-        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-        ...headers,
-      },
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-    });
-  };
-
   let response = await doFetch(token);
 
   if (response.status === 401 && !skipAuth && !skipRefresh) {
@@ -187,12 +170,33 @@ export async function apiClient<T>(
     }
   }
 
-  const json = (await response.json().catch(() => ({}))) as ApiResponse<T>;
+  return response;
+}
+
+export async function apiClient<T>(
+  path: string,
+  options: RequestOptions = {},
+): Promise<ApiResponse<T>> {
+  const { body, skipAuth, skipRefresh, headers, ...rest } = options;
+  const shouldSetJsonContentType = body !== undefined && !(body instanceof FormData);
+
+  const response = await requestWithAuthRetry(
+    (accessToken) =>
+      fetch(buildApiUrl(path), {
+        ...rest,
+        headers: mergeHeaders(headers, {
+          'Content-Type': shouldSetJsonContentType ? 'application/json' : undefined,
+          Authorization: accessToken ? `Bearer ${accessToken}` : undefined,
+        }),
+        body: serializeJsonBody(body),
+      }),
+    { skipAuth, skipRefresh },
+  );
+
+  const json = await parseJson<T>(response);
 
   if (!response.ok) {
-    if (response.status === 401 && !skipAuth) {
-      handleUnauthorized();
-    }
+    if (response.status === 401 && !skipAuth) handleUnauthorized();
     throw new ApiError(
       json.message ?? `Permintaan gagal (${response.status})`,
       response.status,
@@ -203,22 +207,58 @@ export async function apiClient<T>(
   return json;
 }
 
-export async function apiUpload<T>(path: string, formData: FormData): Promise<ApiResponse<T>> {
-  const token = getAccessToken();
-  const response = await fetch(buildApiUrl(path), {
-    method: 'POST',
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-    body: formData,
-  });
+export async function apiUpload<T>(
+  path: string,
+  formData: FormData,
+  options: UploadOptions = {},
+): Promise<ApiResponse<T>> {
+  const { skipAuth, skipRefresh, headers, ...rest } = options;
+  const response = await requestWithAuthRetry(
+    (accessToken) =>
+      fetch(buildApiUrl(path), {
+        ...rest,
+        method: 'POST',
+        headers: mergeHeaders(headers, {
+          Authorization: accessToken ? `Bearer ${accessToken}` : undefined,
+        }),
+        body: formData,
+      }),
+    { skipAuth, skipRefresh },
+  );
 
-  const json = (await response.json().catch(() => ({}))) as ApiResponse<T>;
+  const json = await parseJson<T>(response);
 
   if (!response.ok) {
-    if (response.status === 401) handleUnauthorized();
+    if (response.status === 401 && !skipAuth) handleUnauthorized();
     throw new ApiError(json.message ?? 'Upload gagal', response.status, json.error?.code);
   }
 
   return json;
+}
+
+export async function downloadBinary(path: string, filename: string): Promise<void> {
+  const response = await requestWithAuthRetry(
+    (accessToken) =>
+      fetch(buildApiUrl(path), {
+        headers: mergeHeaders(undefined, {
+          Authorization: accessToken ? `Bearer ${accessToken}` : undefined,
+        }),
+      }),
+    {},
+  );
+
+  if (!response.ok) {
+    if (response.status === 401) handleUnauthorized();
+    throw new ApiError('Export gagal', response.status);
+  }
+
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
 }
 
 export function buildQuery(params: Record<string, string | number | undefined>): string {

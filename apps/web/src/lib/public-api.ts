@@ -1,4 +1,4 @@
-import { apiFetchWithFallback } from '@/lib/api';
+import { apiClient } from '@/lib/api-client';
 import { getPublicTenantCode } from '@/lib/tenant';
 import {
   demoVillage,
@@ -50,8 +50,17 @@ function extractItems<T>(payload: unknown): T[] {
   return [];
 }
 
+async function publicApiWithFallback<T>(path: string, fallback: T): Promise<T> {
+  try {
+    const response = await apiClient<T>(path, { skipAuth: true });
+    return response.data ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export async function fetchPublicVillage(): Promise<VillageProfile> {
-  const response = await apiFetchWithFallback<{
+  const response = await publicApiWithFallback<{
     tenant: { name: string; code: string };
     village: {
       name: string;
@@ -103,7 +112,7 @@ export async function fetchPublicVillage(): Promise<VillageProfile> {
 }
 
 export async function fetchPublicStats(): Promise<DashboardStat[]> {
-  const stats = await apiFetchWithFallback<{
+  const stats = await publicApiWithFallback<{
     residents: number;
     families: number;
     lettersThisMonth: number;
@@ -136,7 +145,7 @@ export async function fetchPublicStats(): Promise<DashboardStat[]> {
 }
 
 export async function fetchPublicNews(): Promise<NewsItem[]> {
-  const payload = await apiFetchWithFallback<unknown>(
+  const payload = await publicApiWithFallback<unknown>(
     `/cms/posts?${tenantQuery()}&limit=12`,
     DEMO_FALLBACK_ENABLED ? demoNews : [],
   );
@@ -165,7 +174,7 @@ export async function fetchPublicNews(): Promise<NewsItem[]> {
 }
 
 export async function fetchPublicNewsBySlug(slug: string): Promise<NewsItem | null> {
-  const post = await apiFetchWithFallback<{
+  const post = await publicApiWithFallback<{
     id: string;
     slug: string;
     title: string;
@@ -192,7 +201,7 @@ export async function fetchPublicNewsBySlug(slug: string): Promise<NewsItem | nu
 }
 
 export async function fetchPublicAgenda(): Promise<AgendaItem[]> {
-  const payload = await apiFetchWithFallback<unknown>(
+  const payload = await publicApiWithFallback<unknown>(
     `/cms/agendas?${tenantQuery()}&limit=20`,
     DEMO_FALLBACK_ENABLED ? demoAgenda : [],
   );
@@ -217,7 +226,7 @@ export async function fetchPublicAgenda(): Promise<AgendaItem[]> {
 }
 
 export async function fetchPublicGallery(): Promise<GalleryItem[]> {
-  const payload = await apiFetchWithFallback<unknown>(
+  const payload = await publicApiWithFallback<unknown>(
     `/cms/gallery?${tenantQuery()}&limit=24`,
     DEMO_FALLBACK_ENABLED ? demoGallery : [],
   );
@@ -245,7 +254,7 @@ export async function fetchPublicGallery(): Promise<GalleryItem[]> {
 export async function fetchPublicTransparency() {
   const tenantQueryStr = tenantQuery();
   const [data, projectsPayload] = await Promise.all([
-    apiFetchWithFallback<{
+    publicApiWithFallback<{
       year: number;
       budgetYear?: {
         items: { category: string; planned: unknown; realized: unknown }[];
@@ -263,7 +272,7 @@ export async function fetchPublicTransparency() {
       summary: { totalBudget: 0, totalPlanned: 0, totalRealized: 0, absorptionRate: 0 },
       publicDocuments: [],
     }),
-    apiFetchWithFallback<
+    publicApiWithFallback<
       {
         id: string;
         name: string;

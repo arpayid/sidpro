@@ -4,7 +4,7 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Badge } from '@sidpro/ui';
 import { ShieldCheck, CheckCircle2, XCircle } from 'lucide-react';
-import { buildApiUrl } from '@/lib/api-client';
+import { apiClient } from '@/lib/api-client';
 
 interface VerificationResult {
   valid: boolean;
@@ -34,12 +34,16 @@ export function VerifikasiSuratForm() {
     setResult(null);
 
     try {
-      const res = await fetch(
-        buildApiUrl(`/letters/verify/${encodeURIComponent(verificationCode.trim())}`),
-      );
-      const body = await res.json().catch(() => ({}));
+      const body = await apiClient<{
+        valid: boolean;
+        letterNumber?: string;
+        residentName?: string;
+        letterType?: string;
+        issuedAt?: string;
+        signedAt?: string;
+      }>(`/letters/verify/${encodeURIComponent(verificationCode.trim())}`, { skipAuth: true });
 
-      if (res.ok && body.data) {
+      if (body.data) {
         const data = body.data as {
           valid: boolean;
           letterNumber?: string;
@@ -58,7 +62,7 @@ export function VerifikasiSuratForm() {
       } else {
         setResult({
           valid: false,
-          message: body.message ?? 'Kode verifikasi tidak ditemukan atau surat tidak valid.',
+          message: 'Kode verifikasi tidak ditemukan atau surat tidak valid.',
         });
       }
     } catch {

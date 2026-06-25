@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from 'react';
 import { Button, Input } from '@sidpro/ui';
-import { apiFetch } from '@/lib/api';
+import { apiClient } from '@/lib/api-client';
 import { getPublicTenantCode } from '@/lib/tenant';
 
 export default function BantuanAiPage() {
@@ -17,9 +17,9 @@ export default function BantuanAiPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await apiFetch<{ question: string; answer: string }>(
+      const res = await apiClient<{ question: string; answer: string }>(
         `/assistant/public/ask?tenantCode=${encodeURIComponent(getPublicTenantCode())}`,
-        { method: 'POST', body: JSON.stringify({ question: question.trim() }) },
+        { method: 'POST', body: { question: question.trim() }, skipAuth: true },
       );
       setAnswer(res.data?.answer ?? 'Tidak ada jawaban.');
     } catch {

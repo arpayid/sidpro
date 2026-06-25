@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
-import { afterEach, describe, it } from 'node:test';
+import { afterEach, describe, it, mock } from 'node:test';
+import { ApiError, apiClient, buildQuery } from '../src/lib/api-client';
 import { API_PREFIX, buildApiUrl, DEFAULT_API_ORIGIN, getApiOrigin } from '../src/lib/api-url';
 
 const originalApiUrl = process.env.NEXT_PUBLIC_API_URL;
+const originalFetch = globalThis.fetch;
 
 afterEach(() => {
   if (originalApiUrl === undefined) {
@@ -10,6 +12,8 @@ afterEach(() => {
   } else {
     process.env.NEXT_PUBLIC_API_URL = originalApiUrl;
   }
+  globalThis.fetch = originalFetch;
+  mock.restoreAll();
 });
 
 describe('@sidpro/web', () => {
@@ -47,5 +51,48 @@ describe('@sidpro/web', () => {
 
     assert.equal(getApiOrigin(), 'https://desa.example.test');
     assert.equal(buildApiUrl('/health'), 'https://desa.example.test/api/v1/health');
+  });
+
+  it('should build query strings without empty optional values', () => {
+    assert.equal(buildQuery({ tenantCode: 'demo', page: 2, search: '', status: undefined }), '?tenantCode=demo&page=2');
+  });
+
+  it('should send JSON requests through the canonical API client URL builder', async () => {
+    process.env.NEXT_PUBLIC_API_URL = 'https://desa.example.test/api/v1';
+    const calls: Array<{ url: string; init?: globalThis.RequestInit }> = [];
+    globalThis.fetch = (async (url, init) => {
+      calls.push({ url: String(url), init });
+      return Response.json({ data: { ok: true } });
+    }) as typeof fetch;
+
+    const response = await apiClient<{ ok: boolean }>('/public/stats', {
+      method: 'POST',
+      body: { tenantCode: 'demo' },
+      skipAuth: true,
+    });
+
+    assert.deepEqual(response.data, { ok: true });
+    assert.equal(calls[0]?.url, 'https://desa.example.test/api/v1/public/stats');
+    assert.equal(calls[0]?.init?.body, JSON.stringify({ tenantCode: 'demo' }));
+    assert.equal(new Headers(calls[0]?.init?.headers).get('content-type'), 'application/json');
+  });
+
+  it('should throw ApiError with response status and backend code', async () => {
+    globalThis.fetch = (async () =>
+      Response.json(
+        { message: 'Data tidak valid', error: { code: 'VALIDATION_ERROR' } },
+        { status: 422 },
+      )) as typeof fetch;
+
+    await assert.rejects(
+      () => apiClient('/residents', { method: 'POST', body: { nik: '' }, skipAuth: true }),
+      (error: unknown) => {
+        assert.equal(error instanceof ApiError, true);
+        assert.equal((error as ApiError).message, 'Data tidak valid');
+        assert.equal((error as ApiError).status, 422);
+        assert.equal((error as ApiError).code, 'VALIDATION_ERROR');
+        return true;
+      },
+    );
   });
 });
