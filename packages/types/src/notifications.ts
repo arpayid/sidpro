@@ -1,5 +1,8 @@
+export const NOTIFICATION_QUEUE_NAME = 'notifications' as const;
+export const COMPLAINT_STATUS_EMAIL_JOB_NAME = 'complaint-status-email' as const;
+
 export interface ComplaintStatusEmailJob {
-  type: 'complaint-status-email';
+  type: typeof COMPLAINT_STATUS_EMAIL_JOB_NAME;
   tenantId: string;
   complaintId: string;
   ticket: string;

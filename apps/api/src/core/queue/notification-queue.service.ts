@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Queue } from 'bullmq';
+import { COMPLAINT_STATUS_EMAIL_JOB_NAME, NOTIFICATION_QUEUE_NAME } from '@sidpro/types';
 import type { ComplaintStatusEmailJob } from '@sidpro/types';
 
 export type ComplaintStatusEmailPayload = Omit<ComplaintStatusEmailJob, 'type'>;
@@ -23,7 +24,7 @@ export class NotificationQueueService implements OnModuleDestroy {
 
     try {
       const url = new URL(redisUrl);
-      return new Queue('notifications', {
+      return new Queue(NOTIFICATION_QUEUE_NAME, {
         connection: {
           host: url.hostname,
           port: Number(url.port) || 6379,
@@ -42,10 +43,10 @@ export class NotificationQueueService implements OnModuleDestroy {
 
     try {
       const job: ComplaintStatusEmailJob = {
-        type: 'complaint-status-email',
+        type: COMPLAINT_STATUS_EMAIL_JOB_NAME,
         ...payload,
       };
-      await this.queue.add('complaint-status-email', job, {
+      await this.queue.add(COMPLAINT_STATUS_EMAIL_JOB_NAME, job, {
         attempts: 3,
         backoff: { type: 'exponential', delay: 2000 },
         removeOnComplete: 100,
