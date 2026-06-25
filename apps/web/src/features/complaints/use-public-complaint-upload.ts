@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation } from '@tanstack/react-query';
-import { buildApiUrl, buildQuery } from '@/lib/api-client';
+import { apiUpload, buildQuery } from '@/lib/api-client';
 import { getPublicTenantCode } from '@/lib/tenant';
 
 export function useUploadPublicComplaintFile() {
@@ -10,15 +10,13 @@ export function useUploadPublicComplaintFile() {
       const tenantCode = getPublicTenantCode();
       const formData = new FormData();
       formData.append('file', file);
-      const response = await fetch(
-        buildApiUrl(`/complaints/public/upload${buildQuery({ tenantCode })}`),
-        { method: 'POST', body: formData },
+      const response = await apiUpload<{ id: string }>(
+        `/complaints/public/upload${buildQuery({ tenantCode })}`,
+        formData,
+        { skipAuth: true },
       );
-      const json = await response.json().catch(() => ({}));
-      if (!response.ok || !json.data?.id) {
-        throw new Error(json.message ?? 'Upload gagal');
-      }
-      return json.data.id as string;
+      if (!response.data?.id) throw new Error('Upload gagal');
+      return response.data.id;
     },
   });
 }

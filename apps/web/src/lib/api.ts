@@ -1,24 +1,19 @@
 import type { ApiResponse } from '@sidpro/types';
-import { buildApiUrl, getApiOrigin } from '@/lib/api-url';
+import {
+  apiClient,
+  ApiError,
+  API_BASE as API_URL,
+  buildApiUrl,
+  type RequestOptions,
+} from '@/lib/api-client';
 
-const API_URL = getApiOrigin();
+export { ApiError, API_URL, buildApiUrl };
 
-export class ApiError extends Error {
-  constructor(
-    message: string,
-    public status: number,
-    public code?: string,
-  ) {
-    super(message);
-    this.name = 'ApiError';
-  }
-}
-
-export interface FetchOptions {
+export interface FetchOptions extends Omit<RequestOptions, 'body' | 'headers'> {
   token?: string | null;
   headers?: Record<string, string>;
   method?: string;
-  body?: string;
+  body?: unknown;
   cache?: 'default' | 'force-cache' | 'no-cache' | 'no-store' | 'only-if-cached' | 'reload';
   next?: { revalidate?: number | false; tags?: string[] };
 }
@@ -27,28 +22,15 @@ export async function apiFetch<T>(
   path: string,
   options: FetchOptions = {},
 ): Promise<ApiResponse<T>> {
-  const { token, headers, ...rest } = options;
-
-  const response = await fetch(buildApiUrl(path), {
+  const { token, headers, skipAuth, ...rest } = options;
+  return apiClient<T>(path, {
     ...rest,
+    skipAuth: skipAuth ?? !token,
     headers: {
-      'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...headers,
     },
   });
-
-  const body = (await response.json().catch(() => ({}))) as ApiResponse<T>;
-
-  if (!response.ok) {
-    throw new ApiError(
-      body.message ?? `Request failed with status ${response.status}`,
-      response.status,
-      body.error?.code,
-    );
-  }
-
-  return body;
 }
 
 export async function apiFetchWithFallback<T>(
@@ -63,5 +45,3 @@ export async function apiFetchWithFallback<T>(
     return fallback;
   }
 }
-
-export { API_URL, buildApiUrl };
