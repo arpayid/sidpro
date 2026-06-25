@@ -242,7 +242,9 @@ The first production-readiness tranche enforces safer runtime defaults before SI
 - Production startup rejects known demo/default values such as `change-me`, `sidpro_secret`, and short JWT secrets.
 - Swagger is disabled in production unless `ENABLE_SWAGGER=true` is explicitly configured. If enabled for staging/internal use, protect it with authentication, IP allowlisting, or reverse-proxy rules.
 - Public portal demo fallback is disabled in production unless `NEXT_PUBLIC_ENABLE_DEMO_FALLBACK=true` is explicitly configured. Production API failures should surface empty/error states instead of demo village content.
-- The worker no longer marks PDF jobs as completed while the real PDF queue processor is not wired. Keep `ENABLE_PDF_WORKER=false` until the worker is connected to a production PDF generator and persistence flow.
+- Letter PDF generation currently remains synchronous in the API: `POST /letter-requests/:id/generate-pdf` renders the PDF, uploads it to MinIO, creates the file record, updates `LetterOutput`, and completes the request in one guarded API flow.
+- Keep `ENABLE_PDF_WORKER=false` in production unless the API is changed to enqueue `pdf-generation` jobs. With the default false value, the worker process does **not** register `Worker('pdf-generation')`, preventing half-wired async processing from consuming or failing jobs.
+- If `ENABLE_PDF_WORKER=true` is used in a future async rollout, `MINIO_ENDPOINT`, `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD`, and `MINIO_BUCKET` must be explicitly set; startup fails fast when any are missing.
 
 Recommended production values:
 

@@ -49,7 +49,7 @@ Daftar ini menerjemahkan 13 tugas lanjutan menjadi backlog teknis yang bisa dike
 
 1. **Docker production** — selesai untuk baseline compose, healthcheck, dan nginx; berikutnya tambah TLS termination atau integrasikan reverse proxy eksternal.
 2. **Dockerfile app** — selesai untuk API, Web, Worker; berikutnya optimasi image size dengan deploy/prune jika diperlukan.
-3. **PDF worker nyata** — masih blocked; desain payload job dan persist output MinIO sebelum `ENABLE_PDF_WORKER=true`.
+3. **Generate PDF surat** — mode produksi default tetap synchronous di API dan menyimpan file ke MinIO/`LetterOutput`; `ENABLE_PDF_WORKER=false` mencegah worker mendaftarkan queue processor `pdf-generation`. Aktifkan `ENABLE_PDF_WORKER=true` hanya setelah producer API async diuji end-to-end.
 4. **CI container validation** — CI memvalidasi compose production dan build image; berikutnya smoke test container end-to-end.
 5. **Env strategy** — template development/staging/production tersedia; operator wajib mengganti semua placeholder.
 6. **Rate limit public endpoint** — audit semua `@Public()` controller dan tetapkan limit per endpoint berat/ringan.

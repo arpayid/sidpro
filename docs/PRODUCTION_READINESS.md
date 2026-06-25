@@ -19,7 +19,7 @@ Checklist ini adalah pintu kontrol sebelum SIDPRO dipakai untuk data warga asli.
 | Tenant scope modul core | In Progress | Tambahkan tenant leakage test untuk penduduk, keluarga, surat, pengaduan. |
 | Audit log mutation penting | In Progress | Pastikan create/update/delete/export dan status workflow tercatat. |
 | File upload validation | In Progress | MIME, size limit, signed URL private file, dan audit download sensitif. |
-| PDF worker nyata | Blocked | `ENABLE_PDF_WORKER=false` sampai processor PDF menyimpan output valid. |
+| Generate PDF surat | Done | API masih memproses PDF secara synchronous dan menyimpan hasil ke MinIO/`LetterOutput`; worker `pdf-generation` tidak diregister saat `ENABLE_PDF_WORKER=false`. |
 | Smoke test staging MVP | In Progress | `scripts/smoke-test.sh` ada; wajib dijalankan setelah deploy staging. |
 | Monitoring healthcheck | In Progress | API `/api/v1/health`, Docker healthcheck, dan docs monitoring tersedia. |
 
@@ -33,4 +33,6 @@ Go-live hanya boleh dilakukan jika:
 4. `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, dan `pnpm prisma:validate` hijau.
 5. Backup database dan storage berhasil dibuat serta restore pernah diuji di staging.
 6. Smoke test staging lulus menggunakan akun non-default.
-7. Codex review P1/P2 sudah ditangani dan CI hijau.
+7. Untuk mode default synchronous, `ENABLE_PDF_WORKER=false` dan endpoint `POST /letter-requests/:id/generate-pdf` sudah diuji menyimpan file MinIO dan `LetterOutput`.
+8. Jika mode async diaktifkan kemudian, producer API, worker processor, MinIO output, dan update `LetterOutput` harus diuji end-to-end sebelum `ENABLE_PDF_WORKER=true`.
+9. Codex review P1/P2 sudah ditangani dan CI hijau.

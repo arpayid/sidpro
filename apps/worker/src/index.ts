@@ -21,29 +21,39 @@ const connection = {
 
 const emailAdapter = createEmailAdapter();
 const pdfWorkerEnabled = process.env.ENABLE_PDF_WORKER === 'true';
+
+function assertPdfWorkerConfig() {
+  if (!pdfWorkerEnabled) return;
+
+  const missing = ['MINIO_ENDPOINT', 'MINIO_ROOT_USER', 'MINIO_ROOT_PASSWORD', 'MINIO_BUCKET'].filter(
+    (key) => !process.env[key],
+  );
+  if (missing.length) {
+    throw new Error(
+      `ENABLE_PDF_WORKER=true requires explicit storage config: ${missing.join(', ')}`,
+    );
+  }
+}
+
+assertPdfWorkerConfig();
 const letterPdfProcessor = pdfWorkerEnabled ? createLetterPdfProcessor() : null;
 
 const queues = {
-  pdf: new Queue('pdf-generation', { connection }),
   notifications: new Queue('notifications', { connection }),
   importExport: new Queue('import-export', { connection }),
+  ...(pdfWorkerEnabled ? { pdf: new Queue('pdf-generation', { connection }) } : {}),
 };
 
-const pdfWorker = new Worker(
-  'pdf-generation',
-  async (job) => {
-    console.log(`[pdf-generation] Processing job ${job.id}:`, job.data);
-
-    if (!pdfWorkerEnabled) {
-      throw new Error(
-        'PDF generation worker is not implemented/enabled. Set ENABLE_PDF_WORKER=true only after wiring a real PDF processor.',
-      );
-    }
-
-    return letterPdfProcessor!.process(job.data);
-  },
-  { connection },
-);
+const pdfWorker = pdfWorkerEnabled
+  ? new Worker(
+      'pdf-generation',
+      async (job) => {
+        console.log(`[pdf-generation] Processing job ${job.id}:`, job.data);
+        return letterPdfProcessor!.process(job.data);
+      },
+      { connection },
+    )
+  : null;
 
 const notificationWorker = new Worker(
   'notifications',
@@ -58,8 +68,8 @@ const notificationWorker = new Worker(
   { connection },
 );
 
-pdfWorker.on('completed', (job) => console.log(`[pdf-generation] Job ${job.id} completed`));
-pdfWorker.on('failed', (job, err) => console.error(`[pdf-generation] Job ${job?.id} failed:`, err));
+pdfWorker?.on('completed', (job) => console.log(`[pdf-generation] Job ${job.id} completed`));
+pdfWorker?.on('failed', (job, err) => console.error(`[pdf-generation] Job ${job?.id} failed:`, err));
 
 notificationWorker.on('completed', (job) =>
   console.log(`[notifications] Job ${job.id} (${job.name}) completed`),
@@ -74,6 +84,6 @@ console.log('PDF worker enabled:', pdfWorkerEnabled ? 'yes' : 'no');
 console.log('Queues:', Object.keys(queues).join(', '));
 
 process.on('SIGTERM', async () => {
-  await Promise.all([pdfWorker.close(), notificationWorker.close(), letterPdfProcessor?.close()]);
+  await Promise.all([pdfWorker?.close(), notificationWorker.close(), letterPdfProcessor?.close()]);
   process.exit(0);
 });
