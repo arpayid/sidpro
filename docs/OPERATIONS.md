@@ -253,3 +253,57 @@ NEXT_PUBLIC_ENABLE_DEMO_FALLBACK=false
 ENABLE_PDF_WORKER=false
 JWT_SECRET=<long-random-secret-at-least-32-chars>
 ```
+
+## Production Docker Compose
+
+Production container deployment is available through `docker-compose.prod.yml`. It runs `web`, `api`, `worker`, `postgres`, `redis`, `minio`, and `nginx` with `restart: unless-stopped`, internal service networking, and healthchecks for web/API/database/cache/object storage.
+
+### Production environment file
+
+Create a production `.env` on the server (do **not** commit real values):
+
+```bash
+cp .env.example .env
+chmod 600 .env
+```
+
+Set production-safe values before starting containers:
+
+| Variable | Production note |
+|----------|-----------------|
+| `NODE_ENV` | Must be `production` |
+| `DATABASE_URL` | Use the Compose hostname, e.g. `postgresql://<user>:<password>@postgres:5432/<db>?schema=public` |
+| `REDIS_URL` | Use the Compose hostname, e.g. `redis://redis:6379` |
+| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | Required; use non-default credentials |
+| `JWT_SECRET` | Required; long random secret, never default/demo |
+| `MINIO_ENDPOINT`, `MINIO_PORT` | Use `minio` and `9000` for internal Compose access |
+| `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD`, `MINIO_BUCKET` | Required; use non-default credentials |
+| `CORS_ORIGIN`, `APP_URL`, `NEXT_PUBLIC_API_URL` | Set to the public production domain/proxy route |
+| `ENABLE_SWAGGER` | Defaulted to `false` in Compose |
+| `NEXT_PUBLIC_ENABLE_DEMO_FALLBACK` | Defaulted to `false` in Compose |
+| `ENABLE_PDF_WORKER` | Defaulted to `false` in Compose |
+
+### Validate and start
+
+```bash
+docker compose -f docker-compose.prod.yml config
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+After the stack starts, verify status and routing:
+
+```bash
+docker compose -f docker-compose.prod.yml ps
+curl -f http://localhost/api/v1/health
+curl -f http://localhost/
+```
+
+### Rollback
+
+```bash
+docker compose -f docker-compose.prod.yml down
+git checkout <previous-tag-or-commit>
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+Review database migration compatibility before rolling back code that has already run production migrations.
