@@ -233,3 +233,77 @@ SMOKE_RUN_SEED=0 SEED_ADMIN_PASSWORD='your-dev-password' pnpm smoke
 **API-only mode:** `SMOKE_SKIP_WEB=1` skips the admin redirect check when web is not running.
 - Monitoring: [`docs/MONITORING.md`](./MONITORING.md)
 - Security: [`docs/SECURITY.md`](./SECURITY.md), [`docs/SECURITY_CHECKLIST.md`](./SECURITY_CHECKLIST.md)
+
+## Production Hardening Defaults
+
+The first production-readiness tranche enforces safer runtime defaults before SIDPRO is used with real citizen data:
+
+- `JWT_SECRET`, `DATABASE_URL`, `REDIS_URL`, `CORS_ORIGIN`, `MINIO_ENDPOINT`, `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD`, and `MINIO_BUCKET` are required when `NODE_ENV=production`.
+- Production startup rejects known demo/default values such as `change-me`, `sidpro_secret`, and short JWT secrets.
+- Swagger is disabled in production unless `ENABLE_SWAGGER=true` is explicitly configured. If enabled for staging/internal use, protect it with authentication, IP allowlisting, or reverse-proxy rules.
+- Public portal demo fallback is disabled in production unless `NEXT_PUBLIC_ENABLE_DEMO_FALLBACK=true` is explicitly configured. Production API failures should surface empty/error states instead of demo village content.
+- The worker no longer marks PDF jobs as completed while the real PDF queue processor is not wired. Keep `ENABLE_PDF_WORKER=false` until the worker is connected to a production PDF generator and persistence flow.
+
+Recommended production values:
+
+```bash
+NODE_ENV=production
+ENABLE_SWAGGER=false
+NEXT_PUBLIC_ENABLE_DEMO_FALLBACK=false
+ENABLE_PDF_WORKER=false
+JWT_SECRET=<long-random-secret-at-least-32-chars>
+```
+
+## Production Docker Compose
+
+Production container deployment is available through `docker-compose.prod.yml`. It runs `web`, `api`, `worker`, `postgres`, `redis`, `minio`, and `nginx` with `restart: unless-stopped`, internal service networking, and healthchecks for web/API/database/cache/object storage.
+
+### Production environment file
+
+Create a production `.env` on the server (do **not** commit real values):
+
+```bash
+cp .env.example .env
+chmod 600 .env
+```
+
+Set production-safe values before starting containers:
+
+| Variable | Production note |
+|----------|-----------------|
+| `NODE_ENV` | Must be `production` |
+| `DATABASE_URL` | Use the Compose hostname, e.g. `postgresql://<user>:<password>@postgres:5432/<db>?schema=public` |
+| `REDIS_URL` | Use the Compose hostname, e.g. `redis://redis:6379` |
+| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | Required; use non-default credentials |
+| `JWT_SECRET` | Required; long random secret, never default/demo |
+| `MINIO_ENDPOINT`, `MINIO_PORT` | Use `minio` and `9000` for internal Compose access |
+| `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD`, `MINIO_BUCKET` | Required; use non-default credentials |
+| `CORS_ORIGIN`, `APP_URL`, `NEXT_PUBLIC_API_URL` | Set to the public production domain/proxy route |
+| `ENABLE_SWAGGER` | Defaulted to `false` in Compose |
+| `NEXT_PUBLIC_ENABLE_DEMO_FALLBACK` | Defaulted to `false` in Compose |
+| `ENABLE_PDF_WORKER` | Defaulted to `false` in Compose |
+
+### Validate and start
+
+```bash
+docker compose -f docker-compose.prod.yml config
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+After the stack starts, verify status and routing:
+
+```bash
+docker compose -f docker-compose.prod.yml ps
+curl -f http://localhost/api/v1/health
+curl -f http://localhost/
+```
+
+### Rollback
+
+```bash
+docker compose -f docker-compose.prod.yml down
+git checkout <previous-tag-or-commit>
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+Review database migration compatibility before rolling back code that has already run production migrations.

@@ -1,0 +1,37 @@
+# SIDPRO production image for monorepo services.
+# Build with SERVICE=@sidpro/web, @sidpro/api, or @sidpro/worker.
+FROM node:20-alpine AS base
+WORKDIR /app
+ENV PNPM_HOME=/pnpm
+ENV PATH=$PNPM_HOME:$PATH
+RUN corepack enable
+
+FROM base AS deps
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
+COPY apps ./apps
+COPY packages ./packages
+COPY prisma ./prisma
+RUN pnpm install --frozen-lockfile
+RUN pnpm prisma:generate
+
+FROM deps AS build
+ARG SERVICE
+ENV NODE_ENV=production
+ENV ENABLE_SWAGGER=false
+ENV NEXT_PUBLIC_ENABLE_DEMO_FALLBACK=false
+ENV ENABLE_PDF_WORKER=false
+RUN pnpm --filter ${SERVICE} build
+RUN pnpm prune --prod
+
+FROM node:20-alpine AS runtime
+WORKDIR /app
+ENV NODE_ENV=production
+ENV ENABLE_SWAGGER=false
+ENV NEXT_PUBLIC_ENABLE_DEMO_FALLBACK=false
+ENV ENABLE_PDF_WORKER=false
+ENV PNPM_HOME=/pnpm
+ENV PATH=$PNPM_HOME:$PATH
+RUN apk add --no-cache tini && corepack enable
+COPY --from=build /app /app
+ENTRYPOINT ["tini", "--"]
+CMD ["pnpm", "start"]

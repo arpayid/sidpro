@@ -3,7 +3,6 @@ import type { ReactNode } from 'react';
 import { QueryProvider } from '@/providers/query-provider';
 import './globals.css';
 
-
 export const metadata: Metadata = {
   title: {
     default: 'SIDPRO — Sistem Informasi Desa',

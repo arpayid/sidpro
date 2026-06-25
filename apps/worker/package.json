@@ -14,7 +14,11 @@
   "dependencies": {
     "@sidpro/types": "workspace:*",
     "bullmq": "^5.53.2",
-    "nodemailer": "^9.0.1"
+    "nodemailer": "^9.0.1",
+    "@aws-sdk/client-s3": "^3.1071.0",
+    "@prisma/client": "^6.8.2",
+    "pdfkit": "^0.19.1",
+    "qrcode": "^1.5.4"
   },
   "devDependencies": {
     "@sidpro/config": "workspace:*",
@@ -22,6 +26,8 @@
     "@types/nodemailer": "^6.4.17",
     "eslint": "^9.28.0",
     "tsx": "^4.19.4",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "@types/pdfkit": "^0.17.6",
+    "@types/qrcode": "^1.5.6"
   }
 }
