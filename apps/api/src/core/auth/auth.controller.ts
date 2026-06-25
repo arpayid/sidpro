@@ -5,6 +5,16 @@ import { Public } from '../../common/decorators';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Request } from 'express';
+import {
+  CompleteTwoFactorEnrollmentDto,
+  DisableTwoFactorDto,
+  EnableTwoFactorDto,
+  LoginDto,
+  LogoutDto,
+  RefreshTokenDto,
+  SetupTwoFactorEnrollmentDto,
+  VerifyTwoFactorLoginDto,
+} from './dto/auth.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -13,7 +23,7 @@ export class AuthController {
   @Public()
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('login')
-  login(@Body() body: { email: string; password: string }, @Req() req: Request) {
+  login(@Body() body: LoginDto, @Req() req: Request) {
     return this.authService.login(body.email, body.password, req.ip);
   }
 
@@ -21,7 +31,7 @@ export class AuthController {
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Post('2fa/verify-login')
   verifyTwoFactorLogin(
-    @Body() body: { twoFactorToken: string; token: string },
+    @Body() body: VerifyTwoFactorLoginDto,
     @Req() req: Request,
   ) {
     return this.authService.verifyTwoFactorLogin(body.twoFactorToken, body.token, req.ip);
@@ -30,7 +40,7 @@ export class AuthController {
   @Public()
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Post('2fa/enroll-login/setup')
-  setupEnrollLogin(@Body() body: { enrollmentToken: string }) {
+  setupEnrollLogin(@Body() body: SetupTwoFactorEnrollmentDto) {
     return this.authService.setupEnrollLogin(body.enrollmentToken);
   }
 
@@ -38,7 +48,7 @@ export class AuthController {
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Post('2fa/enroll-login/complete')
   completeEnrollLogin(
-    @Body() body: { enrollmentToken: string; token: string },
+    @Body() body: CompleteTwoFactorEnrollmentDto,
     @Req() req: Request,
   ) {
     return this.authService.completeEnrollLogin(body.enrollmentToken, body.token, req.ip);
@@ -54,7 +64,7 @@ export class AuthController {
   @Post('2fa/enable')
   enableTwoFactor(
     @CurrentUser('sub') userId: string,
-    @Body() body: { token: string },
+    @Body() body: EnableTwoFactorDto,
     @Req() req: Request,
   ) {
     return this.authService.enableTwoFactor(userId, body.token, req.ip);
@@ -64,7 +74,7 @@ export class AuthController {
   @Post('2fa/disable')
   disableTwoFactor(
     @CurrentUser('sub') userId: string,
-    @Body() body: { token: string; password: string },
+    @Body() body: DisableTwoFactorDto,
     @Req() req: Request,
   ) {
     return this.authService.disableTwoFactor(userId, body.token, body.password, req.ip);
@@ -72,7 +82,7 @@ export class AuthController {
 
   @Public()
   @Post('refresh')
-  refresh(@Body() body: { refreshToken: string }) {
+  refresh(@Body() body: RefreshTokenDto) {
     return this.authService.refresh(body.refreshToken);
   }
 
@@ -80,7 +90,7 @@ export class AuthController {
   @Post('logout')
   logout(
     @CurrentUser('sub') userId: string,
-    @Body() body: { refreshToken?: string },
+    @Body() body: LogoutDto,
     @Req() req: Request,
   ) {
     return this.authService.logout(userId, body.refreshToken, req.ip);
