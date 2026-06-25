@@ -242,6 +242,12 @@ importers:
 
   apps/worker:
     dependencies:
+      '@aws-sdk/client-s3':
+        specifier: ^3.1071.0
+        version: 3.1071.0
+      '@prisma/client':
+        specifier: ^6.8.2
+        version: 6.19.3(prisma@6.19.3(typescript@5.9.3))(typescript@5.9.3)
       '@sidpro/types':
         specifier: workspace:*
         version: link:../../packages/types
@@ -251,6 +257,12 @@ importers:
       nodemailer:
         specifier: ^9.0.1
         version: 9.0.1
+      pdfkit:
+        specifier: ^0.19.1
+        version: 0.19.1
+      qrcode:
+        specifier: ^1.5.4
+        version: 1.5.4
     devDependencies:
       '@sidpro/config':
         specifier: workspace:*
@@ -261,6 +273,12 @@ importers:
       '@types/nodemailer':
         specifier: ^6.4.17
         version: 6.4.24
+      '@types/pdfkit':
+        specifier: ^0.17.6
+        version: 0.17.6
+      '@types/qrcode':
+        specifier: ^1.5.6
+        version: 1.5.6
       eslint:
         specifier: ^9.28.0
         version: 9.39.4(jiti@2.7.0)

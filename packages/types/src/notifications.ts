@@ -24,3 +24,12 @@ export interface EmailMessage {
 export interface EmailAdapter {
   send(message: EmailMessage): Promise<void>;
 }
+
+export interface LetterPdfJob {
+  type: 'letter-pdf-generation';
+  letterId: string;
+  tenantId: string;
+  requestedBy: string;
+  templateId?: string;
+  templateVersion?: number;
+}
