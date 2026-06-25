@@ -35,15 +35,15 @@ export class NotificationsService {
 
   async markRead(user: JwtPayload, id: string) {
     const tenantId = this.requireTenant(user);
-    const notification = await this.prisma.notification.findFirst({
-      where: { id, tenantId, userId: user.sub },
-    });
-    if (!notification) throw new NotFoundException('Notifikasi tidak ditemukan');
+    const where = { id, tenantId, userId: user.sub };
 
-    const updated = await this.prisma.notification.update({
-      where: { id },
+    const result = await this.prisma.notification.updateMany({
+      where,
       data: { readAt: new Date() },
     });
+    if (result.count === 0) throw new NotFoundException('Notifikasi tidak ditemukan');
+
+    const updated = await this.prisma.notification.findFirst({ where });
 
     return successResponse(updated, 'Notifikasi ditandai sudah dibaca');
   }
