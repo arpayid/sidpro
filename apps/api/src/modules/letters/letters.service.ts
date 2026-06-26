@@ -8,8 +8,14 @@ import { ConfigService } from '@nestjs/config';
 import { createHash, randomUUID } from 'crypto';
 import { Prisma } from '@prisma/client';
 import {
+  approveLetterSchema,
   createLetterRequestSchema,
+  letterTypePayloadSchema,
+  publicLetterTrackQuerySchema,
   publicLetterTrackSchema,
+  qrCodeVerificationSchema,
+  rejectLetterSchema,
+  verifyLetterSchema,
 } from '@sidpro/validators';
 import { PrismaService } from '../../database/prisma.service';
 import { AuditLogsService } from '../../core/audit-logs/audit-logs.service';
@@ -89,6 +95,31 @@ export class LettersService {
 
   private parseTicketPrefix(ticket: string): string {
     return ticket.replace(/^SRT-/i, '').toUpperCase();
+  }
+
+  private validateRequiredFields(
+    requiredFields: Prisma.JsonValue | null,
+    formData?: Record<string, unknown>,
+  ) {
+    if (!requiredFields || typeof requiredFields !== 'object' || Array.isArray(requiredFields)) return;
+
+    const config = requiredFields as Record<string, unknown>;
+    const fieldNames = Array.isArray(config.fields)
+      ? config.fields
+      : Object.entries(config)
+          .filter(([, value]) => value === true || (typeof value === 'object' && value !== null))
+          .map(([key]) => key);
+
+    const missing = fieldNames
+      .filter((field): field is string => typeof field === 'string')
+      .filter((field) => {
+        const value = formData?.[field];
+        return value === undefined || value === null || (typeof value === 'string' && value.trim() === '');
+      });
+
+    if (missing.length > 0) {
+      throw new BadRequestException({ formData: [`Field wajib belum diisi: ${missing.join(', ')}`] });
+    }
   }
 
   private buildPublicTimeline(
@@ -330,8 +361,18 @@ export class LettersService {
     ipAddress?: string,
   ) {
     const tenantId = this.requireTenant(user);
+    const parsed = letterTypePayloadSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.flatten().fieldErrors);
+    }
     const letterType = await this.prisma.letterType.create({
-      data: { tenantId, ...body },
+      data: {
+        tenantId,
+        code: parsed.data.code,
+        name: parsed.data.name,
+        requiredFields: parsed.data.requiredFields as Prisma.InputJsonValue | undefined,
+        requiredFiles: parsed.data.requiredFiles as Prisma.InputJsonValue | undefined,
+      },
     });
     await this.auditLogs.log({
       tenantId,
@@ -456,6 +497,7 @@ export class LettersService {
       where: { id: parsed.data.letterTypeId, tenantId, isActive: true },
     });
     if (!letterType) throw new BadRequestException('Jenis surat tidak ditemukan');
+    this.validateRequiredFields(letterType.requiredFields, parsed.data.formData);
 
     const formData = {
       ...(parsed.data.formData ?? {}),
@@ -492,13 +534,17 @@ export class LettersService {
     ipAddress?: string,
   ) {
     const tenantId = this.requireTenant(user);
+    const parsed = verifyLetterSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.flatten().fieldErrors);
+    }
     const request = await this.prisma.letterRequest.findFirst({ where: { id, tenantId } });
     if (!request) throw new NotFoundException('Permohonan surat tidak ditemukan');
     if (request.status !== 'submitted') {
       throw new BadRequestException('Surat hanya dapat diverifikasi saat status diajukan');
     }
 
-    const status = body.approved ? 'verified' : 'rejected';
+    const status = parsed.data.approved ? 'verified' : 'rejected';
     await this.prisma.$transaction([
       this.prisma.letterApproval.create({
         data: {
@@ -507,7 +553,7 @@ export class LettersService {
           approverId: user.sub,
           level: 'verify',
           status,
-          notes: body.notes,
+          notes: parsed.data.notes,
         },
       }),
       this.prisma.letterRequest.update({ where: { id }, data: { status } }),
@@ -516,7 +562,7 @@ export class LettersService {
     await this.auditLogs.log({
       tenantId,
       actorId: user.sub,
-      action: body.approved ? 'verify' : 'reject',
+      action: parsed.data.approved ? 'verify' : 'reject',
       module: 'letters',
       entityType: 'letter_request',
       entityId: id,
@@ -533,13 +579,17 @@ export class LettersService {
     ipAddress?: string,
   ) {
     const tenantId = this.requireTenant(user);
+    const parsed = approveLetterSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.flatten().fieldErrors);
+    }
     const request = await this.prisma.letterRequest.findFirst({ where: { id, tenantId } });
     if (!request) throw new NotFoundException('Permohonan surat tidak ditemukan');
     if (request.status !== 'verified') {
       throw new BadRequestException('Surat harus diverifikasi terlebih dahulu');
     }
 
-    const status = body.approved ? 'approved' : 'rejected';
+    const status = parsed.data.approved ? 'approved' : 'rejected';
     await this.prisma.$transaction([
       this.prisma.letterApproval.create({
         data: {
@@ -548,7 +598,7 @@ export class LettersService {
           approverId: user.sub,
           level: 'approve',
           status,
-          notes: body.notes,
+          notes: parsed.data.notes,
         },
       }),
       this.prisma.letterRequest.update({ where: { id }, data: { status } }),
@@ -557,7 +607,7 @@ export class LettersService {
     await this.auditLogs.log({
       tenantId,
       actorId: user.sub,
-      action: body.approved ? 'approve' : 'reject',
+      action: parsed.data.approved ? 'approve' : 'reject',
       module: 'letters',
       entityType: 'letter_request',
       entityId: id,
@@ -569,6 +619,10 @@ export class LettersService {
 
   async reject(user: JwtPayload, id: string, notes?: string, ipAddress?: string) {
     const tenantId = this.requireTenant(user);
+    const parsed = rejectLetterSchema.safeParse({ notes });
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.flatten().fieldErrors);
+    }
     const request = await this.prisma.letterRequest.findFirst({ where: { id, tenantId } });
     if (!request) throw new NotFoundException('Permohonan surat tidak ditemukan');
     if (!['submitted', 'verified'].includes(request.status)) {
@@ -583,7 +637,7 @@ export class LettersService {
           approverId: user.sub,
           level: 'reject',
           status: 'rejected',
-          notes,
+          notes: parsed.data.notes,
         },
       }),
       this.prisma.letterRequest.update({ where: { id }, data: { status: 'rejected' } }),
@@ -604,149 +658,167 @@ export class LettersService {
 
   async generatePdf(user: JwtPayload, id: string, ipAddress?: string) {
     const tenantId = this.requireTenant(user);
-    const request = await this.prisma.letterRequest.findFirst({
-      where: { id, tenantId },
-      include: {
-        letterType: true,
-        resident: { include: { address: true } },
-        requester: { select: { name: true } },
-      },
+
+    const claim = await this.prisma.letterRequest.updateMany({
+      where: { id, tenantId, status: 'approved' },
+      data: { status: 'generating' },
     });
-    if (!request) throw new NotFoundException('Permohonan surat tidak ditemukan');
-    if (request.status !== 'approved') {
+    if (claim.count !== 1) {
+      const current = await this.prisma.letterRequest.findFirst({ where: { id, tenantId } });
+      if (!current) throw new NotFoundException('Permohonan surat tidak ditemukan');
+      if (current.status === 'completed') {
+        throw new BadRequestException('PDF surat sudah pernah digenerate');
+      }
       throw new BadRequestException('Surat harus disetujui sebelum digenerate');
     }
 
-    const existingOutput = await this.prisma.letterOutput.findFirst({
-      where: { letterRequestId: id, tenantId },
-    });
-    if (existingOutput?.fileId) {
-      throw new BadRequestException('PDF surat sudah pernah digenerate');
-    }
-
-    const year = new Date().getFullYear();
-    const sequence = await this.prisma.letterNumberSequence.upsert({
-      where: {
-        tenantId_letterTypeId_year: {
-          tenantId,
-          letterTypeId: request.letterTypeId,
-          year,
-        },
-      },
-      create: { tenantId, letterTypeId: request.letterTypeId, year, lastNumber: 1 },
-      update: { lastNumber: { increment: 1 } },
-    });
-
-    const letterNumber = `${request.letterType.code}/${year}/${String(sequence.lastNumber).padStart(4, '0')}`;
-    const qrCode = randomUUID();
-    const issuedAt = new Date();
-
-    const [village, template, letterSettings] = await Promise.all([
-      this.prisma.village.findFirst({ where: { tenantId } }),
-      this.prisma.letterTemplate.findFirst({
-        where: { tenantId, letterTypeId: request.letterTypeId, isActive: true },
-        orderBy: { version: 'desc' },
-      }),
-      this.getLetterSettingsData(tenantId),
-    ]);
-
-    if (!village) {
-      throw new BadRequestException('Profil desa belum dikonfigurasi');
-    }
-
-    const applicantName =
-      request.resident?.fullName ?? request.requester?.name ?? 'Pemohon';
-    const applicantAddress = request.resident?.address
-      ? [
-          request.resident.address.street,
-          request.resident.address.rt ? `RT ${request.resident.address.rt}` : null,
-          request.resident.address.rw ? `RW ${request.resident.address.rw}` : null,
-        ]
-          .filter(Boolean)
-          .join(', ')
-      : null;
-
-    const residentNik = request.resident?.nik;
-    const displayNik = residentNik
-      ? letterSettings.pdf.maskNik
-        ? maskNik(residentNik)
-        : residentNik
-      : '-';
-
-    const verificationUrl = this.buildVerificationUrl(qrCode);
-    const pdfBuffer = await this.letterPdf.generate({
-      village: this.resolvePdfVillage(village, letterSettings.header),
-      letterTypeName: request.letterType.name,
-      letterNumber,
-      purpose: request.purpose,
-      templateContent: template?.content ?? DEFAULT_LETTER_TEMPLATE,
-      applicant: {
-        fullName: applicantName,
-        nik: displayNik,
-        address: applicantAddress,
-      },
-      signatory: letterSettings.signatory,
-      issuedAt,
-      verificationUrl,
-      qrCode,
-    });
-
-    const safeNumber = letterNumber.replace(/\//g, '-');
-    const storageKey = `${tenantId}/letters/${id}/${safeNumber}.pdf`;
-    const checksum = createHash('sha256').update(pdfBuffer).digest('hex');
-
-    await this.storage.uploadFile(pdfBuffer, storageKey, 'application/pdf');
-
-    const output = await this.prisma.$transaction(async (tx) => {
-      const file = await tx.file.create({
-        data: {
-          tenantId,
-          ownerType: 'letter_output',
-          ownerId: id,
-          path: storageKey,
-          mimeType: 'application/pdf',
-          size: pdfBuffer.length,
-          checksum,
+    try {
+      const request = await this.prisma.letterRequest.findFirst({
+        where: { id, tenantId },
+        include: {
+          letterType: true,
+          resident: { include: { address: true } },
+          requester: { select: { name: true } },
         },
       });
+      if (!request) throw new NotFoundException('Permohonan surat tidak ditemukan');
 
-      await tx.letterRequest.update({
-        where: { id },
-        data: { letterNumber, status: 'completed', completedAt: issuedAt },
+      const existingOutput = await this.prisma.letterOutput.findFirst({
+        where: { letterRequestId: id, tenantId },
       });
+      if (existingOutput?.fileId) {
+        throw new BadRequestException('PDF surat sudah pernah digenerate');
+      }
 
-      return tx.letterOutput.create({
-        data: {
-          tenantId,
-          letterRequestId: id,
-          qrCode,
-          fileId: file.id,
-          signedAt: issuedAt,
+      const issuedAt = new Date();
+      const year = issuedAt.getFullYear();
+      const qrCode = randomUUID();
+
+      const [village, template, letterSettings] = await Promise.all([
+        this.prisma.village.findFirst({ where: { tenantId } }),
+        this.prisma.letterTemplate.findFirst({
+          where: { tenantId, letterTypeId: request.letterTypeId, isActive: true },
+          orderBy: { version: 'desc' },
+        }),
+        this.getLetterSettingsData(tenantId),
+      ]);
+
+      if (!village) {
+        throw new BadRequestException('Profil desa belum dikonfigurasi');
+      }
+
+      const sequence = await this.prisma.letterNumberSequence.upsert({
+        where: {
+          tenantId_letterTypeId_year: {
+            tenantId,
+            letterTypeId: request.letterTypeId,
+            year,
+          },
         },
+        create: { tenantId, letterTypeId: request.letterTypeId, year, lastNumber: 1 },
+        update: { lastNumber: { increment: 1 } },
       });
-    });
+      const letterNumber = `${request.letterType.code}/${year}/${String(sequence.lastNumber).padStart(4, '0')}`;
 
-    await this.auditLogs.log({
-      tenantId,
-      actorId: user.sub,
-      action: 'generate',
-      module: 'letters',
-      entityType: 'letter_output',
-      entityId: output.id,
-      metadata: { letterNumber, qrCode: qrCode.slice(0, 8), fileSize: pdfBuffer.length },
-      ipAddress,
-    });
+      const applicantName = request.resident?.fullName ?? request.requester?.name ?? 'Pemohon';
+      const applicantAddress = request.resident?.address
+        ? [
+            request.resident.address.street,
+            request.resident.address.rt ? `RT ${request.resident.address.rt}` : null,
+            request.resident.address.rw ? `RW ${request.resident.address.rw}` : null,
+          ]
+            .filter(Boolean)
+            .join(', ')
+        : null;
 
-    return successResponse(
-      {
+      const residentNik = request.resident?.nik;
+      const displayNik = residentNik
+        ? letterSettings.pdf.maskNik
+          ? maskNik(residentNik)
+          : residentNik
+        : '-';
+
+      const verificationUrl = this.buildVerificationUrl(qrCode);
+      const pdfBuffer = await this.letterPdf.generate({
+        village: this.resolvePdfVillage(village, letterSettings.header),
+        letterTypeName: request.letterType.name,
         letterNumber,
-        qrCode,
-        outputId: output.id,
-        fileId: output.fileId,
+        purpose: request.purpose,
+        templateContent: template?.content ?? DEFAULT_LETTER_TEMPLATE,
+        applicant: {
+          fullName: applicantName,
+          nik: displayNik,
+          address: applicantAddress,
+        },
+        signatory: letterSettings.signatory,
+        issuedAt,
         verificationUrl,
-      },
-      'Surat PDF berhasil digenerate',
-    );
+        qrCode,
+      });
+
+      const safeNumber = letterNumber.replace(/\//g, '-');
+      const storageKey = `${tenantId}/letters/${id}/${safeNumber}.pdf`;
+      const checksum = createHash('sha256').update(pdfBuffer).digest('hex');
+
+      await this.storage.uploadFile(pdfBuffer, storageKey, 'application/pdf');
+
+      const output = await this.prisma.$transaction(async (tx) => {
+        const file = await tx.file.create({
+          data: {
+            tenantId,
+            ownerType: 'letter_output',
+            ownerId: id,
+            path: storageKey,
+            mimeType: 'application/pdf',
+            size: pdfBuffer.length,
+            checksum,
+          },
+        });
+
+        await tx.letterRequest.update({
+          where: { id },
+          data: { letterNumber, status: 'completed', completedAt: issuedAt },
+        });
+
+        return tx.letterOutput.create({
+          data: {
+            tenantId,
+            letterRequestId: id,
+            qrCode,
+            fileId: file.id,
+            signedAt: issuedAt,
+          },
+        });
+      });
+
+      await this.auditLogs.log({
+        tenantId,
+        actorId: user.sub,
+        action: 'generate',
+        module: 'letters',
+        entityType: 'letter_output',
+        entityId: output.id,
+        metadata: { letterNumber, qrCodePrefix: qrCode.slice(0, 8), fileSize: pdfBuffer.length },
+        ipAddress,
+      });
+
+      return successResponse(
+        {
+          letterNumber,
+          qrCode,
+          outputId: output.id,
+          fileId: output.fileId,
+          verificationUrl,
+        },
+        'Surat PDF berhasil digenerate',
+      );
+    } catch (error) {
+      await this.prisma.letterRequest.updateMany({
+        where: { id, tenantId, status: 'generating' },
+        data: { status: 'approved' },
+      });
+      throw error;
+    }
   }
 
   async download(user: JwtPayload, id: string, ipAddress?: string) {
@@ -789,8 +861,12 @@ export class LettersService {
   }
 
   async verifyByQr(qrCode: string, ipAddress?: string) {
+    const parsed = qrCodeVerificationSchema.safeParse({ qrCode });
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.flatten().fieldErrors);
+    }
     const output = await this.prisma.letterOutput.findUnique({
-      where: { qrCode },
+      where: { qrCode: parsed.data.qrCode },
       include: {
         letterRequest: {
           include: {
@@ -815,17 +891,16 @@ export class LettersService {
       metadata: {
         valid,
         letterNumber: output.letterRequest.letterNumber,
-        qrCodePrefix: qrCode.slice(0, 8),
+        qrCodePrefix: parsed.data.qrCode.slice(0, 8),
       },
       ipAddress,
     });
 
     return successResponse({
       valid,
-      qrCodePrefix: qrCode.slice(0, 8).toUpperCase(),
+      qrCodePrefix: parsed.data.qrCode.slice(0, 8).toUpperCase(),
       letterNumber: output.letterRequest.letterNumber,
       letterType: output.letterRequest.letterType.name,
-      residentName: output.letterRequest.resident?.fullName,
       signedAt: output.signedAt,
       status: output.letterRequest.status,
       issuedAt: output.signedAt,
@@ -833,12 +908,16 @@ export class LettersService {
   }
 
   async trackPublic(tenantCode: string, body: unknown) {
+    const query = publicLetterTrackQuerySchema.safeParse({ tenantCode });
+    if (!query.success) {
+      throw new BadRequestException(query.error.flatten().fieldErrors);
+    }
     const parsed = publicLetterTrackSchema.safeParse(body);
     if (!parsed.success) {
       throw new BadRequestException(parsed.error.flatten().fieldErrors);
     }
 
-    const tenantId = await this.resolveTenantId(tenantCode);
+    const tenantId = await this.resolveTenantId(query.data.tenantCode);
     const prefix = this.parseTicketPrefix(parsed.data.ticket);
 
     const requests = await this.prisma.$queryRaw<
@@ -879,7 +958,7 @@ export class LettersService {
     }
 
     const approvals = await this.prisma.letterApproval.findMany({
-      where: { letterRequestId: row.id },
+      where: { tenantId, letterRequestId: row.id },
       orderBy: { createdAt: 'asc' },
       select: { level: true, status: true, createdAt: true },
     });
@@ -887,7 +966,6 @@ export class LettersService {
     return successResponse({
       ticket: this.formatTicketId(row.id),
       letterType: row.letter_type_name,
-      purpose: row.purpose,
       status: row.status,
       statusLabel: LETTER_STATUS_LABELS[row.status] ?? row.status,
       letterNumber: row.letter_number,
