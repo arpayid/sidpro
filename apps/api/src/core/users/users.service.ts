@@ -3,7 +3,6 @@ import {
   NotFoundException,
   ConflictException,
   ForbiddenException,
-  BadRequestException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import {
@@ -12,6 +11,7 @@ import {
   updateUserSchema,
   updateUserStatusSchema,
 } from '@sidpro/validators';
+import { parseWithZod } from '../../common/utils/zod-validation.util';
 import { PrismaService } from '../../database/prisma.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { JwtPayload } from '../../common/decorators/current-user.decorator';
@@ -144,34 +144,31 @@ export class UsersService {
   }
 
   async create(user: JwtPayload, body: unknown, ipAddress?: string) {
-    const parsed = createUserSchema.safeParse(body);
-    if (!parsed.success) {
-      throw new BadRequestException(parsed.error.flatten().fieldErrors);
-    }
+    const parsed = parseWithZod(createUserSchema, body);
 
     if (!user.tenantId && !user.roles.includes(SUPERADMIN_ROLE_CODE)) {
       throw new ForbiddenException('Tenant scope required');
     }
 
-    if (parsed.data.roleIds?.length) {
-      const roleCodes = await this.getRoleCodes(parsed.data.roleIds);
+    if (parsed.roleIds?.length) {
+      const roleCodes = await this.getRoleCodes(parsed.roleIds);
       assertSuperadminRoleAccess(user, roleCodes);
-      await this.assertRolesInTenant(user, parsed.data.roleIds);
+      await this.assertRolesInTenant(user, parsed.roleIds);
     }
 
-    const existing = await this.prisma.user.findUnique({ where: { email: parsed.data.email } });
+    const existing = await this.prisma.user.findUnique({ where: { email: parsed.email } });
     if (existing) throw new ConflictException('Email sudah terdaftar');
 
-    const passwordHash = await bcrypt.hash(parsed.data.password, 12);
+    const passwordHash = await bcrypt.hash(parsed.password, 12);
     const created = await this.prisma.user.create({
       data: {
-        email: parsed.data.email,
-        name: parsed.data.name,
-        phone: parsed.data.phone,
+        email: parsed.email,
+        name: parsed.name,
+        phone: parsed.phone,
         passwordHash,
         tenantId: user.tenantId,
-        ...(parsed.data.roleIds?.length
-          ? { userRoles: { create: parsed.data.roleIds.map((roleId) => ({ roleId })) } }
+        ...(parsed.roleIds?.length
+          ? { userRoles: { create: parsed.roleIds.map((roleId) => ({ roleId })) } }
           : {}),
       },
       select: {
@@ -192,7 +189,7 @@ export class UsersService {
       module: 'users',
       entityType: 'user',
       entityId: created.id,
-      metadata: { email: created.email, roleIds: parsed.data.roleIds ?? [] },
+      metadata: { email: created.email, roleIds: parsed.roleIds ?? [] },
       ipAddress,
     });
 
@@ -200,10 +197,7 @@ export class UsersService {
   }
 
   async update(user: JwtPayload, id: string, body: unknown, ipAddress?: string) {
-    const parsed = updateUserSchema.safeParse(body);
-    if (!parsed.success) {
-      throw new BadRequestException(parsed.error.flatten().fieldErrors);
-    }
+    const parsed = parseWithZod(updateUserSchema, body);
 
     const existing = await this.prisma.user.findFirst({
       where: { id, ...this.tenantWhere(user), deletedAt: null },
@@ -211,9 +205,9 @@ export class UsersService {
     if (!existing) throw new NotFoundException('User tidak ditemukan');
 
     const data: Record<string, unknown> = {};
-    if (parsed.data.name !== undefined) data.name = parsed.data.name;
-    if (parsed.data.phone !== undefined) data.phone = parsed.data.phone;
-    if (parsed.data.password) data.passwordHash = await bcrypt.hash(parsed.data.password, 12);
+    if (parsed.name !== undefined) data.name = parsed.name;
+    if (parsed.phone !== undefined) data.phone = parsed.phone;
+    if (parsed.password) data.passwordHash = await bcrypt.hash(parsed.password, 12);
 
     const updated = await this.prisma.user.update({
       where: { id },
@@ -237,8 +231,8 @@ export class UsersService {
       entityType: 'user',
       entityId: id,
       metadata: {
-        fields: Object.keys(parsed.data).filter((k) => k !== 'password'),
-        passwordReset: Boolean(parsed.data.password),
+        fields: Object.keys(parsed).filter((k) => k !== 'password'),
+        passwordReset: Boolean(parsed.password),
       },
       ipAddress,
     });
@@ -247,15 +241,12 @@ export class UsersService {
   }
 
   async updateStatus(user: JwtPayload, id: string, body: unknown, ipAddress?: string) {
-    const parsed = updateUserStatusSchema.safeParse(body);
-    if (!parsed.success) {
-      throw new BadRequestException(parsed.error.flatten().fieldErrors);
-    }
+    const parsed = parseWithZod(updateUserStatusSchema, body);
 
-    if (parsed.data.status !== 'active' && !user.permissions.includes('users.disable')) {
+    if (parsed.status !== 'active' && !user.permissions.includes('users.disable')) {
       throw new ForbiddenException('Missing permission: users.disable');
     }
-    if (parsed.data.status === 'active' && !user.permissions.includes('users.update')) {
+    if (parsed.status === 'active' && !user.permissions.includes('users.update')) {
       throw new ForbiddenException('Missing permission: users.update');
     }
 
@@ -264,17 +255,17 @@ export class UsersService {
     });
     if (!existing) throw new NotFoundException('User tidak ditemukan');
 
-    if (id === user.sub && parsed.data.status !== 'active') {
+    if (id === user.sub && parsed.status !== 'active') {
       throw new ForbiddenException('Tidak dapat menonaktifkan akun sendiri');
     }
 
-    if (parsed.data.status !== 'active' && (await this.assertTargetIsAdmin(id))) {
+    if (parsed.status !== 'active' && (await this.assertTargetIsAdmin(id))) {
       await this.assertRemainingAdmin(existing.tenantId, id);
     }
 
     const updated = await this.prisma.user.update({
       where: { id },
-      data: { status: parsed.data.status },
+      data: { status: parsed.status },
       select: {
         id: true,
         email: true,
@@ -287,11 +278,11 @@ export class UsersService {
     await this.auditLogs.log({
       tenantId: user.tenantId,
       actorId: user.sub,
-      action: parsed.data.status === 'active' ? 'enable' : 'disable',
+      action: parsed.status === 'active' ? 'enable' : 'disable',
       module: 'users',
       entityType: 'user',
       entityId: id,
-      metadata: { status: parsed.data.status },
+      metadata: { status: parsed.status },
       ipAddress,
     });
 
@@ -299,19 +290,16 @@ export class UsersService {
   }
 
   async assignRoles(user: JwtPayload, id: string, body: unknown, ipAddress?: string) {
-    const parsed = assignUserRolesSchema.safeParse(body);
-    if (!parsed.success) {
-      throw new BadRequestException(parsed.error.flatten().fieldErrors);
-    }
+    const parsed = parseWithZod(assignUserRolesSchema, body);
 
     const existing = await this.prisma.user.findFirst({
       where: { id, ...this.tenantWhere(user), deletedAt: null },
     });
     if (!existing) throw new NotFoundException('User tidak ditemukan');
 
-    const roleCodes = await this.getRoleCodes(parsed.data.roleIds);
+    const roleCodes = await this.getRoleCodes(parsed.roleIds);
     assertSuperadminRoleAccess(user, roleCodes);
-    await this.assertRolesInTenant(user, parsed.data.roleIds);
+    await this.assertRolesInTenant(user, parsed.roleIds);
 
     if (id === user.sub) {
       const currentlyAdmin = await this.prisma.userRole.findFirst({
@@ -330,9 +318,9 @@ export class UsersService {
 
     const updated = await this.prisma.$transaction(async (tx) => {
       await tx.userRole.deleteMany({ where: { userId: id } });
-      if (parsed.data.roleIds.length) {
+      if (parsed.roleIds.length) {
         await tx.userRole.createMany({
-          data: parsed.data.roleIds.map((roleId) => ({ userId: id, roleId })),
+          data: parsed.roleIds.map((roleId) => ({ userId: id, roleId })),
         });
       }
       return tx.user.findUnique({
@@ -348,7 +336,7 @@ export class UsersService {
       module: 'users',
       entityType: 'user',
       entityId: id,
-      metadata: { roleIds: parsed.data.roleIds, roleCodes },
+      metadata: { roleIds: parsed.roleIds, roleCodes },
       ipAddress,
     });
 

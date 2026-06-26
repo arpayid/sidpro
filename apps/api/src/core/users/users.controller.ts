@@ -17,6 +17,8 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators';
 import { CurrentUser, JwtPayload } from '../../common/decorators/current-user.decorator';
+import { parseWithZod } from '../../common/utils/zod-validation.util';
+import { userListQuerySchema, uuidSchema } from '@sidpro/validators';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -33,20 +35,21 @@ export class UsersController {
     @Query('status') status?: string,
     @Query('roleId') roleId?: string,
   ) {
+    const query = parseWithZod(userListQuerySchema, { page, limit, search, status, roleId });
     return this.usersService.findAll(
       user,
-      parseInt(page, 10),
-      parseInt(limit, 10),
-      search,
-      status,
-      roleId,
+      query.page,
+      query.limit,
+      query.search,
+      query.status,
+      query.roleId,
     );
   }
 
   @Get(':id')
   @RequirePermissions('users.read')
   findOne(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
-    return this.usersService.findOne(user, id);
+    return this.usersService.findOne(user, parseWithZod(uuidSchema, id));
   }
 
   @Post()
@@ -63,7 +66,7 @@ export class UsersController {
     @Body() body: unknown,
     @Req() req: Request,
   ) {
-    return this.usersService.update(user, id, body, req.ip);
+    return this.usersService.update(user, parseWithZod(uuidSchema, id), body, req.ip);
   }
 
   @Patch(':id/status')
@@ -74,7 +77,7 @@ export class UsersController {
     @Body() body: unknown,
     @Req() req: Request,
   ) {
-    return this.usersService.updateStatus(user, id, body, req.ip);
+    return this.usersService.updateStatus(user, parseWithZod(uuidSchema, id), body, req.ip);
   }
 
   @Put(':id/roles')
@@ -85,12 +88,12 @@ export class UsersController {
     @Body() body: unknown,
     @Req() req: Request,
   ) {
-    return this.usersService.assignRoles(user, id, body, req.ip);
+    return this.usersService.assignRoles(user, parseWithZod(uuidSchema, id), body, req.ip);
   }
 
   @Delete(':id')
   @RequirePermissions('users.delete')
   remove(@CurrentUser() user: JwtPayload, @Param('id') id: string, @Req() req: Request) {
-    return this.usersService.remove(user, id, req.ip);
+    return this.usersService.remove(user, parseWithZod(uuidSchema, id), req.ip);
   }
 }

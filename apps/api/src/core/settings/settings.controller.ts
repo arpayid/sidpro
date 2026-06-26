@@ -37,10 +37,10 @@ export class SettingsController {
   upsert(
     @CurrentUser() user: JwtPayload,
     @Param('key') key: string,
-    @Body() body: { value: unknown },
+    @Body() body: unknown,
     @Req() req: Request,
   ) {
-    return this.settingsService.upsert(user, key, body.value, req.ip);
+    return this.settingsService.upsert(user, key, body, req.ip);
   }
 
   @Delete(':key')

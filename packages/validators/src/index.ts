@@ -5,3 +5,4 @@ export * from './territories';
 export * from './complaints';
 export * from './letters';
 export * from './rbac';
+export * from './core';

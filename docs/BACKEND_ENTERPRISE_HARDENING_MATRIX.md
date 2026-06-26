@@ -201,3 +201,31 @@ pnpm prisma validate
 ```
 
 For each endpoint hardening PR, add at least one automated test proving the status moved from `Needs *` to `OK`.
+
+## Task 8.1 Core Validation Update
+
+Scope update: `apps/api/src/core/users`, `roles`, `settings`, `tenants`, `files`, and `notifications` now use shared Zod validation schemas plus the API `parseWithZod` helper for consistent `VALIDATION_ERROR` responses.
+
+| Module | Validation added | Negative coverage | Status |
+| ------ | ---------------- | ----------------- | ------ |
+| Users | Strict mutation schemas, UUID role ids, email format, strong password, status enum, list pagination/search/status/role filters, UUID params | Empty payload, invalid email/password/UUID, forbidden field | `OK` |
+| Roles | Strict mutation schemas, UUID permission ids, list pagination, UUID params | Invalid UUID and forbidden-field protection via shared core validation tests | `OK` |
+| Settings | Setting key schema and strict `{ value: object }` upsert body; delete/read key validation share consistent Zod error format | Empty/invalid payload behavior covered by `parseWithZod` consistency test | `OK` |
+| Tenants | Strict create/update/provision schemas, UUID parent/id params, status enum, email format, pagination/search | Invalid enum, malformed parent UUID, invalid admin email, forbidden `level` field | `OK` |
+| Files | Strict upload/create/update metadata schemas, owner UUID, allowed MIME enum, max size, checksum, pagination/filter validation, UUID params | Invalid owner UUID, MIME, zero size, forbidden metadata field | `OK` |
+| Notifications | Pagination validation, boolean `unreadOnly` enum transform, UUID notification id params | Invalid pagination and invalid `unreadOnly` query value | `OK` |
+
+Validation response standard:
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Payload tidak valid",
+    "fields": {
+      "fieldName": ["reason"]
+    }
+  }
+}
+```

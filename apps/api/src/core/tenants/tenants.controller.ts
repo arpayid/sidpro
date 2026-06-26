@@ -16,6 +16,8 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators';
 import { CurrentUser, JwtPayload } from '../../common/decorators/current-user.decorator';
+import { parseWithZod } from '../../common/utils/zod-validation.util';
+import { tenantListQuerySchema, uuidSchema } from '@sidpro/validators';
 
 @Controller('tenants')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -37,7 +39,7 @@ export class TenantsController {
   @Get('villages/:id/summary')
   @RequirePermissions('tenants.regency_overview')
   getVillageSummary(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
-    return this.tenantsService.getVillageSummary(user, id);
+    return this.tenantsService.getVillageSummary(user, parseWithZod(uuidSchema, id));
   }
 
   @Get('provision/parents')
@@ -70,13 +72,14 @@ export class TenantsController {
     @Query('search') search?: string,
   ) {
     this.tenantsService.assertAccess(user);
-    return this.tenantsService.findAll(parseInt(page, 10), parseInt(limit, 10), search);
+    const query = parseWithZod(tenantListQuerySchema, { page, limit, search });
+    return this.tenantsService.findAll(query.page, query.limit, query.search);
   }
 
   @Get(':id')
   findOne(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     this.tenantsService.assertAccess(user);
-    return this.tenantsService.findOne(id);
+    return this.tenantsService.findOne(parseWithZod(uuidSchema, id));
   }
 
   @Post()
@@ -95,11 +98,11 @@ export class TenantsController {
     @Body() body: { name?: string; status?: string },
     @Req() req: Request,
   ) {
-    return this.tenantsService.update(user, id, body, req.ip);
+    return this.tenantsService.update(user, parseWithZod(uuidSchema, id), body, req.ip);
   }
 
   @Delete(':id')
   remove(@CurrentUser() user: JwtPayload, @Param('id') id: string, @Req() req: Request) {
-    return this.tenantsService.remove(user, id, req.ip);
+    return this.tenantsService.remove(user, parseWithZod(uuidSchema, id), req.ip);
   }
 }
