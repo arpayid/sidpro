@@ -25,6 +25,8 @@ RUN pnpm exec turbo run build --filter="${SERVICE}..."
 FROM build AS deploy
 ARG SERVICE
 RUN pnpm deploy --legacy --filter="${SERVICE}" --prod /prod/app
+COPY docker/copy-prisma-runtime.cjs /tmp/copy-prisma-runtime.cjs
+RUN node /tmp/copy-prisma-runtime.cjs
 
 FROM node:20-alpine AS runtime
 WORKDIR /app

@@ -274,6 +274,8 @@ jobs:
           set -euo pipefail
           docker compose -f docker-compose.prod.yml run --no-deps --rm api node -e "require.resolve('@nestjs/core'); console.log('@nestjs/core resolved')"
           docker compose -f docker-compose.prod.yml run --no-deps --rm worker node -e "require.resolve('bullmq'); console.log('bullmq resolved')"
+          docker compose -f docker-compose.prod.yml run --no-deps --rm api node -e "const { PrismaClient } = require('@prisma/client'); console.log(typeof PrismaClient)"
+          docker compose -f docker-compose.prod.yml run --no-deps --rm worker node -e "const { PrismaClient } = require('@prisma/client'); console.log(typeof PrismaClient)"
 
       - name: Start production infrastructure
         run: |
