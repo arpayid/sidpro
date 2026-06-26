@@ -3,13 +3,19 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { createResidentSchema, updateResidentSchema, residentMutationSchema } from '@sidpro/validators';
+import {
+  createResidentSchema,
+  updateResidentSchema,
+  residentMutationSchema,
+} from '@sidpro/validators';
 import type { z } from 'zod';
 import { Button, Input } from '@sidpro/ui';
 import { Plus, Pencil, Trash2, Download, Upload } from 'lucide-react';
 import { PageHeader } from '@/components/enterprise/page-header';
 import { DataTable, FilterBar } from '@/components/enterprise/data-table';
 import { DetailDrawer } from '@/components/enterprise/detail-drawer';
+import { ModalForm } from '@/components/enterprise/modal-form';
+import { StatusBadge } from '@/components/enterprise/status-badge';
 import { ConfirmDialog } from '@/components/enterprise/confirm-dialog';
 import { FileUpload } from '@/components/enterprise/file-upload';
 import { AddressFields } from '@/components/enterprise/address-fields';
@@ -29,6 +35,13 @@ import {
 type CreateForm = z.input<typeof createResidentSchema>;
 type EditForm = z.input<typeof updateResidentSchema>;
 type MutateForm = z.input<typeof residentMutationSchema>;
+
+const STATUS_VARIANTS: Record<string, 'success' | 'info' | 'warning' | 'danger'> = {
+  permanent: 'success',
+  temporary: 'info',
+  moved: 'warning',
+  deceased: 'danger',
+};
 
 const STATUS_LABELS: Record<string, string> = {
   permanent: 'Tetap',
@@ -80,7 +93,11 @@ function ResidentFormFields({
           <label className="form-label" htmlFor="gender">
             Jenis Kelamin
           </label>
-          <select id="gender" className="h-10 w-full rounded-md border border-slate-300 px-3 text-sm" {...register('gender')}>
+          <select
+            id="gender"
+            className="h-10 w-full rounded-md border border-slate-300 px-3 text-sm"
+            {...register('gender')}
+          >
             <option value="male">Laki-laki</option>
             <option value="female">Perempuan</option>
           </select>
@@ -154,8 +171,13 @@ export default function PendudukPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [drawerMode, setDrawerMode] = useState<'create' | 'edit' | 'import' | 'mutate' | null>(null);
+  const [genderFilter, setGenderFilter] = useState('');
+  const [pageSize, setPageSize] = useState(20);
+  const [drawerMode, setDrawerMode] = useState<'create' | 'edit' | 'import' | 'mutate' | null>(
+    null,
+  );
   const [selected, setSelected] = useState<Resident | null>(null);
+  const [detailResident, setDetailResident] = useState<Resident | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Resident | null>(null);
   const [importError, setImportError] = useState('');
   const [address, setAddress] = useState({
@@ -166,10 +188,13 @@ export default function PendudukPage() {
 
   const { data, isLoading, error, refetch } = useResidents({
     page,
-    limit: 20,
+    limit: pageSize,
     search,
     residentStatus: statusFilter || undefined,
   });
+  const filteredResidents = (data?.data ?? []).filter((resident) =>
+    genderFilter ? resident.gender === genderFilter : true,
+  );
   const createMutation = useCreateResident();
   const updateMutation = useUpdateResident();
   const mutateMutation = useMutateResident();
@@ -289,7 +314,7 @@ export default function PendudukPage() {
     }
   }
 
-  const residents = data?.data ?? [];
+  const residents = filteredResidents;
   const meta = data?.meta;
   const totalPages = meta?.totalPages ?? 1;
 
@@ -333,7 +358,10 @@ export default function PendudukPage() {
             key: 'nik',
             header: 'NIK',
             render: (row) => (
-              <span className="font-mono text-xs" title={can('population.view_sensitive') ? row.nik : 'NIK disamarkan'}>
+              <span
+                className="font-mono text-xs"
+                title={can('population.view_sensitive') ? row.nik : 'NIK disamarkan'}
+              >
                 {can('population.view_sensitive') ? row.nik : maskNik(row.nik)}
               </span>
             ),
@@ -352,7 +380,11 @@ export default function PendudukPage() {
           {
             key: 'residentStatus',
             header: 'Status',
-            render: (row) => STATUS_LABELS[row.residentStatus] ?? row.residentStatus,
+            render: (row) => (
+              <StatusBadge variant={STATUS_VARIANTS[row.residentStatus] ?? 'default'}>
+                {STATUS_LABELS[row.residentStatus] ?? row.residentStatus}
+              </StatusBadge>
+            ),
           },
           {
             key: 'address',
@@ -366,11 +398,16 @@ export default function PendudukPage() {
         error={error?.message}
         onRetry={() => refetch()}
         rowKey={(row) => row.id}
-        onRowClick={(row) => can('population.update') && openEdit(row)}
+        onRowClick={(row) => setDetailResident(row)}
         page={page}
         totalPages={totalPages}
-        total={meta?.total}
+        total={genderFilter ? residents.length : meta?.total}
         onPageChange={setPage}
+        pageSize={pageSize}
+        onPageSizeChange={(value) => {
+          setPageSize(value);
+          setPage(1);
+        }}
         toolbar={
           <div className="flex flex-wrap items-center gap-3">
             <FilterBar
@@ -395,6 +432,18 @@ export default function PendudukPage() {
               <option value="moved">Pindah</option>
               <option value="deceased">Meninggal</option>
             </select>
+            <select
+              className="h-9 rounded-md border border-slate-300 bg-white px-3 text-sm"
+              value={genderFilter}
+              onChange={(e) => {
+                setGenderFilter(e.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="">Semua JK</option>
+              <option value="male">Laki-laki</option>
+              <option value="female">Perempuan</option>
+            </select>
           </div>
         }
         rowActions={
@@ -403,7 +452,12 @@ export default function PendudukPage() {
                 <div className="flex justify-end gap-1">
                   {can('population.update') && (
                     <>
-                      <Button variant="ghost" size="sm" onClick={() => openMutate(row)} title="Mutasi">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => openMutate(row)}
+                        title="Mutasi"
+                      >
                         M
                       </Button>
                       <Button variant="ghost" size="sm" onClick={() => openEdit(row)}>
@@ -427,7 +481,7 @@ export default function PendudukPage() {
         }
       />
 
-      <DetailDrawer
+      <ModalForm
         open={isCreate}
         onClose={() => setDrawerMode(null)}
         title="Tambah Penduduk"
@@ -446,24 +500,25 @@ export default function PendudukPage() {
         }
       >
         <form onSubmit={createForm.handleSubmit(onCreateSubmit)}>
-          <ResidentFormFields
-            register={createForm.register}
-            errors={createForm.formState.errors}
-          />
+          <ResidentFormFields register={createForm.register} errors={createForm.formState.errors} />
           <div className="mt-4">
             <AddressFields
               hamletId={address.hamletId}
               neighborhoodUnitId={address.neighborhoodUnitId}
               street={address.street}
-              onHamletChange={(id) => setAddress((a) => ({ ...a, hamletId: id, neighborhoodUnitId: '' }))}
-              onNeighborhoodUnitChange={(id) => setAddress((a) => ({ ...a, neighborhoodUnitId: id }))}
+              onHamletChange={(id) =>
+                setAddress((a) => ({ ...a, hamletId: id, neighborhoodUnitId: '' }))
+              }
+              onNeighborhoodUnitChange={(id) =>
+                setAddress((a) => ({ ...a, neighborhoodUnitId: id }))
+              }
               onStreetChange={(street) => setAddress((a) => ({ ...a, street }))}
             />
           </div>
         </form>
-      </DetailDrawer>
+      </ModalForm>
 
-      <DetailDrawer
+      <ModalForm
         open={isEdit}
         onClose={() => {
           setDrawerMode(null);
@@ -501,12 +556,87 @@ export default function PendudukPage() {
               hamletId={address.hamletId}
               neighborhoodUnitId={address.neighborhoodUnitId}
               street={address.street}
-              onHamletChange={(id) => setAddress((a) => ({ ...a, hamletId: id, neighborhoodUnitId: '' }))}
-              onNeighborhoodUnitChange={(id) => setAddress((a) => ({ ...a, neighborhoodUnitId: id }))}
+              onHamletChange={(id) =>
+                setAddress((a) => ({ ...a, hamletId: id, neighborhoodUnitId: '' }))
+              }
+              onNeighborhoodUnitChange={(id) =>
+                setAddress((a) => ({ ...a, neighborhoodUnitId: id }))
+              }
               onStreetChange={(street) => setAddress((a) => ({ ...a, street }))}
             />
           </div>
         </form>
+      </ModalForm>
+
+      <DetailDrawer
+        open={Boolean(detailResident)}
+        onClose={() => setDetailResident(null)}
+        title="Detail Penduduk"
+        width="max-w-2xl"
+        footer={
+          detailResident && can('population.update') ? (
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => openMutate(detailResident)}>
+                Catat Mutasi
+              </Button>
+              <Button size="sm" onClick={() => openEdit(detailResident)}>
+                Edit
+              </Button>
+            </div>
+          ) : undefined
+        }
+      >
+        {detailResident && (
+          <dl className="grid gap-4 text-sm sm:grid-cols-2">
+            <div>
+              <dt className="text-slate-500">Nama</dt>
+              <dd className="font-medium">{detailResident.fullName}</dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">NIK</dt>
+              <dd className="font-mono">
+                {can('population.view_sensitive')
+                  ? detailResident.nik
+                  : maskNik(detailResident.nik)}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">Status</dt>
+              <dd>
+                <StatusBadge variant={STATUS_VARIANTS[detailResident.residentStatus] ?? 'default'}>
+                  {STATUS_LABELS[detailResident.residentStatus] ?? detailResident.residentStatus}
+                </StatusBadge>
+              </dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">Jenis Kelamin</dt>
+              <dd>{detailResident.gender === 'male' ? 'Laki-laki' : 'Perempuan'}</dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">TTL</dt>
+              <dd>
+                {detailResident.birthPlace}, {detailResident.birthDate.slice(0, 10)}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">Nomor KK</dt>
+              <dd className="font-mono">
+                {detailResident.family
+                  ? detailResident.family.kkNumber.replace(/(?<=.{4}).(?=.{4})/g, '•')
+                  : '—'}
+              </dd>
+            </div>
+            <div className="sm:col-span-2">
+              <dt className="text-slate-500">Alamat</dt>
+              <dd>
+                {detailResident.address?.fullAddress ??
+                  (detailResident.address
+                    ? `RT ${detailResident.address.rt ?? '—'} / RW ${detailResident.address.rw ?? '—'}`
+                    : '—')}
+              </dd>
+            </div>
+          </dl>
+        )}
       </DetailDrawer>
 
       <DetailDrawer

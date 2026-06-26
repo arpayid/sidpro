@@ -3,19 +3,18 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import {
-  createFamilySchema,
-  addFamilyMemberSchema,
-  updateFamilySchema,
-} from '@sidpro/validators';
+import { createFamilySchema, addFamilyMemberSchema, updateFamilySchema } from '@sidpro/validators';
 import type { z } from 'zod';
 import { Button, Input } from '@sidpro/ui';
-import { Plus, UserPlus, Pencil, Trash2, Download } from 'lucide-react';
+import { Plus, UserPlus, Pencil, Trash2, Download, Upload } from 'lucide-react';
 import { PageHeader } from '@/components/enterprise/page-header';
 import { DataTable, FilterBar } from '@/components/enterprise/data-table';
 import { DetailDrawer } from '@/components/enterprise/detail-drawer';
+import { ModalForm } from '@/components/enterprise/modal-form';
+import { StatusBadge } from '@/components/enterprise/status-badge';
 import { ConfirmDialog } from '@/components/enterprise/confirm-dialog';
 import { AddressFields } from '@/components/enterprise/address-fields';
+import { FileUpload } from '@/components/enterprise/file-upload';
 import { useAuth } from '@/hooks/use-auth';
 import {
   useFamilies,
@@ -26,6 +25,7 @@ import {
   useRemoveFamilyMember,
   useDeleteFamily,
   useExportFamilies,
+  useImportFamilies,
   type Family,
   type FamilyMember,
 } from '@/features/families/use-families';
@@ -56,7 +56,12 @@ export default function KeluargaPage() {
   const { can } = useAuth();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
+  const [economicStatusFilter, setEconomicStatusFilter] = useState('');
+  const [houseStatusFilter, setHouseStatusFilter] = useState('');
+  const [pageSize, setPageSize] = useState(20);
+  const [importError, setImportError] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [memberOpen, setMemberOpen] = useState(false);
@@ -74,7 +79,13 @@ export default function KeluargaPage() {
     street: '',
   });
 
-  const { data, isLoading, error, refetch } = useFamilies({ page, limit: 20, search });
+  const { data, isLoading, error, refetch } = useFamilies({
+    page,
+    limit: pageSize,
+    search,
+    economicStatus: economicStatusFilter || undefined,
+    houseStatus: houseStatusFilter || undefined,
+  });
   const { data: familyDetail, isLoading: detailLoading } = useFamily(detailId);
   const { data: residentsData } = useResidents({
     page: 1,
@@ -87,6 +98,7 @@ export default function KeluargaPage() {
   const removeMemberMutation = useRemoveFamilyMember();
   const deleteFamilyMutation = useDeleteFamily();
   const exportMutation = useExportFamilies();
+  const importMutation = useImportFamilies();
 
   const createForm = useForm<CreateFamilyForm>({
     resolver: zodResolver(createFamilySchema),
@@ -148,6 +160,16 @@ export default function KeluargaPage() {
     memberForm.reset();
   }
 
+  async function onImport(file: File) {
+    setImportError('');
+    try {
+      await importMutation.mutateAsync(file);
+      setImportOpen(false);
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : 'Import gagal');
+    }
+  }
+
   async function onRemoveMember() {
     if (!detailId || !removeMemberTarget) return;
     await removeMemberMutation.mutateAsync({
@@ -204,6 +226,12 @@ export default function KeluargaPage() {
                 Export
               </Button>
             )}
+            {can('families.import') && (
+              <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+                <Upload className="mr-1.5 h-4 w-4" />
+                Import
+              </Button>
+            )}
             {can('families.create') && (
               <Button size="sm" onClick={() => setCreateOpen(true)}>
                 <Plus className="mr-1.5 h-4 w-4" />
@@ -241,7 +269,12 @@ export default function KeluargaPage() {
           {
             key: 'economicStatus',
             header: 'Ekonomi',
-            render: (row) => row.economicStatus ?? '—',
+            render: (row) =>
+              row.economicStatus ? (
+                <StatusBadge variant="info">{row.economicStatus}</StatusBadge>
+              ) : (
+                '—'
+              ),
           },
           {
             key: 'address',
@@ -260,19 +293,44 @@ export default function KeluargaPage() {
         totalPages={meta?.totalPages ?? 1}
         total={meta?.total}
         onPageChange={setPage}
+        pageSize={pageSize}
+        onPageSizeChange={(value) => {
+          setPageSize(value);
+          setPage(1);
+        }}
         toolbar={
-          <FilterBar
-            search={search}
-            onSearchChange={(v) => {
-              setSearch(v);
-              setPage(1);
-            }}
-            searchPlaceholder="Cari nomor KK..."
-          />
+          <div className="flex flex-wrap items-center gap-3">
+            <FilterBar
+              search={search}
+              onSearchChange={(v) => {
+                setSearch(v);
+                setPage(1);
+              }}
+              searchPlaceholder="Cari nomor KK / kepala keluarga..."
+            />
+            <Input
+              className="h-9 w-44"
+              placeholder="Filter ekonomi"
+              value={economicStatusFilter}
+              onChange={(e) => {
+                setEconomicStatusFilter(e.target.value);
+                setPage(1);
+              }}
+            />
+            <Input
+              className="h-9 w-44"
+              placeholder="Filter status rumah"
+              value={houseStatusFilter}
+              onChange={(e) => {
+                setHouseStatusFilter(e.target.value);
+                setPage(1);
+              }}
+            />
+          </div>
         }
       />
 
-      <DetailDrawer
+      <ModalForm
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         title="Tambah Kartu Keluarga"
@@ -316,11 +374,35 @@ export default function KeluargaPage() {
             hamletId={address.hamletId}
             neighborhoodUnitId={address.neighborhoodUnitId}
             street={address.street}
-            onHamletChange={(id) => setAddress((a) => ({ ...a, hamletId: id, neighborhoodUnitId: '' }))}
+            onHamletChange={(id) =>
+              setAddress((a) => ({ ...a, hamletId: id, neighborhoodUnitId: '' }))
+            }
             onNeighborhoodUnitChange={(id) => setAddress((a) => ({ ...a, neighborhoodUnitId: id }))}
             onStreetChange={(street) => setAddress((a) => ({ ...a, street }))}
           />
         </form>
+      </ModalForm>
+
+      <DetailDrawer
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        title="Import Data Keluarga"
+        footer={
+          <p className="text-xs text-slate-500">
+            Format: Excel (.xlsx) atau CSV sesuai template SIDPRO.
+          </p>
+        }
+      >
+        <FileUpload
+          accept=".csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
+          label="Pilih file data keluarga"
+          disabled={importMutation.isPending}
+          onFileSelect={onImport}
+        />
+        {importError && <p className="form-error mt-2">{importError}</p>}
+        {importMutation.isPending && (
+          <p className="mt-2 text-sm text-slate-500">Mengimpor data...</p>
+        )}
       </DetailDrawer>
 
       <DetailDrawer
@@ -372,7 +454,9 @@ export default function KeluargaPage() {
               <div>
                 <dt className="text-slate-500">Nomor KK</dt>
                 <dd className="font-mono font-medium">
-                  {can('families.view_sensitive') ? familyDetail.kkNumber : maskKk(familyDetail.kkNumber)}
+                  {can('families.view_sensitive')
+                    ? familyDetail.kkNumber
+                    : maskKk(familyDetail.kkNumber)}
                 </dd>
               </div>
               <div>
@@ -465,7 +549,7 @@ export default function KeluargaPage() {
         )}
       </DetailDrawer>
 
-      <DetailDrawer
+      <ModalForm
         open={editOpen}
         onClose={() => setEditOpen(false)}
         title="Edit Kartu Keluarga"
@@ -503,13 +587,15 @@ export default function KeluargaPage() {
             onHamletChange={(id) =>
               setEditAddress((a) => ({ ...a, hamletId: id, neighborhoodUnitId: '' }))
             }
-            onNeighborhoodUnitChange={(id) => setEditAddress((a) => ({ ...a, neighborhoodUnitId: id }))}
+            onNeighborhoodUnitChange={(id) =>
+              setEditAddress((a) => ({ ...a, neighborhoodUnitId: id }))
+            }
             onStreetChange={(street) => setEditAddress((a) => ({ ...a, street }))}
           />
         </form>
-      </DetailDrawer>
+      </ModalForm>
 
-      <DetailDrawer
+      <ModalForm
         open={memberOpen}
         onClose={() => setMemberOpen(false)}
         title="Tambah Anggota Keluarga"
@@ -583,7 +669,7 @@ export default function KeluargaPage() {
             <p className="form-error">{(addMemberMutation.error as Error).message}</p>
           )}
         </form>
-      </DetailDrawer>
+      </ModalForm>
 
       <ConfirmDialog
         open={Boolean(removeMemberTarget)}
