@@ -8,8 +8,10 @@ import { Response } from 'express';
 import { Prisma } from '@prisma/client';
 import {
   assignComplaintSchema,
+  complaintTenantCodeSchema,
   createComplaintSchema,
   publicComplaintTrackSchema,
+  publicCreateComplaintSchema,
   respondComplaintSchema,
   updateComplaintStatusSchema,
 } from '@sidpro/validators';
@@ -62,7 +64,12 @@ export class ComplaintsService {
   }
 
   private async resolveTenantId(tenantCode: string): Promise<string> {
-    const tenant = await this.prisma.tenant.findUnique({ where: { code: tenantCode } });
+    const parsedTenantCode = complaintTenantCodeSchema.safeParse(tenantCode);
+    if (!parsedTenantCode.success) {
+      throw new BadRequestException(parsedTenantCode.error.flatten().formErrors);
+    }
+
+    const tenant = await this.prisma.tenant.findUnique({ where: { code: parsedTenantCode.data } });
     if (!tenant) throw new NotFoundException('Tenant tidak ditemukan');
     return tenant.id;
   }
@@ -302,7 +309,7 @@ export class ComplaintsService {
   }
 
   async createPublic(tenantCode: string, body: unknown) {
-    const parsed = createComplaintSchema.safeParse(body);
+    const parsed = publicCreateComplaintSchema.safeParse(body);
     if (!parsed.success) {
       throw new BadRequestException(parsed.error.flatten().fieldErrors);
     }
@@ -320,7 +327,7 @@ export class ComplaintsService {
           priority: parsed.data.priority ?? 'medium',
           location: parsed.data.location,
           reporterName: parsed.data.reporterName,
-          reporterPhone: parsed.data.reporterPhone,
+          reporterPhone: this.normalizePhone(parsed.data.reporterPhone),
           reporterEmail: parsed.data.reporterEmail,
           status: 'submitted',
         },
@@ -449,7 +456,8 @@ export class ComplaintsService {
     const existing = await this.prisma.complaint.findFirst({ where: { id, tenantId } });
     if (!existing) throw new NotFoundException('Pengaduan tidak ditemukan');
 
-    const { status: nextStatus, note } = parsed.data;
+    const { status: nextStatus } = parsed.data;
+    const note = parsed.data.note ?? parsed.data.closeReason;
 
     if (['rejected', 'closed'].includes(nextStatus) && !user.permissions.includes('complaints.close')) {
       throw new ForbiddenException('Missing permission: complaints.close');
@@ -626,11 +634,12 @@ export class ComplaintsService {
     return this.addResponse(user, id, body, ipAddress);
   }
 
-  async close(user: JwtPayload, id: string, ipAddress?: string) {
+  async close(user: JwtPayload, id: string, body: unknown = {}, ipAddress?: string) {
+    const closeBody = typeof body === 'object' && body !== null ? body : {};
     return this.updateStatus(
       user,
       id,
-      { status: 'closed', note: 'Pengaduan ditutup' },
+      { status: 'closed', ...closeBody },
       ipAddress,
     );
   }
