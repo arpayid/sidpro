@@ -4,6 +4,8 @@ import { AuditLogsService } from '../../core/audit-logs/audit-logs.service';
 import { StorageService } from '../../core/storage/storage.service';
 import { JwtPayload } from '../../common/decorators/current-user.decorator';
 import { paginatedResponse, successResponse } from '../../common/utils/response.util';
+import { parseWithZod } from '../../common/utils/zod-validation.util';
+import { createAgendaSchema, createGalleryItemSchema, createPostSchema, updateAgendaSchema, updatePostSchema } from '@sidpro/validators';
 
 @Injectable()
 export class CmsService {
@@ -84,22 +86,16 @@ export class CmsService {
 
   async createPost(
     user: JwtPayload,
-    body: {
-      title: string;
-      slug: string;
-      content: string;
-      excerpt?: string;
-      category?: string;
-      status?: string;
-    },
+    body: unknown,
     ipAddress?: string,
   ) {
     const tenantId = this.requireTenant(user);
+    const parsed = parseWithZod(createPostSchema, body);
     const post = await this.prisma.post.create({
       data: {
         tenantId,
-        ...body,
-        publishedAt: body.status === 'published' ? new Date() : null,
+        ...parsed,
+        publishedAt: parsed.status === 'published' ? new Date() : null,
       },
     });
     await this.auditLogs.log({
@@ -114,12 +110,12 @@ export class CmsService {
     return successResponse(post, 'Berita berhasil dibuat');
   }
 
-  async updatePost(user: JwtPayload, id: string, body: Record<string, unknown>, ipAddress?: string) {
+  async updatePost(user: JwtPayload, id: string, body: unknown, ipAddress?: string) {
     const tenantId = this.requireTenant(user);
     const existing = await this.prisma.post.findFirst({ where: { id, tenantId } });
     if (!existing) throw new NotFoundException('Berita tidak ditemukan');
 
-    const data = { ...body };
+    const data: Record<string, unknown> = { ...parseWithZod(updatePostSchema, body) };
     if (data.status === 'published' && !existing.publishedAt) {
       data.publishedAt = new Date();
     }
@@ -189,26 +185,20 @@ export class CmsService {
 
   async createAgenda(
     user: JwtPayload,
-    body: {
-      title: string;
-      description?: string;
-      location?: string;
-      startAt: string;
-      endAt?: string;
-      status?: string;
-    },
+    body: unknown,
     ipAddress?: string,
   ) {
     const tenantId = this.requireTenant(user);
+    const parsed = parseWithZod(createAgendaSchema, body);
     const agenda = await this.prisma.agenda.create({
       data: {
         tenantId,
-        title: body.title,
-        description: body.description,
-        location: body.location,
-        startAt: new Date(body.startAt),
-        endAt: body.endAt ? new Date(body.endAt) : null,
-        status: body.status ?? 'scheduled',
+        title: parsed.title,
+        description: parsed.description,
+        location: parsed.location,
+        startAt: new Date(parsed.startAt),
+        endAt: parsed.endAt ? new Date(parsed.endAt) : null,
+        status: parsed.status ?? 'scheduled',
       },
     });
     await this.auditLogs.log({
@@ -223,12 +213,12 @@ export class CmsService {
     return successResponse(agenda, 'Agenda berhasil dibuat');
   }
 
-  async updateAgenda(user: JwtPayload, id: string, body: Record<string, unknown>, ipAddress?: string) {
+  async updateAgenda(user: JwtPayload, id: string, body: unknown, ipAddress?: string) {
     const tenantId = this.requireTenant(user);
     const existing = await this.prisma.agenda.findFirst({ where: { id, tenantId } });
     if (!existing) throw new NotFoundException('Agenda tidak ditemukan');
 
-    const data = { ...body };
+    const data: Record<string, unknown> = { ...parseWithZod(updateAgendaSchema, body) };
     if (typeof data.startAt === 'string') data.startAt = new Date(data.startAt);
     if (typeof data.endAt === 'string') data.endAt = new Date(data.endAt);
 
@@ -331,12 +321,13 @@ export class CmsService {
 
   async createGalleryItem(
     user: JwtPayload,
-    body: { title: string; description?: string; fileId?: string; type?: string },
+    body: unknown,
     ipAddress?: string,
   ) {
     const tenantId = this.requireTenant(user);
+    const parsed = parseWithZod(createGalleryItemSchema, body);
     const item = await this.prisma.galleryItem.create({
-      data: { tenantId, ...body },
+      data: { tenantId, ...parsed },
     });
     await this.auditLogs.log({
       tenantId,

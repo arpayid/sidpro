@@ -8,6 +8,8 @@ import { PrismaService } from '../../database/prisma.service';
 import { AuditLogsService } from '../../core/audit-logs/audit-logs.service';
 import { JwtPayload } from '../../common/decorators/current-user.decorator';
 import { paginatedResponse, successResponse } from '../../common/utils/response.util';
+import { parseWithZod } from '../../common/utils/zod-validation.util';
+import { createBumdesBusinessSchema, createBumdesFinancialRecordSchema, updateBumdesBusinessSchema } from '@sidpro/validators';
 
 @Injectable()
 export class BumdesService {
@@ -38,22 +40,23 @@ export class BumdesService {
 
   async create(
     user: JwtPayload,
-    body: { name: string; code: string; businessType?: string; description?: string },
+    body: unknown,
     ipAddress?: string,
   ) {
     const tenantId = this.requireTenant(user);
+    const parsed = parseWithZod(createBumdesBusinessSchema, body);
     const existing = await this.prisma.bumdesUnit.findUnique({
-      where: { tenantId_code: { tenantId, code: body.code } },
+      where: { tenantId_code: { tenantId, code: parsed.code } },
     });
     if (existing) throw new ConflictException('Kode unit BUMDes sudah digunakan');
 
     const unit = await this.prisma.bumdesUnit.create({
       data: {
         tenantId,
-        name: body.name,
-        code: body.code,
-        businessType: body.businessType,
-        description: body.description,
+        name: parsed.name,
+        code: parsed.code,
+        businessType: parsed.businessType,
+        description: parsed.description,
       },
     });
 
@@ -73,14 +76,15 @@ export class BumdesService {
   async update(
     user: JwtPayload,
     id: string,
-    body: { name?: string; businessType?: string; status?: string; description?: string },
+    body: unknown,
     ipAddress?: string,
   ) {
     const tenantId = this.requireTenant(user);
+    const parsed = parseWithZod(updateBumdesBusinessSchema, body);
     const existing = await this.prisma.bumdesUnit.findFirst({ where: { id, tenantId } });
     if (!existing) throw new NotFoundException('Unit BUMDes tidak ditemukan');
 
-    const unit = await this.prisma.bumdesUnit.update({ where: { id }, data: body });
+    const unit = await this.prisma.bumdesUnit.update({ where: { id }, data: parsed });
 
     await this.auditLogs.log({
       tenantId,
@@ -133,32 +137,27 @@ export class BumdesService {
 
   async createFinancialRecord(
     user: JwtPayload,
-    body: {
-      unitId: string;
-      type: 'revenue' | 'expense';
-      amount: number;
-      description?: string;
-      recordDate: string;
-    },
+    body: unknown,
     ipAddress?: string,
   ) {
     const tenantId = this.requireTenant(user);
+    const parsed = parseWithZod(createBumdesFinancialRecordSchema, body);
     const unit = await this.prisma.bumdesUnit.findFirst({
-      where: { id: body.unitId, tenantId },
+      where: { id: parsed.unitId, tenantId },
     });
     if (!unit) throw new NotFoundException('Unit BUMDes tidak ditemukan');
-    if (!['revenue', 'expense'].includes(body.type)) {
+    if (!['revenue', 'expense'].includes(parsed.type)) {
       throw new ConflictException('Tipe transaksi harus revenue atau expense');
     }
 
     const record = await this.prisma.bumdesFinancialRecord.create({
       data: {
         tenantId,
-        unitId: body.unitId,
-        type: body.type,
-        amount: body.amount,
-        description: body.description,
-        recordDate: new Date(body.recordDate),
+        unitId: parsed.unitId,
+        type: parsed.type,
+        amount: parsed.amount,
+        description: parsed.description,
+        recordDate: new Date(parsed.recordDate),
       },
       include: { unit: { select: { id: true, name: true, code: true } } },
     });

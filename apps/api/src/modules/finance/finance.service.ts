@@ -9,6 +9,8 @@ import { PrismaService } from '../../database/prisma.service';
 import { AuditLogsService } from '../../core/audit-logs/audit-logs.service';
 import { JwtPayload } from '../../common/decorators/current-user.decorator';
 import { paginatedResponse, successResponse } from '../../common/utils/response.util';
+import { parseWithZod } from '../../common/utils/zod-validation.util';
+import { createBudgetItemSchema, createBudgetYearSchema, createFinanceDocumentSchema, updateBudgetItemSchema } from '@sidpro/validators';
 
 @Injectable()
 export class FinanceService {
@@ -46,21 +48,22 @@ export class FinanceService {
 
   async createBudgetYear(
     user: JwtPayload,
-    body: { year: number; totalBudget: number; status?: string },
+    body: unknown,
     ipAddress?: string,
   ) {
     const tenantId = this.requireTenant(user);
+    const parsed = parseWithZod(createBudgetYearSchema, body);
     const existing = await this.prisma.budgetYear.findUnique({
-      where: { tenantId_year: { tenantId, year: body.year } },
+      where: { tenantId_year: { tenantId, year: parsed.year } },
     });
     if (existing) throw new ConflictException('Tahun anggaran sudah ada');
 
     const budgetYear = await this.prisma.budgetYear.create({
       data: {
         tenantId,
-        year: body.year,
-        totalBudget: new Prisma.Decimal(body.totalBudget),
-        status: body.status ?? 'draft',
+        year: parsed.year,
+        totalBudget: new Prisma.Decimal(parsed.totalBudget),
+        status: parsed.status ?? 'draft',
       },
     });
 
@@ -80,10 +83,11 @@ export class FinanceService {
   async createBudgetItem(
     user: JwtPayload,
     budgetYearId: string,
-    body: { category: string; name: string; planned: number; realized?: number },
+    body: unknown,
     ipAddress?: string,
   ) {
     const tenantId = this.requireTenant(user);
+    const parsed = parseWithZod(createBudgetItemSchema, body);
     const budgetYear = await this.prisma.budgetYear.findFirst({
       where: { id: budgetYearId, tenantId },
     });
@@ -92,10 +96,10 @@ export class FinanceService {
     const item = await this.prisma.budgetItem.create({
       data: {
         budgetYearId,
-        category: body.category,
-        name: body.name,
-        planned: new Prisma.Decimal(body.planned),
-        realized: new Prisma.Decimal(body.realized ?? 0),
+        category: parsed.category,
+        name: parsed.name,
+        planned: new Prisma.Decimal(parsed.planned),
+        realized: new Prisma.Decimal(parsed.realized ?? 0),
       },
     });
 
@@ -115,10 +119,11 @@ export class FinanceService {
   async updateBudgetItem(
     user: JwtPayload,
     id: string,
-    body: { category?: string; name?: string; planned?: number; realized?: number },
+    body: unknown,
     ipAddress?: string,
   ) {
     const tenantId = this.requireTenant(user);
+    const parsed = parseWithZod(updateBudgetItemSchema, body);
     const item = await this.prisma.budgetItem.findFirst({
       where: { id },
       include: { budgetYear: true },
@@ -130,10 +135,10 @@ export class FinanceService {
     const updated = await this.prisma.budgetItem.update({
       where: { id },
       data: {
-        ...(body.category ? { category: body.category } : {}),
-        ...(body.name ? { name: body.name } : {}),
-        ...(body.planned !== undefined ? { planned: new Prisma.Decimal(body.planned) } : {}),
-        ...(body.realized !== undefined ? { realized: new Prisma.Decimal(body.realized) } : {}),
+        ...(parsed.category ? { category: parsed.category } : {}),
+        ...(parsed.name ? { name: parsed.name } : {}),
+        ...(parsed.planned !== undefined ? { planned: new Prisma.Decimal(parsed.planned) } : {}),
+        ...(parsed.realized !== undefined ? { realized: new Prisma.Decimal(parsed.realized) } : {}),
       },
     });
 
@@ -167,12 +172,13 @@ export class FinanceService {
 
   async createDocument(
     user: JwtPayload,
-    body: { title: string; type: string; year?: number; fileId?: string; isPublic?: boolean },
+    body: unknown,
     ipAddress?: string,
   ) {
     const tenantId = this.requireTenant(user);
+    const parsed = parseWithZod(createFinanceDocumentSchema, body);
     const document = await this.prisma.financeDocument.create({
-      data: { tenantId, ...body },
+      data: { tenantId, ...parsed },
     });
 
     await this.auditLogs.log({

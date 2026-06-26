@@ -9,6 +9,8 @@ import { PrismaService } from '../../database/prisma.service';
 import { AuditLogsService } from '../../core/audit-logs/audit-logs.service';
 import { JwtPayload } from '../../common/decorators/current-user.decorator';
 import { paginatedResponse, successResponse } from '../../common/utils/response.util';
+import { parseWithZod } from '../../common/utils/zod-validation.util';
+import { createHamletSchema, createNeighborhoodUnitSchema, updateHamletSchema, updateNeighborhoodUnitSchema } from '@sidpro/validators';
 
 @Injectable()
 export class TerritoriesService {
@@ -52,18 +54,19 @@ export class TerritoriesService {
 
   async createHamlet(
     user: JwtPayload,
-    body: { name: string; code: string },
+    body: unknown,
     ipAddress?: string,
   ) {
     const tenantId = this.requireTenant(user);
+    const parsed = parseWithZod(createHamletSchema, body);
 
     const existing = await this.prisma.hamlet.findUnique({
-      where: { tenantId_code: { tenantId, code: body.code } },
+      where: { tenantId_code: { tenantId, code: parsed.code } },
     });
     if (existing) throw new ConflictException('Kode dusun sudah terdaftar');
 
     const hamlet = await this.prisma.hamlet.create({
-      data: { tenantId, name: body.name, code: body.code },
+      data: { tenantId, name: parsed.name, code: parsed.code },
     });
 
     await this.auditLogs.log({
@@ -82,16 +85,17 @@ export class TerritoriesService {
   async updateHamlet(
     user: JwtPayload,
     id: string,
-    body: { name?: string; code?: string },
+    body: unknown,
     ipAddress?: string,
   ) {
     const tenantId = this.requireTenant(user);
+    const parsed = parseWithZod(updateHamletSchema, body);
     const existing = await this.prisma.hamlet.findFirst({ where: { id, tenantId } });
     if (!existing) throw new NotFoundException('Dusun tidak ditemukan');
 
-    if (body.code && body.code !== existing.code) {
+    if (parsed.code && parsed.code !== existing.code) {
       const duplicate = await this.prisma.hamlet.findUnique({
-        where: { tenantId_code: { tenantId, code: body.code } },
+        where: { tenantId_code: { tenantId, code: parsed.code } },
       });
       if (duplicate) throw new ConflictException('Kode dusun sudah terdaftar');
     }
@@ -99,8 +103,8 @@ export class TerritoriesService {
     const hamlet = await this.prisma.hamlet.update({
       where: { id },
       data: {
-        ...(body.name !== undefined ? { name: body.name } : {}),
-        ...(body.code !== undefined ? { code: body.code } : {}),
+        ...(parsed.name !== undefined ? { name: parsed.name } : {}),
+        ...(parsed.code !== undefined ? { code: parsed.code } : {}),
       },
     });
 
@@ -119,7 +123,6 @@ export class TerritoriesService {
 
   async findNeighborhoodUnitsByHamlet(user: JwtPayload, hamletId: string) {
     const tenantId = this.requireTenant(user);
-
     const hamlet = await this.prisma.hamlet.findFirst({ where: { id: hamletId, tenantId } });
     if (!hamlet) throw new NotFoundException('Dusun tidak ditemukan');
 
@@ -133,13 +136,14 @@ export class TerritoriesService {
 
   async createNeighborhoodUnit(
     user: JwtPayload,
-    body: { hamletId: string; rt: string; rw: string },
+    body: unknown,
     ipAddress?: string,
   ) {
     const tenantId = this.requireTenant(user);
+    const parsed = parseWithZod(createNeighborhoodUnitSchema, body);
 
     const hamlet = await this.prisma.hamlet.findFirst({
-      where: { id: body.hamletId, tenantId },
+      where: { id: parsed.hamletId, tenantId },
     });
     if (!hamlet) throw new NotFoundException('Dusun tidak ditemukan');
 
@@ -147,9 +151,9 @@ export class TerritoriesService {
       where: {
         tenantId_hamletId_rt_rw: {
           tenantId,
-          hamletId: body.hamletId,
-          rt: body.rt,
-          rw: body.rw,
+          hamletId: parsed.hamletId,
+          rt: parsed.rt,
+          rw: parsed.rw,
         },
       },
     });
@@ -158,9 +162,9 @@ export class TerritoriesService {
     const unit = await this.prisma.neighborhoodUnit.create({
       data: {
         tenantId,
-        hamletId: body.hamletId,
-        rt: body.rt,
-        rw: body.rw,
+        hamletId: parsed.hamletId,
+        rt: parsed.rt,
+        rw: parsed.rw,
       },
     });
 
@@ -171,7 +175,7 @@ export class TerritoriesService {
       module: 'territories',
       entityType: 'neighborhood_unit',
       entityId: unit.id,
-      metadata: { hamletId: body.hamletId },
+      metadata: { hamletId: parsed.hamletId },
       ipAddress,
     });
 
@@ -181,17 +185,18 @@ export class TerritoriesService {
   async updateNeighborhoodUnit(
     user: JwtPayload,
     id: string,
-    body: { rt?: string; rw?: string },
+    body: unknown,
     ipAddress?: string,
   ) {
     const tenantId = this.requireTenant(user);
+    const parsed = parseWithZod(updateNeighborhoodUnitSchema, body);
     const existing = await this.prisma.neighborhoodUnit.findFirst({
       where: { id, tenantId },
     });
     if (!existing) throw new NotFoundException('RT/RW tidak ditemukan');
 
-    const rt = body.rt ?? existing.rt;
-    const rw = body.rw ?? existing.rw;
+    const rt = parsed.rt ?? existing.rt;
+    const rw = parsed.rw ?? existing.rw;
 
     if (rt !== existing.rt || rw !== existing.rw) {
       const duplicate = await this.prisma.neighborhoodUnit.findUnique({
@@ -209,15 +214,15 @@ export class TerritoriesService {
       }
     }
 
-    if (!body.rt && !body.rw) {
+    if (!parsed.rt && !parsed.rw) {
       throw new BadRequestException('Minimal satu field (rt atau rw) harus diisi');
     }
 
     const unit = await this.prisma.neighborhoodUnit.update({
       where: { id },
       data: {
-        ...(body.rt !== undefined ? { rt: body.rt } : {}),
-        ...(body.rw !== undefined ? { rw: body.rw } : {}),
+        ...(parsed.rt !== undefined ? { rt: parsed.rt } : {}),
+        ...(parsed.rw !== undefined ? { rw: parsed.rw } : {}),
       },
     });
 
