@@ -18,11 +18,16 @@ export const updateNeighborhoodUnitSchema = z.object({
   rw: z.string().min(1).max(10).optional(),
 });
 
-export const residentAddressSchema = z.object({
-  hamletId: z.string().uuid(),
-  neighborhoodUnitId: z.string().uuid(),
-  street: z.string().max(500).optional(),
-});
+export const residentAddressSchema = z
+  .object({
+    hamletId: z.string().uuid('Dusun tidak valid').optional(),
+    neighborhoodUnitId: z.string().uuid('RT/RW tidak valid').optional(),
+    street: z.string().trim().min(1, 'Alamat jalan tidak boleh kosong').max(500).optional(),
+  })
+  .refine((value) => Boolean(value.hamletId || value.neighborhoodUnitId || value.street), {
+    message: 'Alamat/wilayah wajib berisi dusun, RT/RW, atau jalan',
+    path: ['address'],
+  });
 
 export type CreateHamletInput = z.infer<typeof createHamletSchema>;
 export type UpdateHamletInput = z.infer<typeof updateHamletSchema>;

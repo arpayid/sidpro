@@ -11,11 +11,9 @@ import { AuditLogsService } from '../../core/audit-logs/audit-logs.service';
 import { PopulationService } from '../population/population.service';
 import { JwtPayload } from '../../common/decorators/current-user.decorator';
 import type { ResidentAddressInput } from '@sidpro/validators';
-import {
-  paginatedResponse,
-  successResponse,
-  maskKk,
-} from '../../common/utils/response.util';
+import { addFamilyMemberSchema, createFamilySchema, updateFamilySchema } from '@sidpro/validators';
+import { parseWithZod } from '../../common/utils/zod-validation.util';
+import { paginatedResponse, successResponse, maskKk } from '../../common/utils/response.util';
 
 @Injectable()
 export class FamiliesService {
@@ -35,9 +33,7 @@ export class FamiliesService {
     const where = {
       tenantId,
       deletedAt: null,
-      ...(search
-        ? { kkNumber: { contains: search } }
-        : {}),
+      ...(search ? { kkNumber: { contains: search } } : {}),
     };
 
     const [rows, total] = await Promise.all([
@@ -48,7 +44,9 @@ export class FamiliesService {
         orderBy: { createdAt: 'desc' },
         include: {
           address: true,
-          familyMembers: { include: { resident: { select: { id: true, fullName: true, nik: true } } } },
+          familyMembers: {
+            include: { resident: { select: { id: true, fullName: true, nik: true } } },
+          },
         },
       }),
       this.prisma.family.count({ where }),
@@ -99,26 +97,35 @@ export class FamiliesService {
   ) {
     const tenantId = this.requireTenant(user);
 
+    const parsed = parseWithZod(createFamilySchema, body);
+
     const existing = await this.prisma.family.findUnique({
-      where: { tenantId_kkNumber: { tenantId, kkNumber: body.kkNumber } },
+      where: { tenantId_kkNumber: { tenantId, kkNumber: parsed.kkNumber } },
     });
     if (existing) throw new ConflictException('Nomor KK sudah terdaftar');
 
-    let addressId = body.addressId;
-    if (body.address) {
-      addressId = await this.populationService.resolveAddress(tenantId, body.address);
+    if (parsed.headResidentId) {
+      const headResident = await this.prisma.resident.findFirst({
+        where: { id: parsed.headResidentId, tenantId, deletedAt: null },
+      });
+      if (!headResident) throw new NotFoundException('Kepala keluarga tidak ditemukan');
+    }
+
+    let addressId = parsed.addressId;
+    if (parsed.address) {
+      addressId = await this.populationService.resolveAddress(tenantId, parsed.address);
     }
 
     const family = await this.prisma.family.create({
       data: {
         tenantId,
-        kkNumber: body.kkNumber,
-        headResidentId: body.headResidentId,
-        economicStatus: body.economicStatus,
-        houseStatus: body.houseStatus,
-        waterSource: body.waterSource,
-        electricity: body.electricity,
-        sanitation: body.sanitation,
+        kkNumber: parsed.kkNumber,
+        headResidentId: parsed.headResidentId,
+        economicStatus: parsed.economicStatus,
+        houseStatus: parsed.houseStatus,
+        waterSource: parsed.waterSource,
+        electricity: parsed.electricity,
+        sanitation: parsed.sanitation,
         addressId,
       },
     });
@@ -157,20 +164,29 @@ export class FamiliesService {
     });
     if (!existing) throw new NotFoundException('Keluarga tidak ditemukan');
 
-    let addressId = body.addressId;
-    if (body.address) {
-      addressId = await this.populationService.resolveAddress(tenantId, body.address);
+    const parsed = parseWithZod(updateFamilySchema, body);
+
+    if (parsed.headResidentId) {
+      const headResident = await this.prisma.resident.findFirst({
+        where: { id: parsed.headResidentId, tenantId, deletedAt: null },
+      });
+      if (!headResident) throw new NotFoundException('Kepala keluarga tidak ditemukan');
+    }
+
+    let addressId = parsed.addressId;
+    if (parsed.address) {
+      addressId = await this.populationService.resolveAddress(tenantId, parsed.address);
     }
 
     const family = await this.prisma.family.update({
       where: { id },
       data: {
-        headResidentId: body.headResidentId,
-        economicStatus: body.economicStatus,
-        houseStatus: body.houseStatus,
-        waterSource: body.waterSource,
-        electricity: body.electricity,
-        sanitation: body.sanitation,
+        headResidentId: parsed.headResidentId,
+        economicStatus: parsed.economicStatus,
+        houseStatus: parsed.houseStatus,
+        waterSource: parsed.waterSource,
+        electricity: parsed.electricity,
+        sanitation: parsed.sanitation,
         ...(addressId !== undefined ? { addressId } : {}),
       },
     });
@@ -227,19 +243,27 @@ export class FamiliesService {
     ipAddress?: string,
   ) {
     const tenantId = this.requireTenant(user);
+    const parsed = parseWithZod(addFamilyMemberSchema, body);
+
     const family = await this.prisma.family.findFirst({
       where: { id: familyId, tenantId, deletedAt: null },
     });
     if (!family) throw new NotFoundException('Keluarga tidak ditemukan');
 
     const existingMember = await this.prisma.familyMember.findUnique({
-      where: { familyId_residentId: { familyId, residentId: body.residentId } },
+      where: { familyId_residentId: { familyId, residentId: parsed.residentId } },
     });
-    if (existingMember) throw new ConflictException('Penduduk sudah terdaftar sebagai anggota KK ini');
+    if (existingMember)
+      throw new ConflictException('Penduduk sudah terdaftar sebagai anggota KK ini');
 
-    if (body.isHead) {
+    const resident = await this.prisma.resident.findFirst({
+      where: { id: parsed.residentId, tenantId, deletedAt: null },
+    });
+    if (!resident) throw new NotFoundException('Penduduk tidak ditemukan');
+
+    if (parsed.isHead) {
       const currentHead = await this.prisma.familyMember.findFirst({
-        where: { familyId, isHead: true, residentId: { not: body.residentId } },
+        where: { familyId, isHead: true, residentId: { not: parsed.residentId } },
       });
       if (currentHead) {
         throw new ConflictException(
@@ -249,14 +273,14 @@ export class FamiliesService {
     }
 
     const member = await this.prisma.$transaction(async (tx) => {
-      if (body.isHead) {
+      if (parsed.isHead) {
         await tx.familyMember.updateMany({
           where: { familyId, isHead: true },
           data: { isHead: false },
         });
         await tx.family.update({
           where: { id: familyId },
-          data: { headResidentId: body.residentId },
+          data: { headResidentId: parsed.residentId },
         });
       }
 
@@ -264,15 +288,15 @@ export class FamiliesService {
         data: {
           tenantId,
           familyId,
-          residentId: body.residentId,
-          relationship: body.relationship,
-          isHead: body.isHead ?? false,
+          residentId: parsed.residentId,
+          relationship: parsed.relationship,
+          isHead: parsed.isHead,
         },
         include: { resident: { select: { id: true, fullName: true } } },
       });
 
       await tx.resident.update({
-        where: { id: body.residentId },
+        where: { id: parsed.residentId },
         data: { familyId },
       });
 
@@ -351,7 +375,11 @@ export class FamiliesService {
         memberCount: f.familyMembers.length,
         economicStatus: f.economicStatus ?? '',
         houseStatus: f.houseStatus ?? '',
-        address: [f.address?.street, f.address?.rt ? `RT ${f.address.rt}` : null, f.address?.rw ? `RW ${f.address.rw}` : null]
+        address: [
+          f.address?.street,
+          f.address?.rt ? `RT ${f.address.rt}` : null,
+          f.address?.rw ? `RW ${f.address.rw}` : null,
+        ]
           .filter(Boolean)
           .join(', '),
       };
