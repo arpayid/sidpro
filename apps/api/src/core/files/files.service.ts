@@ -5,6 +5,8 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { createHash, randomUUID } from 'crypto';
+import { createFileMetadataSchema, updateFileMetadataSchema, uploadFileMetadataSchema } from '@sidpro/validators';
+import { parseWithZod } from '../../common/utils/zod-validation.util';
 import { PrismaService } from '../../database/prisma.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { StorageService } from '../storage/storage.service';
@@ -126,7 +128,8 @@ export class FilesService {
     ipAddress?: string,
   ) {
     const tenantId = this.requireTenant(user);
-    const ownerType = body.ownerType ?? 'upload';
+    const parsedBody = parseWithZod(uploadFileMetadataSchema, body);
+    const ownerType = parsedBody.ownerType ?? 'upload';
     this.assertUploadOwnerType(user, ownerType);
     assertMimeMatchesBuffer(file.mimetype, file.buffer);
     const key = `${tenantId}/${ownerType}/${randomUUID()}-${file.originalname}`;
@@ -138,7 +141,7 @@ export class FilesService {
       data: {
         tenantId,
         ownerType,
-        ownerId: body.ownerId,
+        ownerId: parsedBody.ownerId,
         path: key,
         mimeType: file.mimetype,
         size: file.size,
@@ -243,8 +246,9 @@ export class FilesService {
     ipAddress?: string,
   ) {
     const tenantId = this.requireTenant(user);
+    const parsed = parseWithZod(createFileMetadataSchema, body);
     const file = await this.prisma.file.create({
-      data: { tenantId, ...body },
+      data: { tenantId, ...parsed },
     });
 
     await this.auditLogs.log({
@@ -267,10 +271,11 @@ export class FilesService {
     ipAddress?: string,
   ) {
     const tenantId = this.requireTenant(user);
+    const parsed = parseWithZod(updateFileMetadataSchema, body);
     const existing = await this.prisma.file.findFirst({ where: { id, tenantId } });
     if (!existing) throw new NotFoundException('File tidak ditemukan');
 
-    const file = await this.prisma.file.update({ where: { id }, data: body });
+    const file = await this.prisma.file.update({ where: { id }, data: parsed });
 
     await this.auditLogs.log({
       tenantId,

@@ -16,6 +16,8 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators';
 import { CurrentUser, JwtPayload } from '../../common/decorators/current-user.decorator';
+import { parseWithZod } from '../../common/utils/zod-validation.util';
+import { roleListQuerySchema, uuidSchema } from '@sidpro/validators';
 
 @Controller('roles')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -29,13 +31,14 @@ export class RolesController {
     @Query('page') page = '1',
     @Query('limit') limit = '50',
   ) {
-    return this.rolesService.findAll(user, parseInt(page, 10), parseInt(limit, 10));
+    const query = parseWithZod(roleListQuerySchema, { page, limit });
+    return this.rolesService.findAll(user, query.page, query.limit);
   }
 
   @Get(':id')
   @RequirePermissions('roles.read')
   findOne(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
-    return this.rolesService.findOne(user, id);
+    return this.rolesService.findOne(user, parseWithZod(uuidSchema, id));
   }
 
   @Post()
@@ -52,7 +55,7 @@ export class RolesController {
     @Body() body: unknown,
     @Req() req: Request,
   ) {
-    return this.rolesService.update(user, id, body, req.ip);
+    return this.rolesService.update(user, parseWithZod(uuidSchema, id), body, req.ip);
   }
 
   @Put(':id/permissions')
@@ -63,6 +66,6 @@ export class RolesController {
     @Body() body: unknown,
     @Req() req: Request,
   ) {
-    return this.rolesService.assignPermissions(user, id, body, req.ip);
+    return this.rolesService.assignPermissions(user, parseWithZod(uuidSchema, id), body, req.ip);
   }
 }

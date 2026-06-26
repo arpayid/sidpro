@@ -2,13 +2,13 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
-  BadRequestException,
 } from '@nestjs/common';
 import {
   assignRolePermissionsSchema,
   createRoleSchema,
   updateRoleSchema,
 } from '@sidpro/validators';
+import { parseWithZod } from '../../common/utils/zod-validation.util';
 import { PrismaService } from '../../database/prisma.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { JwtPayload } from '../../common/decorators/current-user.decorator';
@@ -58,30 +58,27 @@ export class RolesService {
   }
 
   async create(user: JwtPayload, body: unknown, ipAddress?: string) {
-    const parsed = createRoleSchema.safeParse(body);
-    if (!parsed.success) {
-      throw new BadRequestException(parsed.error.flatten().fieldErrors);
-    }
+    const parsed = parseWithZod(createRoleSchema, body);
 
-    assertSuperadminRoleMutation(user, parsed.data.code);
+    assertSuperadminRoleMutation(user, parsed.code);
 
     const existing = await this.prisma.role.findFirst({
-      where: { code: parsed.data.code, ...this.tenantWhere(user) },
+      where: { code: parsed.code, ...this.tenantWhere(user) },
     });
     if (existing) throw new ConflictException('Kode role sudah digunakan');
 
     const role = await this.prisma.$transaction(async (tx) => {
       const created = await tx.role.create({
         data: {
-          name: parsed.data.name,
-          code: parsed.data.code,
-          scope: parsed.data.scope ?? 'tenant',
+          name: parsed.name,
+          code: parsed.code,
+          scope: parsed.scope ?? 'tenant',
           tenantId: user.tenantId,
         },
       });
-      if (parsed.data.permissionIds?.length) {
+      if (parsed.permissionIds?.length) {
         await tx.rolePermission.createMany({
-          data: parsed.data.permissionIds.map((permissionId) => ({
+          data: parsed.permissionIds.map((permissionId) => ({
             roleId: created.id,
             permissionId,
           })),
@@ -97,7 +94,7 @@ export class RolesService {
       module: 'roles',
       entityType: 'role',
       entityId: role.id,
-      metadata: { code: role.code, permissionIds: parsed.data.permissionIds ?? [] },
+      metadata: { code: role.code, permissionIds: parsed.permissionIds ?? [] },
       ipAddress,
     });
 
@@ -105,10 +102,7 @@ export class RolesService {
   }
 
   async update(user: JwtPayload, id: string, body: unknown, ipAddress?: string) {
-    const parsed = updateRoleSchema.safeParse(body);
-    if (!parsed.success) {
-      throw new BadRequestException(parsed.error.flatten().fieldErrors);
-    }
+    const parsed = parseWithZod(updateRoleSchema, body);
 
     const existing = await this.prisma.role.findFirst({
       where: { id, ...this.tenantWhere(user) },
@@ -119,7 +113,7 @@ export class RolesService {
 
     const role = await this.prisma.role.update({
       where: { id },
-      data: { ...(parsed.data.name ? { name: parsed.data.name } : {}) },
+      data: { ...(parsed.name ? { name: parsed.name } : {}) },
     });
 
     await this.auditLogs.log({
@@ -129,7 +123,7 @@ export class RolesService {
       module: 'roles',
       entityType: 'role',
       entityId: id,
-      metadata: { name: parsed.data.name },
+      metadata: { name: parsed.name },
       ipAddress,
     });
 
@@ -137,10 +131,7 @@ export class RolesService {
   }
 
   async assignPermissions(user: JwtPayload, id: string, body: unknown, ipAddress?: string) {
-    const parsed = assignRolePermissionsSchema.safeParse(body);
-    if (!parsed.success) {
-      throw new BadRequestException(parsed.error.flatten().fieldErrors);
-    }
+    const parsed = parseWithZod(assignRolePermissionsSchema, body);
 
     const existing = await this.prisma.role.findFirst({
       where: { id, ...this.tenantWhere(user) },
@@ -151,9 +142,9 @@ export class RolesService {
 
     const role = await this.prisma.$transaction(async (tx) => {
       await tx.rolePermission.deleteMany({ where: { roleId: id } });
-      if (parsed.data.permissionIds.length) {
+      if (parsed.permissionIds.length) {
         await tx.rolePermission.createMany({
-          data: parsed.data.permissionIds.map((permissionId) => ({
+          data: parsed.permissionIds.map((permissionId) => ({
             roleId: id,
             permissionId,
           })),
@@ -177,7 +168,7 @@ export class RolesService {
       entityId: id,
       metadata: {
         code: existing.code,
-        permissionCount: parsed.data.permissionIds.length,
+        permissionCount: parsed.permissionIds.length,
       },
       ipAddress,
     });

@@ -21,6 +21,8 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators';
 import { CurrentUser, JwtPayload } from '../../common/decorators/current-user.decorator';
+import { fileListQuerySchema, uuidSchema } from '@sidpro/validators';
+import { parseWithZod } from '../../common/utils/zod-validation.util';
 
 const ALLOWED_MIME_TYPES = [
   'image/jpeg',
@@ -44,13 +46,8 @@ export class FilesController {
     @Query('ownerType') ownerType?: string,
     @Query('ownerId') ownerId?: string,
   ) {
-    return this.filesService.findAll(
-      user,
-      parseInt(page, 10),
-      parseInt(limit, 10),
-      ownerType,
-      ownerId,
-    );
+    const query = parseWithZod(fileListQuerySchema, { page, limit, ownerType, ownerId });
+    return this.filesService.findAll(user, query.page, query.limit, query.ownerType, query.ownerId);
   }
 
   @Post('upload')
@@ -98,13 +95,13 @@ export class FilesController {
     'population.import',
   )
   download(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
-    return this.filesService.getDownloadUrl(user, id);
+    return this.filesService.getDownloadUrl(user, parseWithZod(uuidSchema, id));
   }
 
   @Get(':id')
   @RequirePermissions('settings.manage')
   findOne(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
-    return this.filesService.findOne(user, id);
+    return this.filesService.findOne(user, parseWithZod(uuidSchema, id));
   }
 
   @Post()
@@ -133,12 +130,12 @@ export class FilesController {
     @Body() body: { ownerType?: string; ownerId?: string; path?: string },
     @Req() req: Request,
   ) {
-    return this.filesService.update(user, id, body, req.ip);
+    return this.filesService.update(user, parseWithZod(uuidSchema, id), body, req.ip);
   }
 
   @Delete(':id')
   @RequirePermissions('settings.manage')
   remove(@CurrentUser() user: JwtPayload, @Param('id') id: string, @Req() req: Request) {
-    return this.filesService.remove(user, id, req.ip);
+    return this.filesService.remove(user, parseWithZod(uuidSchema, id), req.ip);
   }
 }

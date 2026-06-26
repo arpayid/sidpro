@@ -6,6 +6,8 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+import { createTenantSchema, provisionVillageSchema, updateTenantSchema } from '@sidpro/validators';
+import { parseWithZod } from '../../common/utils/zod-validation.util';
 import { PrismaService } from '../../database/prisma.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { JwtPayload } from '../../common/decorators/current-user.decorator';
@@ -307,14 +309,15 @@ export class TenantsService {
     ipAddress?: string,
   ) {
     this.assertProvisionAccess(user);
+    const parsed = parseWithZod(provisionVillageSchema, body);
 
-    const parent = await this.prisma.tenant.findUnique({ where: { id: body.parentId } });
+    const parent = await this.prisma.tenant.findUnique({ where: { id: parsed.parentId } });
     if (!parent) throw new NotFoundException('Parent tenant tidak ditemukan');
     if (!['kabupaten', 'kecamatan'].includes(parent.level)) {
       throw new BadRequestException('Parent harus level kabupaten atau kecamatan');
     }
 
-    const existing = await this.prisma.tenant.findUnique({ where: { code: body.code } });
+    const existing = await this.prisma.tenant.findUnique({ where: { code: parsed.code } });
     if (existing) throw new ConflictException('Kode tenant sudah digunakan');
 
     const regency =
@@ -324,7 +327,7 @@ export class TenantsService {
     const districtName = parent.level === 'kecamatan' ? parent.name : null;
 
     const adminPassword = process.env.SEED_ADMIN_PASSWORD;
-    if (body.adminEmail && !adminPassword) {
+    if (parsed.adminEmail && !adminPassword) {
       throw new BadRequestException(
         'SEED_ADMIN_PASSWORD wajib di env untuk membuat admin desa saat provisioning',
       );
@@ -333,19 +336,19 @@ export class TenantsService {
     const result = await this.prisma.$transaction(async (tx) => {
       const tenant = await tx.tenant.create({
         data: {
-          name: body.name,
-          code: body.code,
+          name: parsed.name,
+          code: parsed.code,
           level: 'desa',
           parentId: parent.id,
           status: 'active',
         },
       });
 
-      const villageCode = (body.villageCode ?? body.code).toUpperCase().slice(0, 16);
+      const villageCode = (parsed.villageCode ?? parsed.code).toUpperCase().slice(0, 16);
       await tx.village.create({
         data: {
           tenantId: tenant.id,
-          name: body.name,
+          name: parsed.name,
           code: villageCode,
           regency: regency?.name ?? null,
           district: districtName,
@@ -399,12 +402,12 @@ export class TenantsService {
       });
 
       let adminUser: { id: string; email: string } | null = null;
-      if (body.adminEmail && adminPassword && adminRoleId) {
+      if (parsed.adminEmail && adminPassword && adminRoleId) {
         const passwordHash = await bcrypt.hash(adminPassword, 12);
         adminUser = await tx.user.create({
           data: {
-            email: body.adminEmail,
-            name: body.adminName ?? `Admin ${body.name}`,
+            email: parsed.adminEmail,
+            name: parsed.adminName ?? `Admin ${parsed.name}`,
             passwordHash,
             tenantId: tenant.id,
             status: 'active',
@@ -427,10 +430,10 @@ export class TenantsService {
       entityType: 'tenant',
       entityId: result.tenant.id,
       metadata: {
-        name: body.name,
-        code: body.code,
-        parentId: body.parentId,
-        adminEmail: body.adminEmail ?? null,
+        name: parsed.name,
+        code: parsed.code,
+        parentId: parsed.parentId,
+        adminEmail: parsed.adminEmail ?? null,
       },
       ipAddress,
     });
@@ -482,15 +485,16 @@ export class TenantsService {
     ipAddress?: string,
   ) {
     this.assertAccess(user);
+    const parsed = parseWithZod(createTenantSchema, body);
 
-    const existing = await this.prisma.tenant.findUnique({ where: { code: body.code } });
+    const existing = await this.prisma.tenant.findUnique({ where: { code: parsed.code } });
     if (existing) throw new ConflictException('Kode tenant sudah digunakan');
 
     const tenant = await this.prisma.tenant.create({
       data: {
-        name: body.name,
-        code: body.code,
-        status: body.status ?? 'active',
+        name: parsed.name,
+        code: parsed.code,
+        status: parsed.status ?? 'active',
       },
     });
 
@@ -514,13 +518,14 @@ export class TenantsService {
     ipAddress?: string,
   ) {
     this.assertAccess(user);
+    const parsed = parseWithZod(updateTenantSchema, body);
 
     const existing = await this.prisma.tenant.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Tenant tidak ditemukan');
 
     const tenant = await this.prisma.tenant.update({
       where: { id },
-      data: body,
+      data: parsed,
     });
 
     await this.auditLogs.log({
