@@ -5,6 +5,7 @@ import {
   createFamilySchema,
   createResidentSchema,
   residentMutationSchema,
+  updateResidentSchema,
 } from './population.js';
 
 const validResident = {
@@ -25,6 +26,16 @@ describe('population validators', () => {
     assert.equal(createFamilySchema.safeParse({ kkNumber: '1234' }).success, false);
   });
 
+  it('accepts and normalizes API-returned ISO datetime resident dates', () => {
+    const result = createResidentSchema.safeParse({
+      ...validResident,
+      birthDate: '1990-01-31T00:00:00.000Z',
+    });
+
+    assert.equal(result.success, true);
+    if (result.success) assert.equal(result.data.birthDate, '1990-01-31');
+  });
+
   it('rejects impossible birth and mutation dates', () => {
     assert.equal(
       createResidentSchema.safeParse({ ...validResident, birthDate: '2026-02-31' }).success,
@@ -35,6 +46,30 @@ describe('population validators', () => {
         .success,
       false,
     );
+  });
+
+  it('accepts explicit nulls for nullable resident update fields', () => {
+    const result = updateResidentSchema.safeParse({
+      familyId: null,
+      addressId: null,
+      religion: null,
+      education: null,
+      occupation: null,
+      maritalStatus: null,
+      bloodType: null,
+      disabilityStatus: null,
+      birthDate: '1990-01-31T00:00:00.000Z',
+    });
+
+    assert.equal(result.success, true);
+    if (result.success) {
+      assert.equal(result.data.familyId, null);
+      assert.equal(result.data.birthDate, '1990-01-31');
+    }
+  });
+
+  it('rejects nulls for non-nullable resident update fields', () => {
+    assert.equal(updateResidentSchema.safeParse({ fullName: null }).success, false);
   });
 
   it('rejects invalid family relationship', () => {

@@ -2,18 +2,38 @@ import { z } from 'zod';
 import { kkNumberSchema, nikSchema } from './common';
 import { residentAddressSchema } from './territories';
 
+const dateOnlyPattern = /^\d{4}-\d{2}-\d{2}$/;
+const isoDateTimePattern = /^\d{4}-\d{2}-\d{2}T/;
+
+function isValidDateOnly(value: string) {
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+  );
+}
+
 const isoDateSchema = z
   .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Tanggal harus berformat YYYY-MM-DD')
-  .refine((value) => {
-    const [year, month, day] = value.split('-').map(Number);
-    const date = new Date(Date.UTC(year, month - 1, day));
-    return (
-      date.getUTCFullYear() === year &&
-      date.getUTCMonth() === month - 1 &&
-      date.getUTCDate() === day
-    );
-  }, 'Tanggal tidak valid');
+  .refine((value) => dateOnlyPattern.test(value) || isoDateTimePattern.test(value), {
+    message: 'Tanggal harus berformat YYYY-MM-DD atau ISO datetime',
+  })
+  .transform((value, ctx) => {
+    const normalized = dateOnlyPattern.test(value) ? value : value.slice(0, 10);
+    if (!dateOnlyPattern.test(normalized) || !isValidDateOnly(normalized)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Tanggal tidak valid' });
+      return z.NEVER;
+    }
+
+    if (isoDateTimePattern.test(value) && Number.isNaN(Date.parse(value))) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Tanggal tidak valid' });
+      return z.NEVER;
+    }
+
+    return normalized;
+  });
 
 export const genderSchema = z.enum(['male', 'female'], {
   errorMap: () => ({ message: 'Gender harus male atau female' }),
@@ -56,7 +76,23 @@ export const createResidentSchema = z.object({
   address: residentAddressSchema.optional(),
 });
 
-export const updateResidentSchema = createResidentSchema.partial();
+const nullableOptionalTextSchema = z.string().trim().max(100).nullable().optional();
+const nullableOptionalUuidSchema = z
+  .string()
+  .uuid('Data referensi tidak valid')
+  .nullable()
+  .optional();
+
+export const updateResidentSchema = createResidentSchema.partial().extend({
+  religion: nullableOptionalTextSchema,
+  education: nullableOptionalTextSchema,
+  occupation: nullableOptionalTextSchema,
+  maritalStatus: nullableOptionalTextSchema,
+  bloodType: z.string().trim().max(5).nullable().optional(),
+  disabilityStatus: nullableOptionalTextSchema,
+  familyId: nullableOptionalUuidSchema,
+  addressId: nullableOptionalUuidSchema,
+});
 
 export const residentMutationSchema = z.object({
   residentStatus: z.enum(['moved', 'deceased'], {

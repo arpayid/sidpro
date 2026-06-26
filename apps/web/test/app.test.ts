@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { afterEach, describe, it, mock } from 'node:test';
 import { ApiError, apiClient, buildQuery } from '../src/lib/api-client';
+import { addFamilyMemberSchema, type AddFamilyMemberInput } from '@sidpro/validators';
 import { API_PREFIX, buildApiUrl, DEFAULT_API_ORIGIN, getApiOrigin } from '../src/lib/api-url';
 
 const originalApiUrl = process.env.NEXT_PUBLIC_API_URL;
@@ -15,6 +16,8 @@ afterEach(() => {
   globalThis.fetch = originalFetch;
   mock.restoreAll();
 });
+
+const defaultFamilyRelationship: AddFamilyMemberInput['relationship'] = 'child';
 
 describe('@sidpro/web', () => {
   it('should have valid package name', () => {
@@ -51,6 +54,15 @@ describe('@sidpro/web', () => {
 
     assert.equal(getApiOrigin(), 'https://desa.example.test');
     assert.equal(buildApiUrl('/health'), 'https://desa.example.test/api/v1/health');
+  });
+
+  it('should use a canonical non-empty family relationship value for add-member forms', () => {
+    const parsed = addFamilyMemberSchema.safeParse({
+      residentId: '11111111-1111-4111-8111-111111111111',
+      relationship: defaultFamilyRelationship,
+    });
+
+    assert.equal(parsed.success, true);
   });
 
   it('should build query strings without empty optional values', () => {

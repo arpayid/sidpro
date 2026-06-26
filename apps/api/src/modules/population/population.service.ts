@@ -107,7 +107,7 @@ export class PopulationService {
 
   private async resolveResidentAddressId(
     tenantId: string,
-    body: { addressId?: string; address?: ResidentAddressInput },
+    body: { addressId?: string | null; address?: ResidentAddressInput },
   ): Promise<string | undefined> {
     if (body.address) {
       return this.resolveAddress(tenantId, body.address);
@@ -259,15 +259,21 @@ export class PopulationService {
 
     const parsed = parseWithZod(updateResidentSchema, body);
 
-    if (parsed.familyId) {
+    if (parsed.familyId !== undefined && parsed.familyId !== null) {
       const family = await this.prisma.family.findFirst({
         where: { id: parsed.familyId, tenantId, deletedAt: null },
       });
       if (!family) throw new NotFoundException('Keluarga tidak ditemukan');
     }
 
-    const { address, addressId: inputAddressId, ...rest } = parsed;
+    const { address, addressId: inputAddressId, familyId, ...rest } = parsed;
     const data: Prisma.ResidentUpdateInput = { ...rest };
+
+    if (familyId === null) {
+      data.family = { disconnect: true };
+    } else if (familyId !== undefined) {
+      data.family = { connect: { id: familyId } };
+    }
 
     if (typeof rest.birthDate === 'string') {
       data.birthDate = new Date(rest.birthDate);
@@ -277,7 +283,9 @@ export class PopulationService {
       addressId: inputAddressId,
       address,
     });
-    if (addressId !== undefined) {
+    if (inputAddressId === null) {
+      data.address = { disconnect: true };
+    } else if (addressId !== undefined) {
       data.address = { connect: { id: addressId } };
     }
 

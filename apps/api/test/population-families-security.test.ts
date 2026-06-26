@@ -45,6 +45,35 @@ describe('population and family security', () => {
     );
   });
 
+  it('normalizes ISO date strings and clears nullable resident relations on update', async () => {
+    const calls: Array<{ data: Record<string, unknown> }> = [];
+    const prisma = {
+      resident: {
+        findFirst: async () => ({ id: 'resident-a', tenantId: 'tenant-a' }),
+        update: async ({ data }: { data: Record<string, unknown> }) => {
+          calls.push({ data });
+          return { id: 'resident-a', ...data };
+        },
+      },
+      family: { findFirst: async () => null },
+    };
+    const service = new PopulationService(prisma as never, auditMock() as never);
+
+    await service.update(user as never, 'resident-a', {
+      birthDate: '1990-01-31T00:00:00.000Z',
+      familyId: null,
+      addressId: null,
+      religion: null,
+      education: null,
+    });
+
+    assert.equal((calls[0]?.data.birthDate as Date).toISOString(), '1990-01-31T00:00:00.000Z');
+    assert.deepEqual(calls[0]?.data.family, { disconnect: true });
+    assert.deepEqual(calls[0]?.data.address, { disconnect: true });
+    assert.equal(calls[0]?.data.religion, null);
+    assert.equal(calls[0]?.data.education, null);
+  });
+
   it('tenant-scopes family member resident lookup to block cross-tenant access', async () => {
     const prisma = {
       family: {
