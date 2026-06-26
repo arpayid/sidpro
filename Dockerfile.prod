@@ -21,7 +21,12 @@ ENV ENABLE_SWAGGER=false
 ENV NEXT_PUBLIC_ENABLE_DEMO_FALLBACK=false
 ENV ENABLE_PDF_WORKER=false
 RUN pnpm exec turbo run build --filter="${SERVICE}..."
-RUN CI=true pnpm prune --prod
+
+FROM build AS deploy
+ARG SERVICE
+RUN pnpm deploy --legacy --filter="${SERVICE}" --prod /prod/app
+COPY docker/copy-prisma-runtime.cjs /tmp/copy-prisma-runtime.cjs
+RUN node /tmp/copy-prisma-runtime.cjs
 
 FROM node:20-alpine AS runtime
 WORKDIR /app
@@ -32,6 +37,6 @@ ENV ENABLE_PDF_WORKER=false
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 RUN apk add --no-cache tini && corepack enable
-COPY --from=build /app /app
+COPY --from=deploy /prod/app /app
 ENTRYPOINT ["tini", "--"]
 CMD ["pnpm", "start"]

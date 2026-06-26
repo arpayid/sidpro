@@ -16,7 +16,7 @@ services:
       ENABLE_SWAGGER: ${ENABLE_SWAGGER:-false}
       ENABLE_PDF_WORKER: ${ENABLE_PDF_WORKER:-false}
       PORT: 3000
-    command: ['pnpm', '--filter', '@sidpro/web', 'start']
+    command: ['node', 'node_modules/next/dist/bin/next', 'start', '--port', '3000']
     expose:
       - '3000'
     depends_on:
@@ -53,7 +53,7 @@ services:
       REDIS_URL: ${REDIS_URL:?Set REDIS_URL in production .env}
       MINIO_ENDPOINT: ${MINIO_ENDPOINT:-minio}
       MINIO_PORT: ${MINIO_PORT:-9000}
-    command: ['pnpm', '--filter', '@sidpro/api', 'start:prod']
+    command: ['node', 'dist/main']
     expose:
       - '4000'
     depends_on:
@@ -89,10 +89,35 @@ services:
       NEXT_PUBLIC_ENABLE_DEMO_FALLBACK: ${NEXT_PUBLIC_ENABLE_DEMO_FALLBACK:-false}
       ENABLE_PDF_WORKER: ${ENABLE_PDF_WORKER:-false}
       REDIS_URL: ${REDIS_URL:?Set REDIS_URL in production .env}
-    command: ['pnpm', '--filter', '@sidpro/worker', 'start']
+    command: ['node', 'dist/index.js']
     depends_on:
       redis:
         condition: service_healthy
+
+  db-maintenance:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+      target: deps
+    image: sidpro-db-maintenance:prod
+    profiles:
+      - maintenance
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in production .env}
+      REDIS_URL: ${REDIS_URL:?Set REDIS_URL in production .env}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-minio}
+      MINIO_PORT: ${MINIO_PORT:-9000}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    command: ['pnpm', 'prisma:validate']
 
   postgres:
     image: postgres:17-alpine
@@ -155,6 +180,12 @@ services:
         condition: service_healthy
       api:
         condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1/ >/dev/null']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
 
 volumes:
   postgres_data:

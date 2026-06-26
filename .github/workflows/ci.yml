@@ -35,7 +35,7 @@ jobs:
       MINIO_ROOT_PASSWORD: sidpro_secret
       MINIO_BUCKET: sidpro-files
       MINIO_USE_SSL: 'false'
-      SEED_ADMIN_PASSWORD: Admin123!
+      SEED_ADMIN_PASSWORD: CiLoginKey2026!Aa
       SEED_ADMIN_EMAIL: admin@demo-desa.id
       REDIS_URL: redis://localhost:6379
 
@@ -143,7 +143,7 @@ jobs:
       - name: Smoke test
         env:
           API_URL: http://localhost:4000
-          STAGING_ADMIN_PASSWORD: Admin123!
+          STAGING_ADMIN_PASSWORD: CiLoginKey2026!Aa
           SMOKE_RUN_SEED: '0'
           SMOKE_SKIP_WEB: '1'
         run: bash scripts/smoke-test.sh
@@ -170,14 +170,14 @@ jobs:
       - name: Docker Compose production config
         env:
           POSTGRES_USER: sidpro_prod
-          POSTGRES_PASSWORD: ci-production-db-password-not-secret
+          POSTGRES_PASSWORD: CiDbKey2026!Aa
           POSTGRES_DB: sidpro
-          DATABASE_URL: postgresql://sidpro_prod:ci-production-db-password-not-secret@postgres:5432/sidpro?schema=public
+          DATABASE_URL: postgresql://sidpro_prod:CiDbKey2026!Aa@postgres:5432/sidpro?schema=public
           REDIS_URL: redis://redis:6379
-          JWT_SECRET: ci-production-secret-with-more-than-32-characters
+          JWT_SECRET: CiJwtSigningKey2026ValueWith32CharsAa
           CORS_ORIGIN: http://localhost
           MINIO_ROOT_USER: sidpro_prod
-          MINIO_ROOT_PASSWORD: ci-production-minio-password-not-secret
+          MINIO_ROOT_PASSWORD: CiObjectKey2026!Aa
           MINIO_BUCKET: sidpro-files
           NEXT_PUBLIC_API_URL: http://localhost
           NEXT_PUBLIC_TENANT_CODE: demo-desa
@@ -192,3 +192,224 @@ jobs:
 
       - name: Build production worker image
         run: docker build -f Dockerfile.prod --build-arg SERVICE=@sidpro/worker -t sidpro-worker:ci .
+
+  production-smoke:
+    runs-on: ubuntu-latest
+
+    env:
+      NODE_ENV: production
+      APP_URL: http://localhost:8080
+      API_URL: http://localhost:8080
+      API_PORT: '4000'
+      API_HOST: 0.0.0.0
+      POSTGRES_USER: sidpro_prod
+      POSTGRES_PASSWORD: CiDbKey2026!Aa
+      POSTGRES_DB: sidpro
+      DATABASE_URL: postgresql://sidpro_prod:CiDbKey2026!Aa@postgres:5432/sidpro?schema=public
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: CiJwtSigningKey2026ValueWith32CharsAa
+      CORS_ORIGIN: http://localhost:8080
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: '9000'
+      MINIO_ROOT_USER: sidpro_prod
+      MINIO_ROOT_PASSWORD: CiObjectKey2026!Aa
+      MINIO_BUCKET: sidpro-files
+      MINIO_USE_SSL: 'false'
+      NEXT_PUBLIC_API_URL: http://localhost:8080
+      NEXT_PUBLIC_TENANT_CODE: demo-desa
+      DEFAULT_TENANT_CODE: demo-desa
+      ENABLE_SWAGGER: 'false'
+      NEXT_PUBLIC_ENABLE_DEMO_FALLBACK: 'false'
+      ENABLE_PDF_WORKER: 'false'
+      NGINX_HTTP_PORT: '8080'
+      SEED_ADMIN_EMAIL: admin@demo-desa.id
+      SEED_ADMIN_PASSWORD: CiLoginKey2026!Aa
+      STAGING_ADMIN_EMAIL: admin@demo-desa.id
+      STAGING_ADMIN_PASSWORD: CiLoginKey2026!Aa
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write production smoke env
+        run: |
+          cat > .env <<EOF
+          NODE_ENV=${NODE_ENV}
+          APP_URL=${APP_URL}
+          API_URL=${API_URL}
+          API_PORT=${API_PORT}
+          API_HOST=${API_HOST}
+          POSTGRES_USER=${POSTGRES_USER}
+          POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+          POSTGRES_DB=${POSTGRES_DB}
+          DATABASE_URL=${DATABASE_URL}
+          REDIS_URL=${REDIS_URL}
+          JWT_SECRET=${JWT_SECRET}
+          CORS_ORIGIN=${CORS_ORIGIN}
+          MINIO_ENDPOINT=${MINIO_ENDPOINT}
+          MINIO_PORT=${MINIO_PORT}
+          MINIO_ROOT_USER=${MINIO_ROOT_USER}
+          MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+          MINIO_BUCKET=${MINIO_BUCKET}
+          MINIO_USE_SSL=${MINIO_USE_SSL}
+          NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+          NEXT_PUBLIC_TENANT_CODE=${NEXT_PUBLIC_TENANT_CODE}
+          DEFAULT_TENANT_CODE=${DEFAULT_TENANT_CODE}
+          ENABLE_SWAGGER=${ENABLE_SWAGGER}
+          NEXT_PUBLIC_ENABLE_DEMO_FALLBACK=${NEXT_PUBLIC_ENABLE_DEMO_FALLBACK}
+          ENABLE_PDF_WORKER=${ENABLE_PDF_WORKER}
+          NGINX_HTTP_PORT=${NGINX_HTTP_PORT}
+          SEED_ADMIN_EMAIL=${SEED_ADMIN_EMAIL}
+          SEED_ADMIN_PASSWORD=${SEED_ADMIN_PASSWORD}
+          STAGING_ADMIN_EMAIL=${STAGING_ADMIN_EMAIL}
+          STAGING_ADMIN_PASSWORD=${STAGING_ADMIN_PASSWORD}
+          EOF
+
+      - name: Build production compose images
+        run: |
+          docker compose -f docker-compose.prod.yml build
+          docker compose -f docker-compose.prod.yml --profile maintenance build db-maintenance
+
+      - name: Verify production runtime module resolution
+        run: |
+          set -euo pipefail
+          docker compose -f docker-compose.prod.yml run --no-deps --rm api node -e "require.resolve('@nestjs/core'); console.log('@nestjs/core resolved')"
+          docker compose -f docker-compose.prod.yml run --no-deps --rm worker node -e "require.resolve('bullmq'); console.log('bullmq resolved')"
+          docker compose -f docker-compose.prod.yml run --no-deps --rm web node -e "require.resolve('next'); console.log('next resolved')"
+          docker compose -f docker-compose.prod.yml run --no-deps --rm api node -e "const { PrismaClient } = require('@prisma/client'); console.log(typeof PrismaClient)"
+          docker compose -f docker-compose.prod.yml run --no-deps --rm worker node -e "const { PrismaClient } = require('@prisma/client'); console.log(typeof PrismaClient)"
+
+      - name: Start production infrastructure
+        run: |
+          docker compose -f docker-compose.prod.yml up -d postgres redis minio || {
+            docker compose -f docker-compose.prod.yml ps
+            docker compose -f docker-compose.prod.yml logs postgres redis minio
+            exit 1
+          }
+
+      - name: Wait for production infrastructure healthchecks
+        run: |
+          set -euo pipefail
+
+          wait_healthy() {
+            local service="$1"
+            local cid
+            cid="$(docker compose -f docker-compose.prod.yml ps -q "$service")"
+            if [ -z "$cid" ]; then
+              echo "Container for $service not found"
+              docker compose -f docker-compose.prod.yml ps
+              exit 1
+            fi
+
+            for i in $(seq 1 60); do
+              status="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$cid")"
+              echo "$service health: $status"
+              if [ "$status" = "healthy" ]; then
+                return 0
+              fi
+              if [ "$status" = "unhealthy" ] || [ "$status" = "exited" ]; then
+                docker compose -f docker-compose.prod.yml logs "$service"
+                exit 1
+              fi
+              sleep 5
+            done
+
+            docker compose -f docker-compose.prod.yml ps
+            docker compose -f docker-compose.prod.yml logs "$service"
+            echo "$service did not become healthy"
+            exit 1
+          }
+
+          for service in postgres redis minio; do
+            wait_healthy "$service"
+          done
+
+      - name: Migrate and seed production smoke database
+        run: |
+          docker compose -f docker-compose.prod.yml --profile maintenance run --rm db-maintenance pnpm exec prisma migrate deploy --schema=prisma/schema.prisma
+          docker compose -f docker-compose.prod.yml --profile maintenance run --rm db-maintenance pnpm prisma:seed
+
+      - name: Start production application services
+        run: |
+          docker compose -f docker-compose.prod.yml up -d api worker web nginx || {
+            docker compose -f docker-compose.prod.yml ps
+            docker compose -f docker-compose.prod.yml logs api worker web nginx
+            exit 1
+          }
+
+      - name: Wait for production healthchecks
+        run: |
+          set -euo pipefail
+
+          wait_healthy() {
+            local service="$1"
+            local cid
+            cid="$(docker compose -f docker-compose.prod.yml ps -q "$service")"
+            if [ -z "$cid" ]; then
+              echo "Container for $service not found"
+              docker compose -f docker-compose.prod.yml ps
+              exit 1
+            fi
+
+            for i in $(seq 1 60); do
+              status="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$cid")"
+              echo "$service health: $status"
+              if [ "$status" = "healthy" ] || { [ "$service" = "worker" ] && [ "$status" = "running" ]; }; then
+                return 0
+              fi
+              if [ "$status" = "unhealthy" ] || [ "$status" = "exited" ]; then
+                docker compose -f docker-compose.prod.yml logs "$service"
+                exit 1
+              fi
+              sleep 5
+            done
+
+            docker compose -f docker-compose.prod.yml ps
+            docker compose -f docker-compose.prod.yml logs "$service"
+            echo "$service did not become healthy"
+            exit 1
+          }
+
+          for service in postgres redis minio api web worker nginx; do
+            wait_healthy "$service"
+          done
+
+      - name: Smoke test production endpoints and queue
+        run: |
+          set -euo pipefail
+
+          curl -fsS http://localhost:8080/ >/dev/null
+          curl -fsS http://localhost:8080/api/v1/health | grep -q healthy
+          curl -fsS 'http://localhost:8080/api/v1/public/map?tenantCode=demo-desa' | grep -q success
+
+          login="$(curl -fsS -X POST http://localhost:8080/api/v1/auth/login \
+            -H 'Content-Type: application/json' \
+            -d "{\"email\":\"$STAGING_ADMIN_EMAIL\",\"password\":\"$STAGING_ADMIN_PASSWORD\"}")"
+          access="$(node -e "const j=JSON.parse(process.argv[1]); console.log(j.data?.accessToken || '')" "$login")"
+          test -n "$access"
+
+          complaint="$(curl -fsS -X POST 'http://localhost:8080/api/v1/complaints/public?tenantCode=demo-desa' \
+            -H 'Content-Type: application/json' \
+            -d '{"title":"CI Queue Smoke","description":"Production smoke queue notification","category":"Lingkungan","priority":"medium","location":"RT 01","reporterName":"CI Smoke","reporterPhone":"08123456780","reporterEmail":"ci-smoke@example.test"}')"
+          complaint_id="$(node -e "const j=JSON.parse(process.argv[1]); console.log(j.data?.id || '')" "$complaint")"
+          test -n "$complaint_id"
+
+          curl -fsS -X PATCH "http://localhost:8080/api/v1/complaints/$complaint_id/status" \
+            -H "Authorization: Bearer $access" \
+            -H 'Content-Type: application/json' \
+            -d '{"status":"verified","note":"CI production smoke queue trigger"}' | grep -q success
+
+          for i in $(seq 1 30); do
+            if docker compose -f docker-compose.prod.yml logs worker | grep -q '\[notifications\] Job .* completed'; then
+              echo "Notification queue job processed by worker"
+              exit 0
+            fi
+            sleep 2
+          done
+
+          docker compose -f docker-compose.prod.yml logs worker
+          echo "Notification queue job was not processed by worker"
+          exit 1
+
+      - name: Cleanup production compose stack
+        if: always()
+        run: docker compose -f docker-compose.prod.yml down -v
