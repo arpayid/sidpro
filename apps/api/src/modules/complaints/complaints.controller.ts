@@ -175,7 +175,12 @@ export class ComplaintsController {
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Patch(':id/close')
   @RequirePermissions('complaints.close')
-  close(@CurrentUser() user: JwtPayload, @Param('id') id: string, @Req() req: Request) {
-    return this.complaintsService.close(user, id, req.ip);
+  close(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @Req() req: Request,
+  ) {
+    return this.complaintsService.close(user, id, body, req.ip);
   }
 }

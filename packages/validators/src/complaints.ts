@@ -1,59 +1,80 @@
 import { z } from 'zod';
 
+const phoneRegex = /^(?:\+62|62|0)8[1-9][0-9]{6,11}$/;
+const tenantCodeRegex = /^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$/;
+
+export const complaintTenantCodeSchema = z
+  .string({ required_error: 'Kode tenant wajib diisi' })
+  .trim()
+  .min(2, 'Kode tenant minimal 2 karakter')
+  .max(63, 'Kode tenant maksimal 63 karakter')
+  .regex(tenantCodeRegex, 'Kode tenant tidak valid');
+
+const complaintFileIdsSchema = z
+  .array(z.string().uuid('File ID tidak valid'))
+  .max(3, 'Maksimal 3 lampiran')
+  .refine((ids) => new Set(ids).size === ids.length, 'File ID tidak boleh duplikat');
+
 export const createComplaintSchema = z.object({
-  title: z.string().min(5, 'Judul minimal 5 karakter').max(200),
-  description: z.string().min(10, 'Deskripsi minimal 10 karakter').max(5000),
-  category: z.string().min(2),
+  title: z.string().trim().min(5, 'Judul minimal 5 karakter').max(200),
+  description: z.string().trim().min(10, 'Deskripsi minimal 10 karakter').max(5000),
+  category: z.string().trim().min(2, 'Kategori wajib dipilih').max(100),
   priority: z.enum(['low', 'medium', 'high', 'urgent']).default('medium'),
-  location: z.string().optional(),
-  reporterName: z.string().min(2).optional(),
-  reporterPhone: z.string().optional(),
-  reporterEmail: z.string().email().optional(),
-  fileIds: z.array(z.string().uuid()).max(3).optional(),
+  location: z.string().trim().max(255).optional(),
+  reporterName: z.string().trim().min(2).max(120).optional(),
+  reporterPhone: z.string().trim().regex(phoneRegex, 'Nomor telepon tidak valid').optional(),
+  reporterEmail: z.string().trim().email('Email tidak valid').max(254).optional(),
+  fileIds: complaintFileIdsSchema.optional(),
+});
+
+export const publicCreateComplaintSchema = createComplaintSchema.extend({
+  reporterName: z.string().trim().min(2, 'Nama minimal 2 karakter').max(120),
+  reporterPhone: z.string().trim().regex(phoneRegex, 'Nomor telepon tidak valid'),
+  reporterEmail: z.string().trim().email('Email tidak valid').max(254).optional(),
 });
 
 export const respondComplaintSchema = z.object({
-  response: z.string().min(5, 'Tanggapan minimal 5 karakter').max(5000),
+  response: z.string().trim().min(5, 'Tanggapan minimal 5 karakter').max(5000),
   status: z.enum(['in_progress', 'resolved']).optional(),
 });
 
 export const assignComplaintSchema = z.object({
-  assigneeId: z.string().uuid(),
+  assigneeId: z.string().uuid('Petugas tidak valid'),
 });
 
-export const updateComplaintStatusSchema = z.object({
-  status: z.enum([
-    'submitted',
-    'verified',
-    'assigned',
-    'in_progress',
-    'resolved',
-    'rejected',
-    'closed',
-  ]),
-  note: z.string().max(2000).optional(),
-});
+export const updateComplaintStatusSchema = z
+  .object({
+    status: z.enum([
+      'submitted',
+      'verified',
+      'assigned',
+      'in_progress',
+      'resolved',
+      'rejected',
+      'closed',
+    ]),
+    note: z.string().trim().min(5, 'Catatan minimal 5 karakter').max(2000).optional(),
+    closeReason: z.string().trim().min(5, 'Alasan penutupan minimal 5 karakter').max(2000).optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (['rejected', 'closed'].includes(value.status) && !value.note && !value.closeReason) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['closeReason'],
+        message: 'Alasan penutupan/penolakan wajib diisi',
+      });
+    }
+  });
 
 export type CreateComplaintInput = z.infer<typeof createComplaintSchema>;
+export type PublicCreateComplaintInput = z.infer<typeof publicCreateComplaintSchema>;
 export type RespondComplaintInput = z.infer<typeof respondComplaintSchema>;
 export type AssignComplaintInput = z.infer<typeof assignComplaintSchema>;
 export type UpdateComplaintStatusInput = z.infer<typeof updateComplaintStatusSchema>;
 
 /** Public portal form — maps to POST /complaints/public body */
-export const publicComplaintFormSchema = z.object({
-  reporterName: z.string().min(2, 'Nama minimal 2 karakter'),
-  reporterPhone: z.string().min(8, 'Nomor telepon tidak valid'),
-  reporterEmail: z
-    .string()
-    .email('Email tidak valid')
-    .optional()
-    .or(z.literal('')),
-  category: z.string().min(2, 'Pilih kategori'),
-  title: z.string().min(5, 'Subjek minimal 5 karakter').max(200),
-  description: z.string().min(10, 'Isi pengaduan minimal 10 karakter').max(5000),
-  priority: z.enum(['low', 'medium', 'high', 'urgent']),
-  location: z.string().optional(),
-  fileIds: z.array(z.string().uuid()).max(3).optional(),
+export const publicComplaintFormSchema = publicCreateComplaintSchema.extend({
+  reporterEmail: z.string().trim().email('Email tidak valid').optional().or(z.literal('')),
 });
 
 export type PublicComplaintFormInput = z.input<typeof publicComplaintFormSchema>;
@@ -77,8 +98,9 @@ export function toPublicComplaintPayload(values: PublicComplaintFormValues) {
 export const publicComplaintTrackSchema = z.object({
   ticket: z
     .string()
+    .trim()
     .regex(/^PGD-[A-Z0-9]{8}$/i, 'Format tiket: PGD-XXXXXXXX (8 karakter)'),
-  reporterPhone: z.string().min(8, 'Nomor telepon tidak valid'),
+  reporterPhone: z.string().trim().regex(phoneRegex, 'Nomor telepon tidak valid'),
 });
 
 export type PublicComplaintTrackInput = z.infer<typeof publicComplaintTrackSchema>;
