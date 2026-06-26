@@ -72,6 +72,19 @@ assert_smoke_nik() {
   fi
 }
 
+smoke_kk() {
+  local seed="${SMOKE_KK_SEED:-${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-0}-$(date +%s%N)-$$}"
+  node -e "const crypto=require('crypto');const seed=process.argv[1];const hash=crypto.createHash('sha256').update(seed).digest('hex');const suffix=(BigInt('0x'+hash)%10000000000n).toString().padStart(10,'0');console.log('320101'+suffix);" "$seed"
+}
+
+assert_smoke_kk() {
+  local kk="$1"
+  if [[ ! "$kk" =~ ^[0-9]{16}$ ]]; then
+    echo "[smoke-test] ERROR: Generated smoke KK must match ^[0-9]{16}$, got '$kk' (${#kk} chars)." >&2
+    exit 1
+  fi
+}
+
 # 1. Health
 HEALTH=$(curl -sf "$API/health" | grep -c healthy || true)
 check "GET /api/v1/health" "$([ "$HEALTH" -ge 1 ] && echo 1 || echo 0)"
@@ -141,7 +154,8 @@ GET_RES=$(curl -sf -H "$AUTH" "$API/residents/$RES_ID" | grep -c "Warga Staging 
 check "CRUD penduduk (create/update/read)" "$([ -n "$RES_ID" ] && [ "$UPDATE_RES" -ge 1 ] && [ "$GET_RES" -ge 1 ] && echo 1 || echo 0)"
 
 # 6. CRUD Family
-KK="320101$(date +%H%M%S | tail -c 6)0001"
+KK="$(smoke_kk)"
+assert_smoke_kk "$KK"
 CREATE_FAM=$(curl -sf -X POST "$API/families" -H "$AUTH" -H 'Content-Type: application/json' \
   -d "{\"kkNumber\":\"$KK\",\"economicStatus\":\"middle\"}")
 FAM_ID=$(echo "$CREATE_FAM" | json_field "console.log(j.data?.id||'')")
