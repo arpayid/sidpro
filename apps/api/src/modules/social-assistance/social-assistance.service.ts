@@ -9,6 +9,8 @@ import { PrismaService } from '../../database/prisma.service';
 import { AuditLogsService } from '../../core/audit-logs/audit-logs.service';
 import { JwtPayload } from '../../common/decorators/current-user.decorator';
 import { paginatedResponse, successResponse } from '../../common/utils/response.util';
+import { parseWithZod } from '../../common/utils/zod-validation.util';
+import { createSocialAidProgramSchema, createSocialAidRecipientSchema, updateSocialAidProgramSchema, updateSocialAidRecipientSchema } from '@sidpro/validators';
 
 @Injectable()
 export class SocialAssistanceService {
@@ -40,31 +42,25 @@ export class SocialAssistanceService {
 
   async createProgram(
     user: JwtPayload,
-    body: {
-      name: string;
-      code: string;
-      description?: string;
-      status?: string;
-      startDate?: string;
-      endDate?: string;
-    },
+    body: unknown,
     ipAddress?: string,
   ) {
     const tenantId = this.requireTenant(user);
+    const parsed = parseWithZod(createSocialAidProgramSchema, body);
     const existing = await this.prisma.aidProgram.findUnique({
-      where: { tenantId_code: { tenantId, code: body.code } },
+      where: { tenantId_code: { tenantId, code: parsed.code } },
     });
     if (existing) throw new ConflictException('Kode program sudah digunakan');
 
     const program = await this.prisma.aidProgram.create({
       data: {
         tenantId,
-        name: body.name,
-        code: body.code,
-        description: body.description,
-        status: body.status ?? 'active',
-        startDate: body.startDate ? new Date(body.startDate) : null,
-        endDate: body.endDate ? new Date(body.endDate) : null,
+        name: parsed.name,
+        code: parsed.code,
+        description: parsed.description,
+        status: parsed.status ?? 'active',
+        startDate: parsed.startDate ? new Date(parsed.startDate) : null,
+        endDate: parsed.endDate ? new Date(parsed.endDate) : null,
       },
     });
 
@@ -84,14 +80,14 @@ export class SocialAssistanceService {
   async updateProgram(
     user: JwtPayload,
     id: string,
-    body: Record<string, unknown>,
+    body: unknown,
     ipAddress?: string,
   ) {
     const tenantId = this.requireTenant(user);
     const existing = await this.prisma.aidProgram.findFirst({ where: { id, tenantId } });
     if (!existing) throw new NotFoundException('Program bantuan tidak ditemukan');
 
-    const data = { ...body };
+    const data: Record<string, unknown> = { ...parseWithZod(updateSocialAidProgramSchema, body) };
     if (typeof data.startDate === 'string') data.startDate = new Date(data.startDate);
     if (typeof data.endDate === 'string') data.endDate = new Date(data.endDate);
 
@@ -128,16 +124,11 @@ export class SocialAssistanceService {
   async addRecipient(
     user: JwtPayload,
     programId: string,
-    body: {
-      residentId?: string;
-      familyId?: string;
-      status?: string;
-      amount?: number;
-      notes?: string;
-    },
+    body: unknown,
     ipAddress?: string,
   ) {
     const tenantId = this.requireTenant(user);
+    const parsed = parseWithZod(createSocialAidRecipientSchema, body);
     const program = await this.prisma.aidProgram.findFirst({ where: { id: programId, tenantId } });
     if (!program) throw new NotFoundException('Program bantuan tidak ditemukan');
 
@@ -145,11 +136,11 @@ export class SocialAssistanceService {
       data: {
         tenantId,
         programId,
-        residentId: body.residentId,
-        familyId: body.familyId,
-        status: body.status ?? 'pending',
-        amount: body.amount !== undefined ? new Prisma.Decimal(body.amount) : null,
-        notes: body.notes,
+        residentId: parsed.residentId,
+        familyId: parsed.familyId,
+        status: parsed.status ?? 'pending',
+        amount: parsed.amount !== undefined ? new Prisma.Decimal(parsed.amount) : null,
+        notes: parsed.notes,
       },
     });
 
@@ -169,19 +160,20 @@ export class SocialAssistanceService {
   async updateRecipient(
     user: JwtPayload,
     id: string,
-    body: { status?: string; amount?: number; notes?: string },
+    body: unknown,
     ipAddress?: string,
   ) {
     const tenantId = this.requireTenant(user);
+    const parsed = parseWithZod(updateSocialAidRecipientSchema, body);
     const existing = await this.prisma.aidRecipient.findFirst({ where: { id, tenantId } });
     if (!existing) throw new NotFoundException('Penerima bantuan tidak ditemukan');
 
     const recipient = await this.prisma.aidRecipient.update({
       where: { id },
       data: {
-        ...(body.status ? { status: body.status } : {}),
-        ...(body.amount !== undefined ? { amount: new Prisma.Decimal(body.amount) } : {}),
-        ...(body.notes !== undefined ? { notes: body.notes } : {}),
+        ...(parsed.status ? { status: parsed.status } : {}),
+        ...(parsed.amount !== undefined ? { amount: new Prisma.Decimal(parsed.amount) } : {}),
+        ...(parsed.notes !== undefined ? { notes: parsed.notes } : {}),
       },
     });
 

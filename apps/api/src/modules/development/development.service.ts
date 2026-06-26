@@ -9,6 +9,8 @@ import { PrismaService } from '../../database/prisma.service';
 import { AuditLogsService } from '../../core/audit-logs/audit-logs.service';
 import { JwtPayload } from '../../common/decorators/current-user.decorator';
 import { paginatedResponse, successResponse } from '../../common/utils/response.util';
+import { parseWithZod } from '../../common/utils/zod-validation.util';
+import { createDevelopmentProjectSchema, updateDevelopmentProjectSchema } from '@sidpro/validators';
 
 @Injectable()
 export class DevelopmentService {
@@ -83,39 +85,29 @@ export class DevelopmentService {
 
   async create(
     user: JwtPayload,
-    body: {
-      name: string;
-      code: string;
-      description?: string;
-      location?: string;
-      budget?: number;
-      fundingSource?: string;
-      status?: string;
-      progress?: number;
-      startDate?: string;
-      endDate?: string;
-    },
+    body: unknown,
     ipAddress?: string,
   ) {
     const tenantId = this.requireTenant(user);
+    const parsed = parseWithZod(createDevelopmentProjectSchema, body);
     const existing = await this.prisma.developmentProject.findUnique({
-      where: { tenantId_code: { tenantId, code: body.code } },
+      where: { tenantId_code: { tenantId, code: parsed.code } },
     });
     if (existing) throw new ConflictException('Kode proyek sudah digunakan');
 
     const project = await this.prisma.developmentProject.create({
       data: {
         tenantId,
-        name: body.name,
-        code: body.code,
-        description: body.description,
-        location: body.location,
-        budget: body.budget !== undefined ? new Prisma.Decimal(body.budget) : null,
-        fundingSource: body.fundingSource,
-        status: body.status ?? 'planned',
-        progress: body.progress ?? 0,
-        startDate: body.startDate ? new Date(body.startDate) : null,
-        endDate: body.endDate ? new Date(body.endDate) : null,
+        name: parsed.name,
+        code: parsed.code,
+        description: parsed.description,
+        location: parsed.location,
+        budget: parsed.budget !== undefined ? new Prisma.Decimal(parsed.budget) : null,
+        fundingSource: parsed.fundingSource,
+        status: parsed.status ?? 'planned',
+        progress: parsed.progress ?? 0,
+        startDate: parsed.startDate ? new Date(parsed.startDate) : null,
+        endDate: parsed.endDate ? new Date(parsed.endDate) : null,
       },
     });
 
@@ -135,14 +127,14 @@ export class DevelopmentService {
   async update(
     user: JwtPayload,
     id: string,
-    body: Record<string, unknown>,
+    body: unknown,
     ipAddress?: string,
   ) {
     const tenantId = this.requireTenant(user);
     const existing = await this.prisma.developmentProject.findFirst({ where: { id, tenantId } });
     if (!existing) throw new NotFoundException('Proyek pembangunan tidak ditemukan');
 
-    const data = { ...body };
+    const data: Record<string, unknown> = { ...parseWithZod(updateDevelopmentProjectSchema, body) };
     if (typeof data.budget === 'number') data.budget = new Prisma.Decimal(data.budget);
     if (typeof data.startDate === 'string') data.startDate = new Date(data.startDate);
     if (typeof data.endDate === 'string') data.endDate = new Date(data.endDate);

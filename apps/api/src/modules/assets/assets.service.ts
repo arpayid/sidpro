@@ -9,6 +9,8 @@ import { PrismaService } from '../../database/prisma.service';
 import { AuditLogsService } from '../../core/audit-logs/audit-logs.service';
 import { JwtPayload } from '../../common/decorators/current-user.decorator';
 import { paginatedResponse, successResponse } from '../../common/utils/response.util';
+import { parseWithZod } from '../../common/utils/zod-validation.util';
+import { createAssetSchema, updateAssetSchema } from '@sidpro/validators';
 
 @Injectable()
 export class AssetsService {
@@ -46,33 +48,26 @@ export class AssetsService {
 
   async create(
     user: JwtPayload,
-    body: {
-      name: string;
-      code: string;
-      category: string;
-      condition?: string;
-      location?: string;
-      value?: number;
-      description?: string;
-    },
+    body: unknown,
     ipAddress?: string,
   ) {
     const tenantId = this.requireTenant(user);
+    const parsed = parseWithZod(createAssetSchema, body);
     const existing = await this.prisma.asset.findUnique({
-      where: { tenantId_code: { tenantId, code: body.code } },
+      where: { tenantId_code: { tenantId, code: parsed.code } },
     });
     if (existing) throw new ConflictException('Kode aset sudah digunakan');
 
     const asset = await this.prisma.asset.create({
       data: {
         tenantId,
-        name: body.name,
-        code: body.code,
-        category: body.category,
-        condition: body.condition ?? 'good',
-        location: body.location,
-        value: body.value !== undefined ? new Prisma.Decimal(body.value) : null,
-        description: body.description,
+        name: parsed.name,
+        code: parsed.code,
+        category: parsed.category,
+        condition: parsed.condition ?? 'good',
+        location: parsed.location,
+        value: parsed.value !== undefined ? new Prisma.Decimal(parsed.value) : null,
+        description: parsed.description,
       },
     });
 
@@ -92,14 +87,14 @@ export class AssetsService {
   async update(
     user: JwtPayload,
     id: string,
-    body: Record<string, unknown>,
+    body: unknown,
     ipAddress?: string,
   ) {
     const tenantId = this.requireTenant(user);
     const existing = await this.prisma.asset.findFirst({ where: { id, tenantId } });
     if (!existing) throw new NotFoundException('Aset tidak ditemukan');
 
-    const data = { ...body };
+    const data: Record<string, unknown> = { ...parseWithZod(updateAssetSchema, body) };
     if (typeof data.value === 'number') data.value = new Prisma.Decimal(data.value);
 
     const asset = await this.prisma.asset.update({ where: { id }, data });

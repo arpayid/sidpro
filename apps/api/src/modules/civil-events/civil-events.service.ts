@@ -3,6 +3,8 @@ import { PrismaService } from '../../database/prisma.service';
 import { AuditLogsService } from '../../core/audit-logs/audit-logs.service';
 import { JwtPayload } from '../../common/decorators/current-user.decorator';
 import { paginatedResponse, successResponse } from '../../common/utils/response.util';
+import { parseWithZod } from '../../common/utils/zod-validation.util';
+import { createCivilEventSchema, updateCivilEventSchema } from '@sidpro/validators';
 
 @Injectable()
 export class CivilEventsService {
@@ -49,18 +51,22 @@ export class CivilEventsService {
 
   async create(
     user: JwtPayload,
-    body: { residentId: string; eventType: string; eventDate: string; notes?: string },
+    body: unknown,
     ipAddress?: string,
   ) {
     const tenantId = this.requireTenant(user);
+    const parsed = parseWithZod(createCivilEventSchema, body);
+
+    const resident = await this.prisma.resident.findFirst({ where: { id: parsed.residentId, tenantId } });
+    if (!resident) throw new NotFoundException('Penduduk tidak ditemukan');
 
     const event = await this.prisma.civilEvent.create({
       data: {
         tenantId,
-        residentId: body.residentId,
-        eventType: body.eventType,
-        eventDate: new Date(body.eventDate),
-        notes: body.notes,
+        residentId: parsed.residentId,
+        eventType: parsed.eventType,
+        eventDate: new Date(parsed.eventDate),
+        notes: parsed.notes,
       },
       include: { resident: { select: { id: true, fullName: true } } },
     });
@@ -81,19 +87,20 @@ export class CivilEventsService {
   async update(
     user: JwtPayload,
     id: string,
-    body: { eventType?: string; eventDate?: string; notes?: string },
+    body: unknown,
     ipAddress?: string,
   ) {
     const tenantId = this.requireTenant(user);
+    const parsed = parseWithZod(updateCivilEventSchema, body);
     const existing = await this.prisma.civilEvent.findFirst({ where: { id, tenantId } });
     if (!existing) throw new NotFoundException('Peristiwa sipil tidak ditemukan');
 
     const event = await this.prisma.civilEvent.update({
       where: { id },
       data: {
-        ...(body.eventType ? { eventType: body.eventType } : {}),
-        ...(body.eventDate ? { eventDate: new Date(body.eventDate) } : {}),
-        ...(body.notes !== undefined ? { notes: body.notes } : {}),
+        ...(parsed.eventType ? { eventType: parsed.eventType } : {}),
+        ...(parsed.eventDate ? { eventDate: new Date(parsed.eventDate) } : {}),
+        ...(parsed.notes !== undefined ? { notes: parsed.notes } : {}),
       },
     });
 
