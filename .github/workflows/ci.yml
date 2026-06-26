@@ -35,7 +35,7 @@ jobs:
       MINIO_ROOT_PASSWORD: sidpro_secret
       MINIO_BUCKET: sidpro-files
       MINIO_USE_SSL: 'false'
-      SEED_ADMIN_PASSWORD: Admin123!
+      SEED_ADMIN_PASSWORD: CiLoginKey2026!Aa
       SEED_ADMIN_EMAIL: admin@demo-desa.id
       REDIS_URL: redis://localhost:6379
 
@@ -143,7 +143,7 @@ jobs:
       - name: Smoke test
         env:
           API_URL: http://localhost:4000
-          STAGING_ADMIN_PASSWORD: Admin123!
+          STAGING_ADMIN_PASSWORD: CiLoginKey2026!Aa
           SMOKE_RUN_SEED: '0'
           SMOKE_SKIP_WEB: '1'
         run: bash scripts/smoke-test.sh
@@ -170,14 +170,14 @@ jobs:
       - name: Docker Compose production config
         env:
           POSTGRES_USER: sidpro_prod
-          POSTGRES_PASSWORD: ci-production-db-password-not-secret
+          POSTGRES_PASSWORD: CiDbKey2026!Aa
           POSTGRES_DB: sidpro
-          DATABASE_URL: postgresql://sidpro_prod:ci-production-db-password-not-secret@postgres:5432/sidpro?schema=public
+          DATABASE_URL: postgresql://sidpro_prod:CiDbKey2026!Aa@postgres:5432/sidpro?schema=public
           REDIS_URL: redis://redis:6379
-          JWT_SECRET: ci-production-secret-with-more-than-32-characters
+          JWT_SECRET: CiJwtSigningKey2026ValueWith32CharsAa
           CORS_ORIGIN: http://localhost
           MINIO_ROOT_USER: sidpro_prod
-          MINIO_ROOT_PASSWORD: ci-production-minio-password-not-secret
+          MINIO_ROOT_PASSWORD: CiObjectKey2026!Aa
           MINIO_BUCKET: sidpro-files
           NEXT_PUBLIC_API_URL: http://localhost
           NEXT_PUBLIC_TENANT_CODE: demo-desa
@@ -203,16 +203,16 @@ jobs:
       API_PORT: '4000'
       API_HOST: 0.0.0.0
       POSTGRES_USER: sidpro_prod
-      POSTGRES_PASSWORD: ci-production-db-password-not-secret
+      POSTGRES_PASSWORD: CiDbKey2026!Aa
       POSTGRES_DB: sidpro
-      DATABASE_URL: postgresql://sidpro_prod:ci-production-db-password-not-secret@postgres:5432/sidpro?schema=public
+      DATABASE_URL: postgresql://sidpro_prod:CiDbKey2026!Aa@postgres:5432/sidpro?schema=public
       REDIS_URL: redis://redis:6379
-      JWT_SECRET: ci-production-secret-with-more-than-32-characters
+      JWT_SECRET: CiJwtSigningKey2026ValueWith32CharsAa
       CORS_ORIGIN: http://localhost:8080
       MINIO_ENDPOINT: minio
       MINIO_PORT: '9000'
       MINIO_ROOT_USER: sidpro_prod
-      MINIO_ROOT_PASSWORD: ci-production-minio-password-not-secret
+      MINIO_ROOT_PASSWORD: CiObjectKey2026!Aa
       MINIO_BUCKET: sidpro-files
       MINIO_USE_SSL: 'false'
       NEXT_PUBLIC_API_URL: http://localhost:8080
@@ -223,9 +223,9 @@ jobs:
       ENABLE_PDF_WORKER: 'false'
       NGINX_HTTP_PORT: '8080'
       SEED_ADMIN_EMAIL: admin@demo-desa.id
-      SEED_ADMIN_PASSWORD: Admin123!
+      SEED_ADMIN_PASSWORD: CiLoginKey2026!Aa
       STAGING_ADMIN_EMAIL: admin@demo-desa.id
-      STAGING_ADMIN_PASSWORD: Admin123!
+      STAGING_ADMIN_PASSWORD: CiLoginKey2026!Aa
 
     steps:
       - uses: actions/checkout@v4
@@ -265,15 +265,17 @@ jobs:
           EOF
 
       - name: Build production compose images
-        run: docker compose -f docker-compose.prod.yml build
+        run: |
+          docker compose -f docker-compose.prod.yml build
+          docker compose -f docker-compose.prod.yml build db-maintenance
 
       - name: Start production compose stack
-        run: docker compose -f docker-compose.prod.yml up -d
+        run: docker compose -f docker-compose.prod.yml up -d || { docker compose -f docker-compose.prod.yml ps; docker compose -f docker-compose.prod.yml logs; exit 1; }
 
       - name: Migrate and seed production smoke database
         run: |
-          docker compose -f docker-compose.prod.yml exec -T api pnpm exec prisma migrate deploy --schema=prisma/schema.prisma
-          docker compose -f docker-compose.prod.yml exec -T api pnpm prisma:seed
+          docker compose -f docker-compose.prod.yml run --rm db-maintenance pnpm exec prisma migrate deploy --schema=prisma/schema.prisma
+          docker compose -f docker-compose.prod.yml run --rm db-maintenance pnpm prisma:seed
 
       - name: Wait for production healthchecks
         run: |
