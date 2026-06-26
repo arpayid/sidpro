@@ -269,6 +269,12 @@ jobs:
           docker compose -f docker-compose.prod.yml build
           docker compose -f docker-compose.prod.yml --profile maintenance build db-maintenance
 
+      - name: Verify production runtime module resolution
+        run: |
+          set -euo pipefail
+          docker compose -f docker-compose.prod.yml run --no-deps --rm api node -e "require.resolve('@nestjs/core'); console.log('@nestjs/core resolved')"
+          docker compose -f docker-compose.prod.yml run --no-deps --rm worker node -e "require.resolve('bullmq'); console.log('bullmq resolved')"
+
       - name: Start production infrastructure
         run: |
           docker compose -f docker-compose.prod.yml up -d postgres redis minio || {
