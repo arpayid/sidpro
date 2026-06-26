@@ -267,15 +267,65 @@ jobs:
       - name: Build production compose images
         run: |
           docker compose -f docker-compose.prod.yml build
-          docker compose -f docker-compose.prod.yml build db-maintenance
+          docker compose -f docker-compose.prod.yml --profile maintenance build db-maintenance
 
-      - name: Start production compose stack
-        run: docker compose -f docker-compose.prod.yml up -d || { docker compose -f docker-compose.prod.yml ps; docker compose -f docker-compose.prod.yml logs; exit 1; }
+      - name: Start production infrastructure
+        run: |
+          docker compose -f docker-compose.prod.yml up -d postgres redis minio || {
+            docker compose -f docker-compose.prod.yml ps
+            docker compose -f docker-compose.prod.yml logs postgres redis minio
+            exit 1
+          }
+
+      - name: Wait for production infrastructure healthchecks
+        run: |
+          set -euo pipefail
+
+          wait_healthy() {
+            local service="$1"
+            local cid
+            cid="$(docker compose -f docker-compose.prod.yml ps -q "$service")"
+            if [ -z "$cid" ]; then
+              echo "Container for $service not found"
+              docker compose -f docker-compose.prod.yml ps
+              exit 1
+            fi
+
+            for i in $(seq 1 60); do
+              status="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$cid")"
+              echo "$service health: $status"
+              if [ "$status" = "healthy" ]; then
+                return 0
+              fi
+              if [ "$status" = "unhealthy" ] || [ "$status" = "exited" ]; then
+                docker compose -f docker-compose.prod.yml logs "$service"
+                exit 1
+              fi
+              sleep 5
+            done
+
+            docker compose -f docker-compose.prod.yml ps
+            docker compose -f docker-compose.prod.yml logs "$service"
+            echo "$service did not become healthy"
+            exit 1
+          }
+
+          for service in postgres redis minio; do
+            wait_healthy "$service"
+          done
 
       - name: Migrate and seed production smoke database
         run: |
-          docker compose -f docker-compose.prod.yml run --rm db-maintenance pnpm exec prisma migrate deploy --schema=prisma/schema.prisma
-          docker compose -f docker-compose.prod.yml run --rm db-maintenance pnpm prisma:seed
+          docker compose -f docker-compose.prod.yml --profile maintenance run --rm db-maintenance pnpm exec prisma migrate deploy --schema=prisma/schema.prisma
+          docker compose -f docker-compose.prod.yml --profile maintenance run --rm db-maintenance pnpm prisma:seed
+
+      - name: Start production application services
+        run: |
+          docker compose -f docker-compose.prod.yml up -d api worker web nginx || {
+            docker compose -f docker-compose.prod.yml ps
+            docker compose -f docker-compose.prod.yml logs api worker web nginx
+            exit 1
+          }
 
       - name: Wait for production healthchecks
         run: |
