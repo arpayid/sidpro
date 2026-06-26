@@ -3,22 +3,20 @@ import {
   NotFoundException,
   ConflictException,
   ForbiddenException,
-  BadRequestException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import {
+  createResidentSchema,
+  residentMutationSchema,
+  updateResidentSchema,
+} from '@sidpro/validators';
+import { parseWithZod } from '../../common/utils/zod-validation.util';
 import { Response } from 'express';
 import { PrismaService } from '../../database/prisma.service';
-import {
-  sendXlsxDownload,
-  xlsxBufferToJson,
-} from '../../common/utils/spreadsheet.util';
+import { sendXlsxDownload, xlsxBufferToJson } from '../../common/utils/spreadsheet.util';
 import { AuditLogsService } from '../../core/audit-logs/audit-logs.service';
 import { JwtPayload } from '../../common/decorators/current-user.decorator';
-import {
-  paginatedResponse,
-  successResponse,
-  maskNik,
-} from '../../common/utils/response.util';
+import { paginatedResponse, successResponse, maskNik } from '../../common/utils/response.util';
 
 interface ResidentImportRow {
   nik: string;
@@ -63,10 +61,7 @@ export class PopulationService {
     return { ...resident, nik: maskNik(resident.nik) };
   }
 
-  async resolveAddress(
-    tenantId: string,
-    input: ResidentAddressInput,
-  ): Promise<string> {
+  async resolveAddress(tenantId: string, input: ResidentAddressInput): Promise<string> {
     const { hamletId, neighborhoodUnitId, street } = input;
 
     if (neighborhoodUnitId) {
@@ -112,7 +107,7 @@ export class PopulationService {
 
   private async resolveResidentAddressId(
     tenantId: string,
-    body: { addressId?: string; address?: ResidentAddressInput },
+    body: { addressId?: string | null; address?: ResidentAddressInput },
   ): Promise<string | undefined> {
     if (body.address) {
       return this.resolveAddress(tenantId, body.address);
@@ -198,29 +193,38 @@ export class PopulationService {
   ) {
     const tenantId = this.requireTenant(user);
 
+    const parsed = parseWithZod(createResidentSchema, body);
+
     const existing = await this.prisma.resident.findUnique({
-      where: { tenantId_nik: { tenantId, nik: body.nik } },
+      where: { tenantId_nik: { tenantId, nik: parsed.nik } },
     });
     if (existing) throw new ConflictException('NIK sudah terdaftar');
 
-    const addressId = await this.resolveResidentAddressId(tenantId, body);
+    if (parsed.familyId) {
+      const family = await this.prisma.family.findFirst({
+        where: { id: parsed.familyId, tenantId, deletedAt: null },
+      });
+      if (!family) throw new NotFoundException('Keluarga tidak ditemukan');
+    }
+
+    const addressId = await this.resolveResidentAddressId(tenantId, parsed);
 
     const resident = await this.prisma.resident.create({
       data: {
         tenantId,
-        nik: body.nik,
-        fullName: body.fullName,
-        gender: body.gender,
-        birthPlace: body.birthPlace,
-        birthDate: new Date(body.birthDate),
-        religion: body.religion,
-        education: body.education,
-        occupation: body.occupation,
-        maritalStatus: body.maritalStatus,
-        bloodType: body.bloodType,
-        disabilityStatus: body.disabilityStatus,
-        residentStatus: body.residentStatus ?? 'permanent',
-        familyId: body.familyId,
+        nik: parsed.nik,
+        fullName: parsed.fullName,
+        gender: parsed.gender,
+        birthPlace: parsed.birthPlace,
+        birthDate: new Date(parsed.birthDate),
+        religion: parsed.religion,
+        education: parsed.education,
+        occupation: parsed.occupation,
+        maritalStatus: parsed.maritalStatus,
+        bloodType: parsed.bloodType,
+        disabilityStatus: parsed.disabilityStatus,
+        residentStatus: parsed.residentStatus,
+        familyId: parsed.familyId,
         addressId,
       },
     });
@@ -253,8 +257,23 @@ export class PopulationService {
     });
     if (!existing) throw new NotFoundException('Penduduk tidak ditemukan');
 
-    const { address, addressId: inputAddressId, ...rest } = body;
+    const parsed = parseWithZod(updateResidentSchema, body);
+
+    if (parsed.familyId !== undefined && parsed.familyId !== null) {
+      const family = await this.prisma.family.findFirst({
+        where: { id: parsed.familyId, tenantId, deletedAt: null },
+      });
+      if (!family) throw new NotFoundException('Keluarga tidak ditemukan');
+    }
+
+    const { address, addressId: inputAddressId, familyId, ...rest } = parsed;
     const data: Prisma.ResidentUpdateInput = { ...rest };
+
+    if (familyId === null) {
+      data.family = { disconnect: true };
+    } else if (familyId !== undefined) {
+      data.family = { connect: { id: familyId } };
+    }
 
     if (typeof rest.birthDate === 'string') {
       data.birthDate = new Date(rest.birthDate);
@@ -264,7 +283,9 @@ export class PopulationService {
       addressId: inputAddressId,
       address,
     });
-    if (addressId !== undefined) {
+    if (inputAddressId === null) {
+      data.address = { disconnect: true };
+    } else if (addressId !== undefined) {
       data.address = { connect: { id: addressId } };
     }
 
@@ -298,23 +319,21 @@ export class PopulationService {
     });
     if (!existing) throw new NotFoundException('Penduduk tidak ditemukan');
 
-    if (!['moved', 'deceased'].includes(body.residentStatus)) {
-      throw new BadRequestException('Mutasi hanya untuk status pindah atau meninggal');
-    }
+    const parsed = parseWithZod(residentMutationSchema, body);
 
     const resident = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.resident.update({
         where: { id },
-        data: { residentStatus: body.residentStatus },
+        data: { residentStatus: parsed.residentStatus },
       });
 
       await tx.civilEvent.create({
         data: {
           tenantId,
           residentId: id,
-          eventType: body.residentStatus,
-          eventDate: new Date(body.eventDate),
-          notes: body.notes,
+          eventType: parsed.residentStatus,
+          eventDate: new Date(parsed.eventDate),
+          notes: parsed.notes,
         },
       });
 
@@ -328,7 +347,7 @@ export class PopulationService {
       module: 'population',
       entityType: 'resident',
       entityId: id,
-      metadata: { residentStatus: body.residentStatus, eventDate: body.eventDate },
+      metadata: { residentStatus: parsed.residentStatus, eventDate: parsed.eventDate },
       ipAddress,
     });
 
@@ -396,7 +415,10 @@ export class PopulationService {
     await sendXlsxDownload(res, [{ name: 'Penduduk', rows }], 'residents-export.xlsx');
   }
 
-  private validateImportRow(row: Record<string, unknown>, rowNumber: number): RowValidationError | null {
+  private validateImportRow(
+    row: Record<string, unknown>,
+    rowNumber: number,
+  ): RowValidationError | null {
     const errors: string[] = [];
     const nik = String(row.nik ?? '').trim();
     const fullName = String(row.fullName ?? '').trim();
@@ -421,17 +443,15 @@ export class PopulationService {
     return xlsxBufferToJson(buffer);
   }
 
-  async importResidents(
-    user: JwtPayload,
-    buffer: Buffer,
-    preview: boolean,
-    ipAddress?: string,
-  ) {
+  async importResidents(user: JwtPayload, buffer: Buffer, preview: boolean, ipAddress?: string) {
     const tenantId = this.requireTenant(user);
     const rawRows = await this.parseImportRows(buffer);
 
     if (rawRows.length === 0) {
-      return successResponse({ totalRows: 0, validRows: 0, errors: [], imported: 0 }, 'Tidak ada data');
+      return successResponse(
+        { totalRows: 0, validRows: 0, errors: [], imported: 0 },
+        'Tidak ada data',
+      );
     }
 
     const validationErrors: RowValidationError[] = [];
@@ -521,11 +541,14 @@ export class PopulationService {
       ipAddress,
     });
 
-    return successResponse({
-      totalRows: rawRows.length,
-      validRows: validRows.length,
-      errors: importErrors,
-      imported,
-    }, `Import selesai: ${imported} penduduk berhasil diimpor`);
+    return successResponse(
+      {
+        totalRows: rawRows.length,
+        validRows: validRows.length,
+        errors: importErrors,
+        imported,
+      },
+      `Import selesai: ${imported} penduduk berhasil diimpor`,
+    );
   }
 }

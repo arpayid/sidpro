@@ -59,6 +59,32 @@ json_field() {
   node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{const j=JSON.parse(d);${expr}}catch{console.log('')}})"
 }
 
+smoke_nik() {
+  local seed="${SMOKE_NIK_SEED:-${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-0}-$(date +%s%N)-$$}"
+  node -e "const crypto=require('crypto');const seed=process.argv[1];const hash=crypto.createHash('sha256').update(seed).digest('hex');const suffix=(BigInt('0x'+hash)%10000000000n).toString().padStart(10,'0');console.log('320101'+suffix);" "$seed"
+}
+
+assert_smoke_nik() {
+  local nik="$1"
+  if [[ ! "$nik" =~ ^[0-9]{16}$ ]]; then
+    echo "[smoke-test] ERROR: Generated smoke NIK must match ^[0-9]{16}$, got '$nik' (${#nik} chars)." >&2
+    exit 1
+  fi
+}
+
+smoke_kk() {
+  local seed="${SMOKE_KK_SEED:-${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-0}-$(date +%s%N)-$$}"
+  node -e "const crypto=require('crypto');const seed=process.argv[1];const hash=crypto.createHash('sha256').update(seed).digest('hex');const suffix=(BigInt('0x'+hash)%10000000000n).toString().padStart(10,'0');console.log('320101'+suffix);" "$seed"
+}
+
+assert_smoke_kk() {
+  local kk="$1"
+  if [[ ! "$kk" =~ ^[0-9]{16}$ ]]; then
+    echo "[smoke-test] ERROR: Generated smoke KK must match ^[0-9]{16}$, got '$kk' (${#kk} chars)." >&2
+    exit 1
+  fi
+}
+
 # 1. Health
 HEALTH=$(curl -sf "$API/health" | grep -c healthy || true)
 check "GET /api/v1/health" "$([ "$HEALTH" -ge 1 ] && echo 1 || echo 0)"
@@ -117,7 +143,8 @@ DASH=$(curl -sf -H "$AUTH" "$API/reports/dashboard" | grep -c success || true)
 check "Dashboard fetch API" "$([ "$DASH" -ge 1 ] && echo 1 || echo 0)"
 
 # 5. CRUD Resident
-NIK="320101010618$(date +%H%M%S | tail -c 5)0001"
+NIK="$(smoke_nik)"
+assert_smoke_nik "$NIK"
 CREATE_RES=$(curl -sf -X POST "$API/residents" -H "$AUTH" -H 'Content-Type: application/json' \
   -d "{\"nik\":\"$NIK\",\"fullName\":\"Warga Staging Test\",\"gender\":\"male\",\"birthPlace\":\"Jakarta\",\"birthDate\":\"1990-01-01\",\"maritalStatus\":\"single\",\"residentStatus\":\"permanent\"}")
 RES_ID=$(echo "$CREATE_RES" | json_field "console.log(j.data?.id||'')")
@@ -127,7 +154,8 @@ GET_RES=$(curl -sf -H "$AUTH" "$API/residents/$RES_ID" | grep -c "Warga Staging 
 check "CRUD penduduk (create/update/read)" "$([ -n "$RES_ID" ] && [ "$UPDATE_RES" -ge 1 ] && [ "$GET_RES" -ge 1 ] && echo 1 || echo 0)"
 
 # 6. CRUD Family
-KK="320101$(date +%H%M%S | tail -c 6)0001"
+KK="$(smoke_kk)"
+assert_smoke_kk "$KK"
 CREATE_FAM=$(curl -sf -X POST "$API/families" -H "$AUTH" -H 'Content-Type: application/json' \
   -d "{\"kkNumber\":\"$KK\",\"economicStatus\":\"middle\"}")
 FAM_ID=$(echo "$CREATE_FAM" | json_field "console.log(j.data?.id||'')")

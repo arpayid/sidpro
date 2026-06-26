@@ -1,7 +1,11 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { CreateResidentInput, ResidentMutationInput } from '@sidpro/validators';
+import type {
+  CreateResidentInput,
+  ResidentMutationInput,
+  UpdateResidentInput,
+} from '@sidpro/validators';
 import {
   apiClient,
   apiUpload,
@@ -118,7 +122,7 @@ export function useCreateResident() {
 export function useUpdateResident() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, body }: { id: string; body: Partial<CreateResidentInput> }) =>
+    mutationFn: ({ id, body }: { id: string; body: UpdateResidentInput }) =>
       apiClient<Resident>(`/residents/${id}`, { method: 'PATCH', body }),
     onSuccess: (_, { id }) => {
       qc.invalidateQueries({ queryKey: ['residents'] });

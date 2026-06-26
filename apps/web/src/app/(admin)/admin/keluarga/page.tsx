@@ -3,7 +3,11 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { createFamilySchema, addFamilyMemberSchema, updateFamilySchema } from '@sidpro/validators';
+import {
+  createFamilySchema,
+  addFamilyMemberSchema,
+  updateFamilySchema,
+} from '@sidpro/validators';
 import type { z } from 'zod';
 import { Button, Input } from '@sidpro/ui';
 import { Plus, UserPlus, Pencil, Trash2, Download } from 'lucide-react';
@@ -32,6 +36,21 @@ import { maskKk } from '@/lib/mask-kk';
 type CreateFamilyForm = z.infer<typeof createFamilySchema>;
 type EditFamilyForm = z.input<typeof updateFamilySchema>;
 type AddMemberForm = z.input<typeof addFamilyMemberSchema>;
+
+const FAMILY_RELATIONSHIP_OPTIONS: Array<{
+  value: NonNullable<AddMemberForm['relationship']>;
+  label: string;
+}> = [
+  { value: 'head', label: 'Kepala Keluarga' },
+  { value: 'spouse', label: 'Suami/Istri' },
+  { value: 'child', label: 'Anak' },
+  { value: 'parent', label: 'Orang Tua' },
+  { value: 'parent_in_law', label: 'Mertua' },
+  { value: 'grandchild', label: 'Cucu' },
+  { value: 'sibling', label: 'Saudara' },
+  { value: 'relative', label: 'Kerabat' },
+  { value: 'other', label: 'Lainnya' },
+];
 
 export default function KeluargaPage() {
   const { can } = useAuth();
@@ -80,7 +99,7 @@ export default function KeluargaPage() {
 
   const memberForm = useForm<AddMemberForm>({
     resolver: zodResolver(addFamilyMemberSchema),
-    defaultValues: { residentId: '', relationship: '', isHead: false },
+    defaultValues: { residentId: '', relationship: 'child', isHead: false },
   });
 
   async function onCreateSubmit(values: CreateFamilyForm) {
@@ -541,11 +560,17 @@ export default function KeluargaPage() {
             <label className="form-label" htmlFor="relationship">
               Hubungan Keluarga
             </label>
-            <Input
+            <select
               id="relationship"
-              placeholder="Contoh: Anak, Istri, Kepala Keluarga"
+              className="h-10 w-full rounded-md border border-slate-300 px-3 text-sm"
               {...memberForm.register('relationship')}
-            />
+            >
+              {FAMILY_RELATIONSHIP_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
             {memberForm.formState.errors.relationship && (
               <p className="form-error">{memberForm.formState.errors.relationship.message}</p>
             )}
