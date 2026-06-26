@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { CreateFamilyInput, CreateResidentInput } from '@sidpro/validators';
-import { apiClient, buildQuery, downloadBinary } from '@/lib/api-client';
+import { apiClient, apiUpload, buildQuery, downloadBinary } from '@/lib/api-client';
 import type { PaginationMeta } from '@sidpro/types';
 import type { Resident } from '@/features/residents/use-residents';
 
@@ -27,6 +27,8 @@ export interface FamiliesListParams {
   page?: number;
   limit?: number;
   search?: string;
+  economicStatus?: string;
+  houseStatus?: string;
 }
 
 export interface AddFamilyMemberInput {
@@ -40,12 +42,12 @@ function familiesKey(params: FamiliesListParams) {
 }
 
 export function useFamilies(params: FamiliesListParams = {}) {
-  const { page = 1, limit = 20, search } = params;
+  const { page = 1, limit = 20, search, economicStatus, houseStatus } = params;
   return useQuery({
-    queryKey: familiesKey({ page, limit, search }),
+    queryKey: familiesKey({ page, limit, search, economicStatus, houseStatus }),
     queryFn: async () => {
       const res = await apiClient<Family[]>(
-        `/families${buildQuery({ page, limit, search })}`,
+        `/families${buildQuery({ page, limit, search, economicStatus, houseStatus })}`,
       );
       return { data: res.data ?? [], meta: res.meta as PaginationMeta | undefined };
     },
@@ -134,3 +136,18 @@ export function useExportFamilies() {
 }
 
 export type { CreateResidentInput };
+
+export function useImportFamilies() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      return apiUpload<{ imported: number }>('/families/import', formData);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['families'] });
+      qc.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+  });
+}

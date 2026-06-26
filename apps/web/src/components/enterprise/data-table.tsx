@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { cn } from '@sidpro/ui';
-import { ChevronLeft, ChevronRight, ArrowUpDown } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ArrowUpDown, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { Button } from '@sidpro/ui';
 import { LoadingSkeleton } from './loading-skeleton';
 import { EmptyState } from './empty-state';
@@ -31,6 +31,9 @@ export interface DataTableProps<T> {
   totalPages?: number;
   total?: number;
   onPageChange?: (page: number) => void;
+  pageSize?: number;
+  pageSizeOptions?: number[];
+  onPageSizeChange?: (pageSize: number) => void;
   toolbar?: ReactNode;
 }
 
@@ -49,6 +52,9 @@ export function DataTable<T>({
   totalPages = 1,
   total,
   onPageChange,
+  pageSize,
+  pageSizeOptions = [10, 20, 50, 100],
+  onPageSizeChange,
   toolbar,
 }: DataTableProps<T>) {
   if (error) {
@@ -117,10 +123,7 @@ export function DataTable<T>({
                     </td>
                   ))}
                   {rowActions && (
-                    <td
-                      className="px-4 py-3 text-right"
-                      onClick={(e) => e.stopPropagation()}
-                    >
+                    <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                       {rowActions(row)}
                     </td>
                   )}
@@ -130,29 +133,63 @@ export function DataTable<T>({
         </table>
       </div>
 
-      {onPageChange && totalPages > 1 && (
-        <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3 text-sm text-slate-600">
+      {onPageChange && (
+        <div className="flex flex-col gap-3 border-t border-slate-100 px-4 py-3 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
           <span>
             Halaman {page} dari {totalPages}
             {total !== undefined && ` · ${total} total`}
           </span>
-          <div className="flex gap-1">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page <= 1}
-              onClick={() => onPageChange(page - 1)}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page >= totalPages}
-              onClick={() => onPageChange(page + 1)}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            {onPageSizeChange && pageSize && (
+              <label className="flex items-center gap-2">
+                <span>Baris</span>
+                <select
+                  className="h-8 rounded-md border border-slate-300 bg-white px-2 text-sm"
+                  value={pageSize}
+                  onChange={(event) => onPageSizeChange(Number(event.target.value))}
+                >
+                  {pageSizeOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <div className="flex gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page <= 1}
+                onClick={() => onPageChange(1)}
+              >
+                <ChevronsLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page <= 1}
+                onClick={() => onPageChange(page - 1)}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page >= totalPages}
+                onClick={() => onPageChange(page + 1)}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page >= totalPages}
+                onClick={() => onPageChange(totalPages)}
+              >
+                <ChevronsRight className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
       )}
