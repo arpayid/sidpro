@@ -4,14 +4,14 @@ Platform pemerintahan desa modern — portal publik, dashboard admin, data pendu
 
 ## Stack
 
-| Layer | Teknologi |
-|-------|-----------|
-| Frontend | Next.js 15, React 19, TailwindCSS, shadcn-style UI |
-| Backend | NestJS 11, TypeScript, Prisma |
-| Database | PostgreSQL 17 |
-| Cache/Queue | Redis, BullMQ |
-| Storage | MinIO (S3-compatible) |
-| Deploy | Docker Compose |
+| Layer       | Teknologi                                          |
+| ----------- | -------------------------------------------------- |
+| Frontend    | Next.js 15, React 19, TailwindCSS, shadcn-style UI |
+| Backend     | NestJS 11, TypeScript, Prisma                      |
+| Database    | PostgreSQL 17                                      |
+| Cache/Queue | Redis, BullMQ                                      |
+| Storage     | MinIO (S3-compatible)                              |
+| Deploy      | Docker Compose                                     |
 
 ## Struktur Monorepo
 
@@ -66,13 +66,13 @@ pnpm dev
 
 ### URL Development
 
-| Service | URL |
-|---------|-----|
-| Web (Portal) | http://localhost:3000 |
-| Admin Dashboard | http://localhost:3000/admin/dashboard |
-| API | http://localhost:4000/api/v1 |
-| API Docs (Swagger) | http://localhost:4000/api/docs |
-| MinIO Console | http://localhost:9001 |
+| Service            | URL                                   |
+| ------------------ | ------------------------------------- |
+| Web (Portal)       | http://localhost:3000                 |
+| Admin Dashboard    | http://localhost:3000/admin/dashboard |
+| API                | http://localhost:4000/api/v1          |
+| API Docs (Swagger) | http://localhost:4000/api/docs        |
+| MinIO Console      | http://localhost:9001                 |
 
 ### Kredensial Default (Seed)
 
@@ -96,16 +96,16 @@ docker compose config
 
 ## Roadmap
 
-| Phase | Status | Deskripsi |
-|-------|--------|-----------|
-| 0 | ✅ | Foundation — monorepo, Docker, CI |
-| 1 | ✅ | Core Platform — auth, RBAC, tenant, audit |
-| 2 | ✅ | Public Portal — homepage, profil, berita, layanan |
-| 3 | ✅ | Population & Families |
-| 4 | ✅ | Letters — surat online, workflow, QR |
-| 5 | ✅ | Complaints & Notifications |
-| 6 | ✅ | Enterprise — bansos, aset, pembangunan, keuangan |
-| 7 | ✅ | Hardening — backup, healthcheck, 2FA foundation |
+| Phase | Status | Deskripsi                                         |
+| ----- | ------ | ------------------------------------------------- |
+| 0     | ✅     | Foundation — monorepo, Docker, CI                 |
+| 1     | ✅     | Core Platform — auth, RBAC, tenant, audit         |
+| 2     | ✅     | Public Portal — homepage, profil, berita, layanan |
+| 3     | ✅     | Population & Families                             |
+| 4     | ✅     | Letters — surat online, workflow, QR              |
+| 5     | ✅     | Complaints & Notifications                        |
+| 6     | ✅     | Enterprise — bansos, aset, pembangunan, keuangan  |
+| 7     | ✅     | Hardening — backup, healthcheck, 2FA foundation   |
 
 ## Dokumentasi
 
@@ -137,6 +137,6 @@ Proprietary — SID Premium Enterprise
 ## Production Readiness
 
 - Checklist go-live: [`docs/PRODUCTION_READINESS.md`](docs/PRODUCTION_READINESS.md)
+- Kesiapan serah-terima klien: [`docs/CLIENT_HANDOVER_READINESS.md`](docs/CLIENT_HANDOVER_READINESS.md)
 - Operasional Docker production: [`docs/DOCKER_PRODUCTION.md`](docs/DOCKER_PRODUCTION.md)
 - Template env: `.env.development.example`, `.env.staging.example`, `.env.production.example`
-
