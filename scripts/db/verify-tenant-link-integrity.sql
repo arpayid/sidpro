@@ -71,6 +71,14 @@ WHERE gi.file_id IS NOT NULL
 
 UNION ALL
 
+SELECT 'letter_outputs.letter_request_id', lo.id, lo.tenant_id,
+       lo.letter_request_id, lr.tenant_id
+FROM letter_outputs lo
+LEFT JOIN letter_requests lr ON lr.id = lo.letter_request_id
+WHERE lr.id IS NULL OR lr.tenant_id <> lo.tenant_id
+
+UNION ALL
+
 SELECT 'letter_outputs.file_id', lo.id, lo.tenant_id,
        lo.file_id, file.tenant_id
 FROM letter_outputs lo
