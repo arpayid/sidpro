@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { Button, Input } from '@sidpro/ui';
-import { Plus, Check, UserPlus, MessageSquare, XCircle, Download } from 'lucide-react';
+import { Plus, Check, UserPlus, MessageSquare, XCircle, Download, Clock, AlertTriangle, KanbanSquare } from 'lucide-react';
 import { PageHeader } from '@/components/enterprise/page-header';
 import { DataTable, FilterBar } from '@/components/enterprise/data-table';
 import { DetailDrawer } from '@/components/enterprise/detail-drawer';
@@ -62,6 +62,24 @@ function defaultDateRange() {
 
 function selectClass() {
   return 'h-9 rounded-md border border-slate-200 bg-white px-2.5 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500';
+}
+
+function getSlaState(complaint: Complaint, slaDays = 7) {
+  if (['resolved', 'closed', 'rejected'].includes(complaint.status)) {
+    return { label: 'Selesai', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
+  }
+  const ageMs = Date.now() - new Date(complaint.createdAt).getTime();
+  const ageDays = Math.max(0, Math.floor(ageMs / 86_400_000));
+  const remaining = slaDays - ageDays;
+  if (remaining < 0) return { label: `Lewat ${Math.abs(remaining)} hari`, className: 'bg-red-50 text-red-700 border-red-200' };
+  if (remaining <= 1) return { label: `Sisa ${remaining} hari`, className: 'bg-amber-50 text-amber-700 border-amber-200' };
+  return { label: `Sisa ${remaining} hari`, className: 'bg-slate-50 text-slate-700 border-slate-200' };
+}
+
+function priorityBadgeVariant(priority: string) {
+  if (priority === 'urgent') return 'danger' as const;
+  if (priority === 'high') return 'warning' as const;
+  return 'default' as const;
 }
 
 function formatDateTime(iso: string) {
@@ -124,6 +142,11 @@ export default function AdminPengaduanPage() {
   const complaints = data?.data ?? [];
   const meta = data?.meta;
   const staff = usersData?.data ?? [];
+  const slaDays = slaStats.data?.slaDays ?? 7;
+  const kanbanStatuses = STATUS_OPTIONS.filter((status) => status.value).map((status) => ({
+    ...status,
+    items: complaints.filter((complaint) => complaint.status === status.value),
+  }));
 
   async function handleCreate() {
     await createMutation.mutateAsync(createForm);
@@ -241,11 +264,54 @@ export default function AdminPengaduanPage() {
             </p>
           </div>
           <div className="surface-card p-4">
+            <p className="text-xs text-slate-500">SLA Operasional</p>
+            <p className="mt-1 text-sm font-medium text-slate-700">Indikator per tiket</p>
+            <p className="mt-0.5 text-xs text-slate-500">Hijau aman · amber kritis · merah lewat SLA</p>
+          </div>
+          <div className="surface-card p-4">
             <p className="text-xs text-slate-500">Rate Limit Publik</p>
             <p className="mt-1 text-sm font-medium text-slate-700">10 req/menit per endpoint</p>
             <p className="mt-0.5 text-xs text-slate-500">create · track · upload</p>
           </div>
         </div>
+      )}
+
+      {can('complaints.read') && (
+        <section className="mt-6">
+          <div className="mb-3 flex items-center gap-2">
+            <KanbanSquare className="h-4 w-4 text-emerald-600" />
+            <h2 className="text-sm font-semibold text-slate-900">Kanban Status</h2>
+          </div>
+          {isLoading ? (
+            <div className="grid gap-3 md:grid-cols-4">
+              {[1, 2, 3, 4].map((i) => <div key={i} className="h-28 animate-pulse rounded-lg bg-slate-100" />)}
+            </div>
+          ) : error ? (
+            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">Kanban gagal dimuat.</div>
+          ) : complaints.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-slate-200 bg-white p-6 text-center text-sm text-slate-500">Belum ada pengaduan untuk filter saat ini.</div>
+          ) : (
+            <div className="grid gap-3 overflow-x-auto pb-2 md:grid-cols-4 xl:grid-cols-7">
+              {kanbanStatuses.map((column) => (
+                <div key={column.value} className="min-w-[180px] rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-slate-700">{column.label}</p>
+                    <span className="rounded-full bg-white px-2 py-0.5 text-xs text-slate-500">{column.items.length}</span>
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    {column.items.slice(0, 3).map((item) => (
+                      <button key={item.id} type="button" onClick={() => openDetail(item)} className="w-full rounded-md border border-slate-200 bg-white p-2 text-left shadow-sm hover:border-emerald-200">
+                        <p className="line-clamp-2 text-xs font-medium text-slate-800">{item.title}</p>
+                        <p className="mt-1 text-[11px] text-slate-500">{item.assignee?.name ?? 'Belum ditugaskan'}</p>
+                      </button>
+                    ))}
+                    {column.items.length > 3 && <p className="text-[11px] text-slate-500">+{column.items.length - 3} lainnya</p>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
       )}
 
       <div className="mt-6">
@@ -267,7 +333,7 @@ export default function AdminPengaduanPage() {
               render: (row) => (
                 <StatusBadge
                   variant={
-                    row.priority === 'urgent' || row.priority === 'high' ? 'danger' : 'default'
+                    priorityBadgeVariant(row.priority)
                   }
                 >
                   {COMPLAINT_PRIORITY_LABELS[row.priority] ?? row.priority}
@@ -282,6 +348,14 @@ export default function AdminPengaduanPage() {
                   {COMPLAINT_STATUS_LABELS[row.status] ?? row.status}
                 </StatusBadge>
               ),
+            },
+            {
+              key: 'sla',
+              header: 'SLA',
+              render: (row) => {
+                const sla = getSlaState(row, slaDays);
+                return <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium ${sla.className}`}><Clock className="h-3 w-3" />{sla.label}</span>;
+              },
             },
             {
               key: 'assignee',
@@ -390,9 +464,18 @@ export default function AdminPengaduanPage() {
           <div className="space-y-6">
             <div>
               <h3 className="text-lg font-semibold text-slate-900">{detail.title}</h3>
-              <p className="mt-1 text-sm text-slate-500">
-                {detail.category} · {COMPLAINT_PRIORITY_LABELS[detail.priority]}
-              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <span className="text-sm text-slate-500">{detail.category}</span>
+                <StatusBadge variant={priorityBadgeVariant(detail.priority)}>
+                  {COMPLAINT_PRIORITY_LABELS[detail.priority]}
+                </StatusBadge>
+                <StatusBadge variant={complaintStatusVariant(detail.status)}>
+                  {COMPLAINT_STATUS_LABELS[detail.status] ?? detail.status}
+                </StatusBadge>
+                <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium ${getSlaState(detail, slaDays).className}`}>
+                  <AlertTriangle className="h-3 w-3" /> SLA {getSlaState(detail, slaDays).label}
+                </span>
+              </div>
             </div>
 
             <ComplaintStepper currentStatus={detail.status} />
@@ -406,7 +489,7 @@ export default function AdminPengaduanPage() {
               </div>
               <div>
                 <p className="text-xs uppercase text-slate-400">Petugas</p>
-                <p className="text-sm text-slate-800">{detail.assignee?.name ?? '—'}</p>
+                <p className="text-sm text-slate-800">{detail.assignee?.name ?? 'Belum ditugaskan'}</p>
               </div>
             </div>
 
@@ -471,7 +554,7 @@ export default function AdminPengaduanPage() {
                   }))}
                 />
               ) : (
-                <p className="text-sm text-slate-500">Belum ada tanggapan.</p>
+                <div className="rounded-md border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">Belum ada tanggapan. Tambahkan update agar pelapor dapat mengikuti progres.</div>
               )}
             </div>
 

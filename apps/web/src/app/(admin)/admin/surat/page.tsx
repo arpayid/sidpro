@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { adminCreateLetterRequestSchema } from '@sidpro/validators';
 import type { z } from 'zod';
 import { Button, Input } from '@sidpro/ui';
-import { Plus, Check, X, FileText, Download } from 'lucide-react';
+import { Plus, Check, X, FileText, Download, Clock, Settings, Loader2 } from 'lucide-react';
 import { PageHeader } from '@/components/enterprise/page-header';
 import { DataTable, FilterBar } from '@/components/enterprise/data-table';
 import { DetailDrawer } from '@/components/enterprise/detail-drawer';
@@ -31,6 +31,35 @@ import { useResidents } from '@/features/residents/use-residents';
 import { maskNik } from '@/lib/mask-nik';
 
 type CreateForm = z.infer<typeof adminCreateLetterRequestSchema>;
+
+function formatDateTime(iso: string) {
+  return new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(iso));
+}
+
+function buildLetterTimeline(request: LetterRequest) {
+  const items: { title: string; time?: string; description?: string }[] = [
+    { title: 'Permohonan diajukan', time: formatDateTime(request.submittedAt), description: request.purpose },
+    ...(request.approvals ?? []).map((a) => ({
+      title: `${a.level} — ${LETTER_STATUS_LABELS[a.status] ?? a.status}`,
+      time: formatDateTime(a.createdAt),
+      description: a.notes ?? undefined,
+    })),
+  ];
+
+  if (request.status === 'completed') {
+    items.push({
+      title: 'PDF surat siap diunduh',
+      time: undefined,
+      description: request.letterNumber ? `Nomor surat: ${request.letterNumber}` : undefined,
+    });
+  }
+
+  if (request.status === 'rejected' && !(request.approvals ?? []).some((a) => a.status === 'rejected')) {
+    items.push({ title: 'Permohonan ditolak', time: undefined, description: 'Lihat catatan petugas bila tersedia.' });
+  }
+
+  return items;
+}
 
 const STATUS_FILTER_OPTIONS = [
   { value: '', label: 'Semua Status' },
@@ -105,6 +134,7 @@ export default function SuratPage() {
             {can('letters.manage') && (
               <Link href="/admin/surat/pengaturan">
                 <Button size="sm" variant="outline" type="button">
+                  <Settings className="mr-1.5 h-4 w-4" />
                   Pengaturan Surat
                 </Button>
               </Link>
@@ -161,6 +191,8 @@ export default function SuratPage() {
           loading={isLoading}
           error={error?.message}
           onRetry={() => refetch()}
+          emptyTitle="Belum ada permohonan surat"
+          emptyDescription="Permohonan baru dari operator atau portal publik akan muncul di sini."
           rowKey={(row) => row.id}
           onRowClick={openDetail}
           page={page}
@@ -294,7 +326,7 @@ export default function SuratPage() {
                     }
                   >
                     <Check className="mr-1 h-4 w-4" />
-                    Verifikasi
+                    {verifyMutation.isPending ? 'Memverifikasi...' : 'Verifikasi'}
                   </Button>
                   <Button
                     size="sm"
@@ -322,7 +354,7 @@ export default function SuratPage() {
                     }
                   >
                     <Check className="mr-1 h-4 w-4" />
-                    Setujui
+                    {approveMutation.isPending ? 'Menyetujui...' : 'Setujui'}
                   </Button>
                   <Button
                     size="sm"
@@ -355,8 +387,17 @@ export default function SuratPage() {
                   disabled={isActionPending}
                   onClick={() => detailId && generateMutation.mutate(detailId)}
                 >
-                  <FileText className="mr-1 h-4 w-4" />
-                  Generate PDF
+                  {generateMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                      Generate...
+                    </>
+                  ) : (
+                    <>
+                      <FileText className="mr-1 h-4 w-4" />
+                      Generate PDF
+                    </>
+                  )}
                 </Button>
               )}
             </div>
@@ -381,7 +422,33 @@ export default function SuratPage() {
           <p className="text-sm text-slate-500">Memuat detail...</p>
         ) : detail ? (
           <div className="space-y-6">
-            <ApprovalStepper currentStatus={detail.status} />
+            <div className="rounded-lg border border-slate-200 bg-white p-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-900">Approval Stepper</h3>
+                  <p className="text-xs text-slate-500">Alur: diajukan → verifikasi → persetujuan → generate PDF.</p>
+                </div>
+                <StatusBadge variant={letterStatusVariant(detail.status)}>
+                  {LETTER_STATUS_LABELS[detail.status] ?? detail.status}
+                </StatusBadge>
+              </div>
+              <ApprovalStepper currentStatus={detail.status} />
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <p className="text-xs text-slate-500">Verifikasi</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">{['verified', 'approved', 'completed'].includes(detail.status) ? 'Selesai' : 'Menunggu'}</p>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <p className="text-xs text-slate-500">Persetujuan</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">{['approved', 'completed'].includes(detail.status) ? 'Selesai' : 'Belum'}</p>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <p className="text-xs text-slate-500">Dokumen</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">{detail.status === 'completed' ? 'Siap unduh' : detail.status === 'approved' ? 'Siap generate' : 'Belum siap'}</p>
+              </div>
+            </div>
 
             <dl className="grid gap-3 text-sm sm:grid-cols-2">
               <div>
@@ -402,7 +469,7 @@ export default function SuratPage() {
               </div>
               <div>
                 <dt className="text-slate-500">Diajukan</dt>
-                <dd>{new Date(detail.submittedAt).toLocaleString('id-ID')}</dd>
+                <dd>{formatDateTime(detail.submittedAt)}</dd>
               </div>
               {detail.letterNumber && (
                 <div className="sm:col-span-2">
@@ -452,18 +519,13 @@ export default function SuratPage() {
               </div>
             )}
 
-            {detail.approvals && detail.approvals.length > 0 && (
-              <div>
-                <h3 className="mb-3 text-sm font-semibold text-slate-900">Riwayat Persetujuan</h3>
-                <Timeline
-                  items={detail.approvals.map((a) => ({
-                    title: `${a.level} — ${a.status}`,
-                    time: new Date(a.createdAt).toLocaleString('id-ID'),
-                    description: a.notes ?? undefined,
-                  }))}
-                />
+            <div>
+              <div className="mb-3 flex items-center gap-2">
+                <Clock className="h-4 w-4 text-emerald-600" />
+                <h3 className="text-sm font-semibold text-slate-900">Status Timeline</h3>
               </div>
-            )}
+              <Timeline items={buildLetterTimeline(detail)} />
+            </div>
           </div>
         ) : (
           <p className="text-sm text-slate-500">Data tidak ditemukan.</p>
