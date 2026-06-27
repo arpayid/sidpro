@@ -7,8 +7,8 @@
 -- enabling strict remediation for historical inconsistencies.
 
 CREATE OR REPLACE FUNCTION assert_same_tenant_reference(
-  p_tenant_id uuid,
-  p_reference_id uuid,
+  p_tenant_id text,
+  p_reference_id text,
   p_reference_table regclass,
   p_reference_label text
 )
@@ -16,7 +16,7 @@ RETURNS void
 LANGUAGE plpgsql
 AS $$
 DECLARE
-  linked_tenant_id uuid;
+  linked_tenant_id text;
 BEGIN
   IF p_reference_id IS NULL THEN
     RETURN;
@@ -256,4 +256,4 @@ FOR EACH ROW EXECUTE FUNCTION enforce_gallery_items_tenant_links();
 
 CREATE TRIGGER tenant_link_integrity_bumdes_financial_records
 BEFORE INSERT OR UPDATE OF tenant_id, unit_id ON bumdes_financial_records
-FOR EACH ROW EXECUTE FUNCTION enforce_bumdes_financial_records_tenant_links();
+FOR EACH ROW EXECUTE FUNCTION enforce_bumdes_financial_records();
