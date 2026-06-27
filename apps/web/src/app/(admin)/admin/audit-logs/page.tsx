@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Activity, ArrowRight, Filter } from 'lucide-react';
 import { PageHeader } from '@/components/enterprise/page-header';
 import { DataTable, FilterBar } from '@/components/enterprise/data-table';
 import { DetailDrawer } from '@/components/enterprise/detail-drawer';
@@ -65,14 +66,61 @@ function formatDateTime(iso: string) {
   }).format(new Date(iso));
 }
 
+const SENSITIVE_METADATA_KEYS = [
+  'password',
+  'token',
+  'refreshToken',
+  'accessToken',
+  'secret',
+  'otp',
+  'totp',
+  'nik',
+  'kk',
+  'noKk',
+  'document',
+  'fileUrl',
+  'url',
+];
+
+function isSensitiveKey(key: string) {
+  const normalized = key.toLowerCase();
+  return SENSITIVE_METADATA_KEYS.some((sensitive) =>
+    normalized.includes(sensitive.toLowerCase()),
+  );
+}
+
+function redactMetadataValue(key: string, value: unknown): unknown {
+  if (isSensitiveKey(key)) return '[disamarkan]';
+  if (Array.isArray(value)) return value.slice(0, 5).map((item) => sanitizeMetadata(item));
+  if (value && typeof value === 'object') return sanitizeMetadata(value);
+  if (typeof value === 'string' && value.length > 120) return `${value.slice(0, 120)}…`;
+  return value;
+}
+
+function sanitizeMetadata(metadata: unknown): unknown {
+  if (!metadata || typeof metadata !== 'object') return metadata;
+  return Object.fromEntries(
+    Object.entries(metadata as Record<string, unknown>)
+      .slice(0, 12)
+      .map(([key, value]) => [key, redactMetadataValue(key, value)]),
+  );
+}
+
 function metadataSummary(metadata: unknown): string {
-  if (!metadata || typeof metadata !== 'object') return '—';
-  const entries = Object.entries(metadata as Record<string, unknown>);
+  const sanitized = sanitizeMetadata(metadata);
+  if (!sanitized || typeof sanitized !== 'object') return '—';
+  const entries = Object.entries(sanitized as Record<string, unknown>).filter(
+    ([, value]) => value !== undefined && value !== null && value !== '',
+  );
   if (entries.length === 0) return '—';
-  const [key, value] = entries[0];
-  const text = typeof value === 'string' ? value : JSON.stringify(value);
-  const preview = text.length > 48 ? `${text.slice(0, 48)}…` : text;
-  return `${key}: ${preview}`;
+  return entries
+    .slice(0, 2)
+    .map(([key, value]) => {
+      const text = typeof value === 'string' ? value : JSON.stringify(value);
+      const preview = text.length > 40 ? `${text.slice(0, 40)}…` : text;
+      return `${key}: ${preview}`;
+    })
+    .join(' • ');
 }
 
 function selectClassName() {
@@ -105,7 +153,7 @@ export default function AuditLogsPage() {
 
   const { data: detail, isLoading: detailLoading } = useAuditLog(detailId);
 
-  const { data: actors } = useQuery({
+  const { data: actors } = useQuery<{ id: string; name: string; email: string }[]>({
     queryKey: ['users', 'audit-actor-filter'],
     enabled: can('users.read'),
     queryFn: async () => {
@@ -116,7 +164,8 @@ export default function AuditLogsPage() {
     },
   });
 
-  const logs = data?.data ?? [];
+  const logs: AuditLog[] = data?.data ?? [];
+  const timelineLogs: AuditLog[] = logs.slice(0, 5);
   const meta = data?.meta;
   const totalPages = meta?.totalPages ?? 1;
 
@@ -141,7 +190,7 @@ export default function AuditLogsPage() {
         description="Riwayat aktivitas penting sistem — transparan dan dapat dilacak."
       />
 
-      <div className="mt-6">
+      <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
         <DataTable
           columns={[
             {
@@ -304,6 +353,39 @@ export default function AuditLogsPage() {
             </FilterBar>
           }
         />
+
+        <aside className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex items-center gap-2">
+            <Activity className="h-4 w-4 text-emerald-600" />
+            <h2 className="text-sm font-semibold text-slate-800">Timeline Aktor / Aksi / Modul</h2>
+          </div>
+          <p className="mt-1 text-xs text-slate-500">Ringkasan aktivitas terbaru dari hasil filter aktif.</p>
+          <div className="mt-4 space-y-3">
+            {timelineLogs.length === 0 ? (
+              <p className="rounded-lg bg-slate-50 p-3 text-sm text-slate-500">Tidak ada aktivitas pada filter ini.</p>
+            ) : (
+              timelineLogs.map((log) => (
+                <button
+                  key={log.id}
+                  type="button"
+                  onClick={() => openDetail(log)}
+                  className="w-full rounded-lg border border-slate-100 p-3 text-left transition hover:border-emerald-200 hover:bg-emerald-50/40"
+                >
+                  <div className="flex items-center gap-2 text-xs text-slate-500">
+                    <span>{formatDateTime(log.createdAt)}</span>
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+                    <span className="font-medium text-slate-800">{log.actor?.name ?? 'Sistem'}</span>
+                    <ArrowRight className="h-3 w-3 text-slate-400" />
+                    <StatusBadge variant={auditActionVariant(log.action)}>{log.action}</StatusBadge>
+                    <StatusBadge variant="default">{log.module}</StatusBadge>
+                  </div>
+                  <p className="mt-2 line-clamp-2 text-xs text-slate-500">{metadataSummary(log.metadata)}</p>
+                </button>
+              ))
+            )}
+          </div>
+        </aside>
       </div>
 
       <DetailDrawer
@@ -376,9 +458,15 @@ export default function AuditLogsPage() {
               {detail.metadata &&
               typeof detail.metadata === 'object' &&
               Object.keys(detail.metadata as object).length > 0 ? (
-                <pre className="max-h-80 overflow-auto rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
-                  {JSON.stringify(detail.metadata, null, 2)}
-                </pre>
+                <div>
+                  <div className="mb-2 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                    <Filter className="mt-0.5 h-3.5 w-3.5" />
+                    Metadata sensitif seperti token, NIK/KK, password, OTP, dan URL dokumen disamarkan di UI.
+                  </div>
+                  <pre className="max-h-80 overflow-auto rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
+                    {JSON.stringify(sanitizeMetadata(detail.metadata), null, 2)}
+                  </pre>
+                </div>
               ) : (
                 <p className="text-sm text-slate-500">Tidak ada metadata tambahan.</p>
               )}

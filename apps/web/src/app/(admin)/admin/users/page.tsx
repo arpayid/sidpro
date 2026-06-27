@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { createUserSchema, updateUserSchema } from '@sidpro/validators';
 import type { z } from 'zod';
 import { Button, Input } from '@sidpro/ui';
-import { Plus, Pencil, Shield, UserX, UserCheck } from 'lucide-react';
+import { Plus, Pencil, Shield, UserX, UserCheck, ShieldCheck } from 'lucide-react';
 import { PageHeader } from '@/components/enterprise/page-header';
 import { DataTable, FilterBar } from '@/components/enterprise/data-table';
 import { DetailDrawer } from '@/components/enterprise/detail-drawer';
@@ -56,6 +56,7 @@ export default function UsersPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [disableTarget, setDisableTarget] = useState<UserRecord | null>(null);
+  const [enableTarget, setEnableTarget] = useState<UserRecord | null>(null);
   const [assignRoleIds, setAssignRoleIds] = useState<string[]>([]);
 
   const { data, isLoading, error, refetch } = useUsers({
@@ -124,8 +125,10 @@ export default function UsersPage() {
     setDisableTarget(null);
   }
 
-  async function enableUser(row: UserRecord) {
-    await statusMutation.mutateAsync({ id: row.id, status: 'active' });
+  async function confirmEnable() {
+    if (!enableTarget) return;
+    await statusMutation.mutateAsync({ id: enableTarget.id, status: 'active' });
+    setEnableTarget(null);
   }
 
   const isSelf = (row: UserRecord) => row.id === currentUser?.id;
@@ -229,7 +232,7 @@ export default function UsersPage() {
               {canAny(['users.update', 'users.disable']) &&
                 row.status !== 'active' &&
                 !isSelf(row) && (
-                  <Button size="sm" variant="ghost" onClick={() => enableUser(row)}>
+                  <Button size="sm" variant="ghost" onClick={() => setEnableTarget(row)}>
                     <UserCheck className="h-4 w-4 text-emerald-600" />
                   </Button>
                 )}
@@ -366,7 +369,22 @@ export default function UsersPage() {
       >
         {editUser && (
           <form className="space-y-4" onSubmit={editForm.handleSubmit(onEditSubmit)}>
-            <p className="text-sm text-slate-500">{editUser.email}</p>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-full bg-emerald-100 p-2 text-emerald-700">
+                    <ShieldCheck className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">{editUser.name}</p>
+                    <p className="text-xs text-slate-500">{editUser.email}</p>
+                  </div>
+                </div>
+                <StatusBadge variant={userStatusVariant(editUser.status)}>
+                  {USER_STATUS_LABELS[editUser.status] ?? editUser.status}
+                </StatusBadge>
+              </div>
+            </div>
             <div>
               <label className="form-label" htmlFor="edit-name">Nama</label>
               <Input id="edit-name" {...editForm.register('name')} />
@@ -384,12 +402,16 @@ export default function UsersPage() {
             </div>
             {can('users.update') && (
               <div>
-                <label className="form-label">Peran</label>
-                <div className="mt-2 max-h-48 space-y-2 overflow-y-auto rounded-md border border-slate-200 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <label className="form-label">Role Assignment</label>
+                  <span className="text-xs text-slate-500">{assignRoleIds.length} peran dipilih</span>
+                </div>
+                <p className="mt-1 text-xs text-slate-500">Pilih peran minimum yang diperlukan. Perubahan dicatat di audit log oleh API.</p>
+                <div className="mt-3 grid max-h-64 gap-2 overflow-y-auto rounded-md border border-slate-200 p-3 sm:grid-cols-2">
                   {roles
                     .filter((r) => r.code !== 'superadmin_system' || currentUser?.roles.includes('superadmin_system'))
                     .map((role) => (
-                      <label key={role.id} className="flex items-center gap-2 text-sm">
+                      <label key={role.id} className="flex items-start gap-2 rounded-lg border border-slate-100 p-2 text-sm transition hover:bg-slate-50">
                         <input
                           type="checkbox"
                           checked={assignRoleIds.includes(role.id)}
@@ -402,7 +424,10 @@ export default function UsersPage() {
                             );
                           }}
                         />
-                        {role.name}
+                        <span>
+                          <span className="font-medium text-slate-800">{role.name}</span>
+                          <span className="block font-mono text-xs text-slate-400">{role.code}</span>
+                        </span>
                       </label>
                     ))}
                 </div>
@@ -448,6 +473,17 @@ export default function UsersPage() {
           </div>
         )}
       </DetailDrawer>
+
+
+      <ConfirmDialog
+        open={Boolean(enableTarget)}
+        title="Aktifkan Pengguna"
+        message={`Aktifkan kembali pengguna ${enableTarget?.name}? Pastikan role assignment sudah sesuai sebelum akun dapat login.`}
+        confirmLabel="Aktifkan"
+        loading={statusMutation.isPending}
+        onCancel={() => setEnableTarget(null)}
+        onConfirm={confirmEnable}
+      />
 
       <ConfirmDialog
         open={Boolean(disableTarget)}
