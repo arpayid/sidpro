@@ -92,6 +92,17 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION enforce_letter_output_tenant_links()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  PERFORM assert_same_tenant_link(NEW.tenant_id, NEW.letter_request_id, 'letter_requests', 'letter_outputs.letter_request_id');
+  PERFORM assert_same_tenant_link(NEW.tenant_id, NEW.file_id, 'files', 'letter_outputs.file_id');
+  RETURN NEW;
+END;
+$$;
+
 CREATE TRIGGER tenant_link_guard_families
 BEFORE INSERT OR UPDATE OF tenant_id, address_id, head_resident_id ON families
 FOR EACH ROW EXECUTE FUNCTION enforce_family_tenant_links();
@@ -111,6 +122,10 @@ FOR EACH ROW EXECUTE FUNCTION enforce_finance_document_tenant_links();
 CREATE TRIGGER tenant_link_guard_gallery_items
 BEFORE INSERT OR UPDATE OF tenant_id, file_id ON gallery_items
 FOR EACH ROW EXECUTE FUNCTION enforce_gallery_item_tenant_links();
+
+CREATE TRIGGER tenant_link_guard_letter_outputs
+BEFORE INSERT OR UPDATE OF tenant_id, letter_request_id, file_id ON letter_outputs
+FOR EACH ROW EXECUTE FUNCTION enforce_letter_output_tenant_links();
 
 ALTER TABLE finance_documents
   ADD CONSTRAINT finance_documents_file_id_restrict_fkey
