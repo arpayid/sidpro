@@ -34,6 +34,8 @@ describe('database tenant-link guard migration', () => {
       ['aid_recipients', 'family_id'],
       ['finance_documents', 'file_id'],
       ['gallery_items', 'file_id'],
+      ['letter_outputs', 'letter_request_id'],
+      ['letter_outputs', 'file_id'],
     ];
 
     for (const [table, column] of guards) {
@@ -46,9 +48,21 @@ describe('database tenant-link guard migration', () => {
       'tenant_link_guard_aid_recipients',
       'tenant_link_guard_finance_documents',
       'tenant_link_guard_gallery_items',
+      'tenant_link_guard_letter_outputs',
     ]) {
       assert.match(migration, new RegExp(`CREATE TRIGGER ${trigger}`));
     }
+  });
+
+  it('restricts deletion while file-backed records still exist', () => {
+    for (const constraint of [
+      'finance_documents_file_id_restrict_fkey',
+      'gallery_items_file_id_restrict_fkey',
+      'letter_outputs_file_id_restrict_fkey',
+    ]) {
+      assert.match(migration, new RegExp(`ADD CONSTRAINT ${constraint}`));
+    }
+    assert.match(migration, /FOREIGN KEY \(file_id\) REFERENCES files\(id\) ON DELETE RESTRICT/);
   });
 
   it('ships a preflight query for historical integrity violations', () => {
@@ -57,5 +71,6 @@ describe('database tenant-link guard migration', () => {
     assert.match(preflight, /aid_recipients\.resident_id/);
     assert.match(preflight, /finance_documents\.file_id/);
     assert.match(preflight, /gallery_items\.file_id/);
+    assert.match(preflight, /letter_outputs\.file_id/);
   });
 });
