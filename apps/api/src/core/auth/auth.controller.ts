@@ -81,9 +81,10 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
   @Post('refresh')
-  refresh(@Body() body: RefreshTokenDto) {
-    return this.authService.refresh(body.refreshToken);
+  refresh(@Body() body: RefreshTokenDto, @Req() req: Request) {
+    return this.authService.refresh(body.refreshToken, req.ip);
   }
 
   @UseGuards(JwtAuthGuard)
