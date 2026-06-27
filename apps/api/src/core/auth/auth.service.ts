@@ -443,7 +443,7 @@ export class AuthService {
     return successResponse(null, '2FA berhasil dinonaktifkan');
   }
 
-  async refresh(refreshToken: string) {
+  async refresh(refreshToken: string, ipAddress?: string) {
     const stored = await this.prisma.refreshToken.findUnique({
       where: { token: refreshToken },
       include: {
@@ -485,6 +485,16 @@ export class AuthService {
 
     await this.prisma.refreshToken.create({
       data: { userId: user.id, token: newRefreshToken, expiresAt },
+    });
+
+    await this.auditLogs.log({
+      tenantId: user.tenantId,
+      actorId: user.id,
+      action: 'refresh_token',
+      module: 'auth',
+      entityType: 'user',
+      entityId: user.id,
+      ipAddress,
     });
 
     return successResponse(
