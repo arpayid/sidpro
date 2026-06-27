@@ -69,4 +69,13 @@ LEFT JOIN files file ON file.id = gi.file_id
 WHERE gi.file_id IS NOT NULL
   AND (file.id IS NULL OR file.tenant_id <> gi.tenant_id)
 
+UNION ALL
+
+SELECT 'letter_outputs.file_id', lo.id, lo.tenant_id,
+       lo.file_id, file.tenant_id
+FROM letter_outputs lo
+LEFT JOIN files file ON file.id = lo.file_id
+WHERE lo.file_id IS NOT NULL
+  AND (file.id IS NULL OR file.tenant_id <> lo.tenant_id)
+
 ORDER BY relation, source_id;
