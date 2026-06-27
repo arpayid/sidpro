@@ -1,8 +1,9 @@
 -- AUDIT-5: protect tenant-owned relationships at the database boundary.
 --
 -- IDs and tenant IDs are TEXT in the existing Prisma migrations. These guards
--- are non-destructive: they reject future invalid INSERT/UPDATE statements but
--- do not mutate historical rows.
+-- reject future invalid INSERT/UPDATE statements. The foreign-key safeguards
+-- below also prevent deletion of files while tenant-owned records reference
+-- them. Run scripts/db/verify-tenant-link-integrity.sql before deployment.
 
 CREATE OR REPLACE FUNCTION assert_same_tenant_link(
   p_tenant_id text,
@@ -110,3 +111,15 @@ FOR EACH ROW EXECUTE FUNCTION enforce_finance_document_tenant_links();
 CREATE TRIGGER tenant_link_guard_gallery_items
 BEFORE INSERT OR UPDATE OF tenant_id, file_id ON gallery_items
 FOR EACH ROW EXECUTE FUNCTION enforce_gallery_item_tenant_links();
+
+ALTER TABLE finance_documents
+  ADD CONSTRAINT finance_documents_file_id_restrict_fkey
+  FOREIGN KEY (file_id) REFERENCES files(id) ON DELETE RESTRICT;
+
+ALTER TABLE gallery_items
+  ADD CONSTRAINT gallery_items_file_id_restrict_fkey
+  FOREIGN KEY (file_id) REFERENCES files(id) ON DELETE RESTRICT;
+
+ALTER TABLE letter_outputs
+  ADD CONSTRAINT letter_outputs_file_id_restrict_fkey
+  FOREIGN KEY (file_id) REFERENCES files(id) ON DELETE RESTRICT;
