@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { randomBytes } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
 import { PrismaService } from '../../database/prisma.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { successResponse } from '../../common/utils/response.util';
@@ -54,14 +54,15 @@ export class AuthService {
       }[];
     },
   ): AuthUserShape {
-    const roles = user.userRoles.map((ur) => ur.role.code);
+    const roles = user.userRoles.map((userRole) => userRole.role.code);
     const permissions = [
       ...new Set(
-        user.userRoles.flatMap((ur) =>
-          ur.role.rolePermissions.map((rp) => rp.permission.code),
+        user.userRoles.flatMap((userRole) =>
+          userRole.role.rolePermissions.map((rolePermission) => rolePermission.permission.code),
         ),
       ),
     ];
+
     return {
       id: user.id,
       email: user.email,
@@ -81,6 +82,53 @@ export class AuthService {
       roles: user.roles,
       permissions: user.permissions,
     };
+  }
+
+  private hashRefreshToken(refreshToken: string): string {
+    return createHash('sha256').update(refreshToken).digest('hex');
+  }
+
+  /**
+   * Legacy rows stored a 128-character random token directly. A SHA-256 digest
+   * is 64 characters, so digest values copied from the database are never
+   * accepted as a bearer credential during the transition window.
+   */
+  private refreshTokenLookupValues(refreshToken: string): string[] {
+    const values = [this.hashRefreshToken(refreshToken)];
+    if (/^[a-f0-9]{128}$/i.test(refreshToken)) values.push(refreshToken);
+    return values;
+  }
+
+  private createRefreshTokenExpiry(now = new Date()): Date {
+    const expiresAt = new Date(now);
+    expiresAt.setDate(expiresAt.getDate() + 7);
+    return expiresAt;
+  }
+
+  private async revokeActiveRefreshTokens(userId: string, revokedAt: Date) {
+    await this.prisma.refreshToken.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt },
+    });
+  }
+
+  private async logRefreshTokenSecurityEvent(
+    tokenId: string,
+    userId: string,
+    tenantId: string | null,
+    reason: 'reused_revoked_token' | 'concurrent_rotation',
+    ipAddress?: string,
+  ) {
+    await this.auditLogs.log({
+      tenantId,
+      actorId: userId,
+      action: 'refresh_token_reuse_detected',
+      module: 'auth',
+      entityType: 'refresh_token',
+      entityId: tokenId,
+      metadata: { reason },
+      ipAddress,
+    });
   }
 
   private async isRequire2FaAdminForUser(authUser: AuthUserShape): Promise<boolean> {
@@ -134,11 +182,13 @@ export class AuthService {
     const payload = this.buildJwtPayload(user);
     const accessToken = this.jwt.sign(payload);
     const refreshToken = randomBytes(64).toString('hex');
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7);
 
     await this.prisma.refreshToken.create({
-      data: { userId: user.id, token: refreshToken, expiresAt },
+      data: {
+        userId: user.id,
+        token: this.hashRefreshToken(refreshToken),
+        expiresAt: this.createRefreshTokenExpiry(),
+      },
     });
 
     await this.auditLogs.log({
@@ -444,8 +494,9 @@ export class AuthService {
   }
 
   async refresh(refreshToken: string, ipAddress?: string) {
-    const stored = await this.prisma.refreshToken.findUnique({
-      where: { token: refreshToken },
+    const now = new Date();
+    const stored = await this.prisma.refreshToken.findFirst({
+      where: { token: { in: this.refreshTokenLookupValues(refreshToken) } },
       include: {
         user: {
           include: {
@@ -463,29 +514,83 @@ export class AuthService {
       },
     });
 
-    if (!stored || stored.revokedAt || stored.expiresAt < new Date()) {
+    if (!stored) {
+      throw new UnauthorizedException('Refresh token tidak valid');
+    }
+
+    if (stored.revokedAt) {
+      await this.revokeActiveRefreshTokens(stored.userId, now);
+      await this.logRefreshTokenSecurityEvent(
+        stored.id,
+        stored.userId,
+        stored.user.tenantId,
+        'reused_revoked_token',
+        ipAddress,
+      );
+      throw new UnauthorizedException('Refresh token tidak valid');
+    }
+
+    if (stored.expiresAt <= now) {
+      await this.prisma.refreshToken.updateMany({
+        where: { id: stored.id, revokedAt: null },
+        data: { revokedAt: now },
+      });
       throw new UnauthorizedException('Refresh token tidak valid');
     }
 
     const user = stored.user;
     if (user.status !== 'active' || user.deletedAt) {
+      await this.revokeActiveRefreshTokens(user.id, now);
       throw new UnauthorizedException('Akun tidak aktif');
     }
+
     const authUser = this.mapUserRoles(user);
-    const payload = this.buildJwtPayload(authUser);
-
-    await this.prisma.refreshToken.update({
-      where: { id: stored.id },
-      data: { revokedAt: new Date() },
-    });
-
     const newRefreshToken = randomBytes(64).toString('hex');
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7);
+    const expiresAt = this.createRefreshTokenExpiry(now);
 
-    await this.prisma.refreshToken.create({
-      data: { userId: user.id, token: newRefreshToken, expiresAt },
+    const rotationSucceeded = await this.prisma.$transaction(async (transaction) => {
+      const claimed = await transaction.refreshToken.updateMany({
+        where: {
+          id: stored.id,
+          revokedAt: null,
+          expiresAt: { gt: now },
+        },
+        data: { revokedAt: now },
+      });
+
+      if (claimed.count !== 1) return false;
+
+      await transaction.refreshToken.create({
+        data: {
+          userId: user.id,
+          token: this.hashRefreshToken(newRefreshToken),
+          expiresAt,
+        },
+      });
+
+      return true;
     });
+
+    if (!rotationSucceeded) {
+      const current = await this.prisma.refreshToken.findUnique({
+        where: { id: stored.id },
+        select: { revokedAt: true, expiresAt: true },
+      });
+
+      if (!current || current.expiresAt <= now) {
+        throw new UnauthorizedException('Refresh token tidak valid');
+      }
+
+      await this.revokeActiveRefreshTokens(user.id, now);
+      await this.logRefreshTokenSecurityEvent(
+        stored.id,
+        user.id,
+        user.tenantId,
+        'concurrent_rotation',
+        ipAddress,
+      );
+      throw new UnauthorizedException('Refresh token tidak valid');
+    }
 
     await this.auditLogs.log({
       tenantId: user.tenantId,
@@ -499,7 +604,7 @@ export class AuthService {
 
     return successResponse(
       {
-        accessToken: this.jwt.sign(payload),
+        accessToken: this.jwt.sign(this.buildJwtPayload(authUser)),
         refreshToken: newRefreshToken,
       },
       'Token diperbarui',
@@ -514,7 +619,11 @@ export class AuthService {
 
     if (refreshToken) {
       await this.prisma.refreshToken.updateMany({
-        where: { userId, token: refreshToken, revokedAt: null },
+        where: {
+          userId,
+          token: { in: this.refreshTokenLookupValues(refreshToken) },
+          revokedAt: null,
+        },
         data: { revokedAt: new Date() },
       });
     }
