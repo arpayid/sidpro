@@ -14,7 +14,8 @@ export class PermissionsGuard implements CanActivate {
 
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest();
-    const user = request.user as JwtPayload;
+    const user = request.user as JwtPayload | undefined;
+    const userPermissions = user?.permissions ?? [];
 
     const requiredAll = this.reflector.getAllAndOverride<string[]>(PERMISSIONS_ALL_KEY, [
       context.getHandler(),
@@ -23,7 +24,7 @@ export class PermissionsGuard implements CanActivate {
 
     if (requiredAll?.length) {
       if (!user) throw new ForbiddenException('Access denied');
-      const missingAll = requiredAll.filter((p) => !user.permissions.includes(p));
+      const missingAll = requiredAll.filter((permission) => !userPermissions.includes(permission));
       if (missingAll.length) {
         throw new ForbiddenException(`Missing permission: ${missingAll.join(', ')}`);
       }
@@ -39,7 +40,7 @@ export class PermissionsGuard implements CanActivate {
 
     if (!user) throw new ForbiddenException('Access denied');
 
-    const hasPermission = requiredPermissions.some((p) => user.permissions.includes(p));
+    const hasPermission = requiredPermissions.some((permission) => userPermissions.includes(permission));
     if (!hasPermission) {
       throw new ForbiddenException(`Missing permission: ${requiredPermissions.join(', ')}`);
     }
