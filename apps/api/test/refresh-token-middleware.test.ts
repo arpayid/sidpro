@@ -4,7 +4,23 @@ import { createHash } from 'node:crypto';
 import { UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../src/database/prisma.service.js';
 
-type Middleware = (params: Record<string, unknown>, next: (params: Record<string, unknown>) => Promise<unknown>) => Promise<unknown>;
+type Middleware = (
+  params: Record<string, unknown>,
+  next: (params: Record<string, unknown>) => Promise<unknown>,
+) => Promise<unknown>;
+
+type TestService = {
+  $use: (handler: Middleware) => void;
+  $connect: () => Promise<void>;
+  refreshToken: {
+    updateMany: (args: unknown) => Promise<{ count: number }>;
+    findUnique: (args: unknown) => Promise<unknown>;
+  };
+  user: {
+    findUnique: (args: unknown) => Promise<{ tenantId: string | null } | null>;
+  };
+  auditLog: { create: (args: unknown) => Promise<unknown> };
+};
 
 const rawToken = 'a'.repeat(128);
 const tokenHash = createHash('sha256').update(rawToken).digest('hex');
@@ -28,16 +44,7 @@ async function makeHarness() {
   let middleware: Middleware | undefined;
   const updateManyCalls: unknown[] = [];
   const auditEvents: unknown[] = [];
-  const service = Object.create(PrismaService.prototype) as PrismaService & {
-    $use: (handler: Middleware) => void;
-    $connect: () => Promise<void>;
-    refreshToken: {
-      updateMany: (args: unknown) => Promise<{ count: number }>;
-      findUnique: (args: unknown) => Promise<unknown>;
-    };
-    user: { findUnique: (args: unknown) => Promise<{ tenantId: string | null } | null> };
-    auditLog: { create: (args: unknown) => Promise<unknown> };
-  };
+  const service = Object.create(PrismaService.prototype) as TestService;
 
   service.$use = (handler) => {
     middleware = handler;
@@ -58,7 +65,10 @@ async function makeHarness() {
     },
   };
 
-  await service.onModuleInit();
+  const initialize = PrismaService.prototype.onModuleInit as unknown as (
+    this: TestService,
+  ) => Promise<void>;
+  await initialize.call(service);
   assert.ok(middleware);
 
   return {
@@ -108,7 +118,9 @@ describe('refresh token Prisma middleware', () => {
     );
 
     assert.equal(received?.action, 'findFirst');
-    const where = (received?.args as { where: { OR: Array<{ token: string }> } }).where;
+    const where = (received?.args as {
+      where: { OR: Array<{ token: string }> };
+    }).where;
     assert.deepEqual(where.OR, [{ token: tokenHash }, { token: rawToken }]);
   });
 
@@ -124,11 +136,17 @@ describe('refresh token Prisma middleware', () => {
       async () => refreshTokenRecord({ revokedAt: now }),
     );
 
-    assert.deepEqual(updateManyCalls[0], {
-      where: { userId: 'user-1', revokedAt: null },
-      data: { revokedAt: assert.match },
-    });
-    const event = auditEvents[0] as { data: { action: string; metadata: { reason: string } } };
+    const sessionRevocation = updateManyCalls[0] as {
+      where: { userId: string; revokedAt: null };
+      data: { revokedAt: Date };
+    };
+    assert.equal(sessionRevocation.where.userId, 'user-1');
+    assert.equal(sessionRevocation.where.revokedAt, null);
+    assert.ok(sessionRevocation.data.revokedAt instanceof Date);
+
+    const event = auditEvents[0] as {
+      data: { action: string; metadata: { reason: string } };
+    };
     assert.equal(event.data.action, 'refresh_token_reuse_detected');
     assert.equal(event.data.metadata.reason, 'reused_revoked_token');
   });
@@ -150,7 +168,9 @@ describe('refresh token Prisma middleware', () => {
     );
 
     assert.equal(updateManyCalls.length, 1);
-    const event = auditEvents[0] as { data: { metadata: { reason: string } } };
+    const event = auditEvents[0] as {
+      data: { metadata: { reason: string } };
+    };
     assert.equal(event.data.metadata.reason, 'concurrent_rotation');
   });
 
@@ -170,7 +190,9 @@ describe('refresh token Prisma middleware', () => {
       },
     );
 
-    const where = (received?.args as { where: { token: { in: string[] } } }).where;
+    const where = (received?.args as {
+      where: { token: { in: string[] } };
+    }).where;
     assert.deepEqual(where.token.in, [tokenHash, rawToken]);
   });
 });
