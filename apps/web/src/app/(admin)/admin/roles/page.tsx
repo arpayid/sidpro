@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { createRoleSchema } from '@sidpro/validators';
 import type { z } from 'zod';
 import { Button, Input } from '@sidpro/ui';
-import { Plus, Pencil, Users } from 'lucide-react';
+import { Plus, Pencil, Users, CheckCircle2 } from 'lucide-react';
 import { PageHeader } from '@/components/enterprise/page-header';
 import { DataTable } from '@/components/enterprise/data-table';
 import { DetailDrawer } from '@/components/enterprise/detail-drawer';
@@ -49,6 +49,8 @@ export default function RolesPage() {
   });
 
   const grouped = useMemo(() => groupPermissionsByModule(permissions), [permissions]);
+  const selectedPermissionCount = selectedPermIds.length;
+  const totalPermissionCount = permissions.length;
   const roles = data?.data ?? [];
 
   useEffect(() => {
@@ -234,7 +236,18 @@ export default function RolesPage() {
               </div>
             )}
             <div>
-              <p className="mb-3 text-sm font-medium text-slate-700">Permission Matrix</p>
+              <div className="mb-3 rounded-xl border border-emerald-100 bg-emerald-50 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-700" />
+                    <p className="text-sm font-semibold text-slate-800">Permission Matrix</p>
+                  </div>
+                  <span className="text-xs font-medium text-emerald-700">
+                    {selectedPermissionCount}/{totalPermissionCount} permission aktif
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-slate-600">Gunakan toggle modul untuk memilih hak akses secara massal, lalu fine-tune permission per aksi.</p>
+              </div>
               {permsLoading && <p className="text-sm text-slate-500">Memuat permission...</p>}
               {!permsLoading && (
                 <div className="space-y-4">
@@ -243,7 +256,7 @@ export default function RolesPage() {
                     const someChecked = modulePerms.some((p) => selectedPermIds.includes(p.id));
                     return (
                       <div key={module} className="rounded-lg border border-slate-200 p-3">
-                        <label className="mb-2 flex items-center gap-2 font-medium text-slate-800">
+                        <label className="mb-2 flex flex-wrap items-center gap-2 font-medium text-slate-800">
                           <input
                             type="checkbox"
                             checked={allChecked}
@@ -253,8 +266,8 @@ export default function RolesPage() {
                             disabled={readOnly || !can('roles.assign_permissions')}
                             onChange={(e) => toggleModule(modulePerms, e.target.checked)}
                           />
-                          {module}
-                          <span className="text-xs font-normal text-slate-400">
+                          <span className="capitalize">{module}</span>
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-normal text-slate-500">
                             ({modulePerms.length})
                           </span>
                         </label>

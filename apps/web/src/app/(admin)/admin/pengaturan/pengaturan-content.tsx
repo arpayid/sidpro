@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Button, Card, CardContent, CardHeader, CardTitle, Input } from '@sidpro/ui';
+import { LockKeyhole, ShieldCheck } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import {
   useUpdateVillageProfile,
@@ -246,11 +247,40 @@ export function PengaturanContent() {
           </CardContent>
         </Card>
 
-        <TwoFaSettings />
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <div className="flex items-start gap-3">
+                <div className="rounded-xl bg-emerald-100 p-2 text-emerald-700">
+                  <ShieldCheck className="h-5 w-5" />
+                </div>
+                <div>
+                  <CardTitle>Panel 2FA & Security</CardTitle>
+                  <p className="mt-1 text-xs text-slate-500">Hardening admin: TOTP, kewajiban 2FA, dan audit setiap perubahan kebijakan.</p>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="grid gap-3 text-sm text-slate-600 sm:grid-cols-2">
+              <div className="rounded-lg border border-slate-200 p-3">
+                <p className="font-medium text-slate-800">Status 2FA pribadi</p>
+                <p className="mt-1 text-xs text-slate-500">Operator dapat mengaktifkan TOTP untuk akun sendiri.</p>
+              </div>
+              <div className="rounded-lg border border-slate-200 p-3">
+                <p className="font-medium text-slate-800">Kebijakan admin</p>
+                <p className="mt-1 text-xs text-slate-500">Admin desa dapat mewajibkan 2FA untuk seluruh akun admin.</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <TwoFaSettings />
+        </div>
 
         <Card>
           <CardHeader>
-            <CardTitle>Kebijakan Keamanan</CardTitle>
+            <div className="flex items-center gap-2">
+              <LockKeyhole className="h-4 w-4 text-emerald-700" />
+              <CardTitle>Kebijakan Keamanan</CardTitle>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4 text-sm text-slate-600">
             {securityLoading ? (
