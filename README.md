@@ -116,18 +116,26 @@ docker compose config
 - [RBAC Matrix](docs/RBAC_MATRIX.md)
 - [Security](docs/SECURITY.md)
 - [Operations](docs/OPERATIONS.md)
+- [Operator Runbook](docs/OPERATIONS.md#operator-runbook)
+- [Staging Deploy](docs/STAGING_DEPLOY.md)
+- [Docker Production](docs/DOCKER_PRODUCTION.md)
 
 ## Scripts Operasional
 
+Runbook lengkap untuk deploy, rollback, backup/restore, rotasi secret, pengecekan log/worker/queue/storage, smoke test, dan checklist insiden tersedia di [Operator Runbook](docs/OPERATIONS.md#operator-runbook).
+
 ```bash
-# Backup database
+# Backup database (atau `pnpm backup`)
 ./scripts/backup.sh
 
-# Restore database
+# Restore database interaktif
 ./scripts/restore.sh backups/db_YYYYMMDD_HHMMSS.sql.gz
 
 # Healthcheck
 ./scripts/healthcheck.sh
+
+# Smoke test MVP
+STAGING_ADMIN_PASSWORD='<admin-password>' SMOKE_RUN_SEED=0 pnpm smoke
 ```
 
 ## Lisensi
