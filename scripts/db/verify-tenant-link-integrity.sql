@@ -1,4 +1,4 @@
--- Run against staging and production before deploying the tenant-link guard migration.
+-- Run against staging and production before deploying tenant-link guard migrations.
 -- Expected result: zero rows.
 
 SELECT 'families.address_id' AS relation, f.id AS source_id, f.tenant_id AS source_tenant_id,
@@ -16,6 +16,92 @@ FROM families f
 LEFT JOIN residents r ON r.id = f.head_resident_id
 WHERE f.head_resident_id IS NOT NULL
   AND (r.id IS NULL OR r.tenant_id <> f.tenant_id)
+
+UNION ALL
+
+SELECT 'neighborhood_units.hamlet_id', nu.id, nu.tenant_id,
+       nu.hamlet_id, h.tenant_id
+FROM neighborhood_units nu
+LEFT JOIN hamlets h ON h.id = nu.hamlet_id
+WHERE h.id IS NULL OR h.tenant_id <> nu.tenant_id
+
+UNION ALL
+
+SELECT 'addresses.hamlet_id', a.id, a.tenant_id,
+       a.hamlet_id, h.tenant_id
+FROM addresses a
+LEFT JOIN hamlets h ON h.id = a.hamlet_id
+WHERE a.hamlet_id IS NOT NULL
+  AND (h.id IS NULL OR h.tenant_id <> a.tenant_id)
+
+UNION ALL
+
+SELECT 'addresses.neighborhood_unit_id', a.id, a.tenant_id,
+       a.neighborhood_unit_id, nu.tenant_id
+FROM addresses a
+LEFT JOIN neighborhood_units nu ON nu.id = a.neighborhood_unit_id
+WHERE a.neighborhood_unit_id IS NOT NULL
+  AND (nu.id IS NULL OR nu.tenant_id <> a.tenant_id)
+
+UNION ALL
+
+SELECT 'addresses.neighborhood_unit_hamlet_mismatch', a.id, a.tenant_id,
+       a.neighborhood_unit_id, nu.tenant_id
+FROM addresses a
+JOIN neighborhood_units nu ON nu.id = a.neighborhood_unit_id
+WHERE a.hamlet_id IS NOT NULL
+  AND a.neighborhood_unit_id IS NOT NULL
+  AND nu.hamlet_id <> a.hamlet_id
+
+UNION ALL
+
+SELECT 'residents.family_id', r.id, r.tenant_id,
+       r.family_id, f.tenant_id
+FROM residents r
+LEFT JOIN families f ON f.id = r.family_id
+WHERE r.family_id IS NOT NULL
+  AND (f.id IS NULL OR f.tenant_id <> r.tenant_id)
+
+UNION ALL
+
+SELECT 'residents.address_id', r.id, r.tenant_id,
+       r.address_id, a.tenant_id
+FROM residents r
+LEFT JOIN addresses a ON a.id = r.address_id
+WHERE r.address_id IS NOT NULL
+  AND (a.id IS NULL OR a.tenant_id <> r.tenant_id)
+
+UNION ALL
+
+SELECT 'family_members.family_id', fm.id, fm.tenant_id,
+       fm.family_id, f.tenant_id
+FROM family_members fm
+LEFT JOIN families f ON f.id = fm.family_id
+WHERE f.id IS NULL OR f.tenant_id <> fm.tenant_id
+
+UNION ALL
+
+SELECT 'family_members.resident_id', fm.id, fm.tenant_id,
+       fm.resident_id, r.tenant_id
+FROM family_members fm
+LEFT JOIN residents r ON r.id = fm.resident_id
+WHERE r.id IS NULL OR r.tenant_id <> fm.tenant_id
+
+UNION ALL
+
+SELECT 'civil_events.resident_id', ce.id, ce.tenant_id,
+       ce.resident_id, r.tenant_id
+FROM civil_events ce
+LEFT JOIN residents r ON r.id = ce.resident_id
+WHERE r.id IS NULL OR r.tenant_id <> ce.tenant_id
+
+UNION ALL
+
+SELECT 'bumdes_financial_records.unit_id', bfr.id, bfr.tenant_id,
+       bfr.unit_id, bu.tenant_id
+FROM bumdes_financial_records bfr
+LEFT JOIN bumdes_units bu ON bu.id = bfr.unit_id
+WHERE bu.id IS NULL OR bu.tenant_id <> bfr.tenant_id
 
 UNION ALL
 
