@@ -40,13 +40,49 @@ describe('population tenant-link guard migration', () => {
     assert.match(migration, /assert_address_neighborhood_hierarchy\(/);
   });
 
+  it('blocks parent-side tenant drift while dependent child rows exist', () => {
+    assert.match(migration, /CREATE OR REPLACE FUNCTION assert_no_dependent_tenant_mismatch/);
+
+    for (const relation of [
+      'neighborhood_units.hamlet_id',
+      'addresses.hamlet_id',
+      'addresses.neighborhood_unit_id',
+      'families.address_id',
+      'families.head_resident_id',
+      'residents.family_id',
+      'residents.address_id',
+      'family_members.family_id',
+      'family_members.resident_id',
+      'civil_events.resident_id',
+      'bumdes_financial_records.unit_id',
+    ]) {
+      assert.match(migration, new RegExp(relation.replace('.', '\\.')));
+    }
+  });
+
+  it('blocks RT/RW hamlet moves that would invalidate existing addresses', () => {
+    assert.match(
+      migration,
+      /CREATE OR REPLACE FUNCTION assert_no_address_neighborhood_unit_hierarchy_mismatch/,
+    );
+    assert.match(
+      migration,
+      /neighborhood_units\.hamlet_id cannot change while existing addresses select a different hamlet_id/,
+    );
+    assert.match(migration, /assert_no_address_neighborhood_unit_hierarchy_mismatch\(/);
+  });
+
   it('creates targeted triggers for all newly protected tables', () => {
     for (const trigger of [
+      'tenant_dependent_guard_hamlets',
       'tenant_link_guard_neighborhood_units',
       'tenant_link_guard_addresses',
+      'tenant_dependent_guard_addresses',
+      'tenant_dependent_guard_families',
       'tenant_link_guard_residents',
       'tenant_link_guard_family_members',
       'tenant_link_guard_civil_events',
+      'tenant_dependent_guard_bumdes_units',
       'tenant_link_guard_bumdes_financial_records',
     ]) {
       assert.match(migration, new RegExp(`CREATE TRIGGER ${trigger}`));
