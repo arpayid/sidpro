@@ -7,7 +7,7 @@ import { updateLetterSettingsSchema } from '@sidpro/validators';
 import type { z } from 'zod';
 import Link from 'next/link';
 import { Button, Input } from '@sidpro/ui';
-import { ArrowLeft, Save, FileText } from 'lucide-react';
+import { ArrowLeft, Save, FileText, ShieldCheck, Settings2 } from 'lucide-react';
 import { PageHeader } from '@/components/enterprise/page-header';
 import {
   useLetterSettings,
@@ -87,7 +87,7 @@ export default function SuratPengaturanPage() {
         title="Pengaturan Surat"
         description="Konfigurasi pejabat penandatangan, kop surat PDF, masking NIK, dan template surat."
         actions={
-          <Link href="/admin/surat/pengaturan">
+          <Link href="/admin/surat">
             <Button variant="outline" size="sm" type="button">
               <ArrowLeft className="mr-1.5 h-4 w-4" />
               Kembali ke Layanan Surat
@@ -97,7 +97,11 @@ export default function SuratPengaturanPage() {
       />
 
       {isLoading ? (
-        <p className="text-sm text-slate-500">Memuat pengaturan...</p>
+        <div className="grid gap-4 lg:grid-cols-2">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-40 animate-pulse rounded-lg border border-slate-200 bg-slate-100" />
+          ))}
+        </div>
       ) : error ? (
         <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           Gagal memuat pengaturan.{' '}
@@ -112,6 +116,24 @@ export default function SuratPengaturanPage() {
               {saveMessage}
             </div>
           )}
+
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+              <Settings2 className="h-5 w-5 text-emerald-700" />
+              <p className="mt-2 text-sm font-semibold text-emerald-950">Template terpusat</p>
+              <p className="mt-1 text-xs text-emerald-800">Edit placeholder surat tanpa mengubah kode aplikasi.</p>
+            </div>
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+              <ShieldCheck className="h-5 w-5 text-blue-700" />
+              <p className="mt-2 text-sm font-semibold text-blue-950">Masking data sensitif</p>
+              <p className="mt-1 text-xs text-blue-800">NIK dapat disamarkan untuk distribusi dokumen yang lebih aman.</p>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <FileText className="h-5 w-5 text-slate-700" />
+              <p className="mt-2 text-sm font-semibold text-slate-950">Kop PDF fleksibel</p>
+              <p className="mt-1 text-xs text-slate-600">Pakai profil desa atau kop khusus untuk kebutuhan operasional.</p>
+            </div>
+          </div>
 
           <form
             className="grid gap-6 lg:grid-cols-2"
@@ -233,6 +255,9 @@ export default function SuratPengaturanPage() {
                   value={selectedTemplateId}
                   onChange={(e) => setSelectedTemplateId(e.target.value)}
                 >
+                  {(data?.templates ?? []).length === 0 && (
+                    <option value="">Belum ada template aktif</option>
+                  )}
                   {(data?.templates ?? []).map((template) => (
                     <option key={template.id} value={template.id}>
                       {template.letterType.name}
@@ -251,6 +276,16 @@ export default function SuratPengaturanPage() {
                 </Button>
               </div>
             </div>
+
+            {selectedTemplate ? (
+              <p className="mt-3 rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                Template aktif: <strong>{selectedTemplate.letterType.name}</strong>. Simpan perubahan sebelum generate PDF berikutnya.
+              </p>
+            ) : (
+              <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                Belum ada template untuk diedit. Tambahkan jenis surat/template dari backend seed terlebih dahulu.
+              </p>
+            )}
 
             <textarea
               rows={12}
