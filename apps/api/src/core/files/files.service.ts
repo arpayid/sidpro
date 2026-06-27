@@ -3,7 +3,9 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { createHash, randomUUID } from 'crypto';
 import { createFileMetadataSchema, updateFileMetadataSchema, uploadFileMetadataSchema } from '@sidpro/validators';
 import { parseWithZod } from '../../common/utils/zod-validation.util';
@@ -64,6 +66,10 @@ export class FilesService {
     if (this.isCmsScopedUser(user) && ownerType !== CMS_GALLERY_OWNER) {
       throw new ForbiddenException('Unduhan CMS hanya diizinkan untuk file galeri');
     }
+  }
+
+  private isReferencedFileDeleteError(error: unknown): boolean {
+    return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003';
   }
 
   private async purgeStalePublicComplaintFiles(tenantId: string, maxAgeHours = 24) {
@@ -295,13 +301,34 @@ export class FilesService {
     const existing = await this.prisma.file.findFirst({ where: { id, tenantId } });
     if (!existing) throw new NotFoundException('File tidak ditemukan');
 
+    let deleted;
     try {
-      await this.storage.deleteFile(existing.path);
-    } catch {
-      throw new BadRequestException('Gagal menghapus file dari storage');
+      deleted = await this.prisma.file.delete({ where: { id } });
+    } catch (error) {
+      if (this.isReferencedFileDeleteError(error)) {
+        throw new ConflictException('File masih digunakan oleh data aplikasi dan tidak dapat dihapus');
+      }
+      throw error;
     }
 
-    await this.prisma.file.delete({ where: { id } });
+    try {
+      await this.storage.deleteFile(deleted.path);
+    } catch {
+      await this.auditLogs.log({
+        tenantId,
+        actorId: user.sub,
+        action: 'storage_cleanup_required',
+        module: 'files',
+        entityType: 'file',
+        entityId: id,
+        metadata: { reason: 'delete_after_metadata_removal' },
+        ipAddress,
+      });
+      return successResponse(
+        { storageCleanupRequired: true },
+        'Metadata file dihapus, tetapi pembersihan object storage perlu ditindaklanjuti',
+      );
+    }
 
     await this.auditLogs.log({
       tenantId,
