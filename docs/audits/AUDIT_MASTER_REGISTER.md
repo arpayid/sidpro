@@ -33,8 +33,10 @@ Audit hanya boleh ditandai `Closed` bila seluruh kondisi berikut terpenuhi:
 | [`docs/CI_MERGE_GATE.md`](../CI_MERGE_GATE.md) | Gate merge CI, production smoke, Security Audit, dan Tenant Link Integrity bersyarat. |
 | [`docs/SECURITY_AUDIT.md`](../SECURITY_AUDIT.md) | Dependency audit, Gitleaks secret scan, dan Dependabot. |
 | [`docs/PRODUCTION_READINESS.md`](../PRODUCTION_READINESS.md) | Checklist readiness dengan status Done/In Progress dan go-live gate. |
-| [AUDIT-5 Database & Tenant Integrity](AUDIT-5-DATABASE-TENANT-INTEGRITY.md) | Temuan, guard database, integration gate, dan pekerjaan tersisa AUDIT-5. |
-| [AUDIT-5 Report & Export Tenant Isolation](AUDIT-5-REPORT-EXPORT-ISOLATION.md) | Scope report/export, kontrol tenant, validator query, dan pekerjaan tersisa. |
+| [AUDIT-5 Database & Tenant Integrity](AUDIT-5-DATABASE-TENANT-INTEGRITY.md) | Temuan, guard database, integration gate, dan validasi environment tersisa AUDIT-5. |
+| [AUDIT-5 Report & Export Tenant Isolation](AUDIT-5-REPORT-EXPORT-ISOLATION.md) | Scope report/export, kontrol tenant, validator query, dan query-plan evidence. |
+| [AUDIT-5 Composite FK Evaluation](AUDIT-5-COMPOSITE-FK-EVALUATION.md) | Keputusan konservatif mengenai trigger guard dan kandidat pilot composite foreign key. |
+| [AUDIT-5 Storage Cleanup Observability](AUDIT-5-STORAGE-CLEANUP-OBSERVABILITY.md) | Kontrak retry, retention, log kesehatan queue, dan kebutuhan runtime validation. |
 | PR #68, #69, #77 | Bukti hardening refresh endpoint, refresh-token replay handling, dan Security Audit gate. |
 | PR #71, #74, #75, #81–#90 | Bukti tenant guard, PostgreSQL runtime test, data lifecycle, storage cleanup, finance ledger, dan release gate. |
 
@@ -185,36 +187,49 @@ Menilai authentication, authorization, session lifecycle, secret management, rat
 
 ## AUDIT-5 — Database dan Tenant Integrity
 
-**Status baseline:** `In Progress`
+**Status current:** `Validation Pending`
 
 ### Scope program
 
-Menilai tenant isolation di database, relasi lintas tenant, referential integrity, lifecycle soft delete, retention financial record, consistency storage metadata, dan auditability transaksi keuangan.
+Menilai tenant isolation di database, relasi lintas tenant, referential integrity, lifecycle soft delete, retention financial record, consistency storage metadata, auditability transaksi keuangan, serta query plan untuk report/export tenant-scoped.
 
 ### Bukti yang ada
 
-- `AUDIT-5-DATABASE-TENANT-INTEGRITY.md` mendokumentasikan temuan P1/P2, migration guards, integration gate PostgreSQL, dan preflight deployment.
+- `AUDIT-5-DATABASE-TENANT-INTEGRITY.md` mendokumentasikan temuan P1/P2, migration guards, PostgreSQL integration gate, preflight deployment, dan daftar validasi environment yang masih terbuka.
 - PR #71, #74, #75, #81, #85, #86, #87, dan #89 menangani tenant link guard, PostgreSQL runtime verification, BUMDes retention, surat, resident lifecycle, dan append-only finance ledger.
 - PR #82 dan #83 menambahkan report/export tenant isolation serta query range validation.
 - PR #84 dan #88 menambahkan durable cleanup dan letter PDF orphan cleanup.
 - PR #90 menambahkan guarded production release gate yang membuat backup PostgreSQL/MinIO, restore verification, preflight, migration, dan post-deploy validation pada CI.
+- Migration `20260628001100_add_audit_5_report_export_indexes` dan workflow `AUDIT-5 Query Plan Evidence` membuktikan executed PostgreSQL 17 plans memakai index tenant-scoped untuk resident XLSX export, population civil-event export, letter XLSX export, audit report, dan complaint CSV export pada tenant-selective fixture.
+- `AUDIT-5-COMPOSITE-FK-EVALUATION.md` mencatat bahwa trigger tetap dipertahankan karena beberapa invariant tidak dapat diwakili oleh composite foreign key; kandidat pilot tetap terdokumentasi.
+- `AUDIT-5-STORAGE-CLEANUP-OBSERVABILITY.md` mencatat retained failure evidence, structured worker health/failure logs, dan alert contract yang dapat dipakai lingkungan deployment.
 
-### Pekerjaan tersisa yang sudah tercatat
+### Repository-level completion
 
-1. Evaluasi staged replacement trigger guard dengan composite unique key/composite foreign key jika praktis.
-2. Kumpulkan bukti `EXPLAIN (ANALYZE, BUFFERS)` untuk report/export tenant volume tinggi.
-3. Verifikasi deployment, observability, dan retry worker storage cleanup pada environment nyata.
-4. Jalankan preflight pada data historis sebelum go-live.
+1. Evaluasi staged replacement trigger guard dengan composite unique key/composite foreign key sudah dilakukan dan keputusan dicatat.
+2. Bukti `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)` untuk query report/export tenant volume tinggi sudah dijalankan dalam workflow PostgreSQL 17.
+3. Retry dan observability cleanup worker sudah diperkuat melalui retention job, structured health logs, final-failure logs, dan unit test.
+
+### Validation pending outside repository
+
+1. Jalankan tenant-link dan identity preflight terhadap setiap dataset staging/production historis sebelum go-live.
+2. Simpan `EXPLAIN (ANALYZE, BUFFERS)` pada dataset representatif, termasuk row count, waktu, dan buffer statistics.
+3. Verifikasi deployed worker mengaktifkan storage cleanup, meneruskan JSON log ke log collector persisten, serta memberi alert untuk queue degraded dan final failure.
+4. Lakukan controlled Redis/MinIO outage-and-recovery drill dan catat perilaku retry.
+5. Uji migration lock behavior dan index creation pada persistent staging database sebelum perubahan diterapkan ke database besar.
 
 ### Yang belum dapat diklaim
 
-- AUDIT-5 belum `Closed` karena pekerjaan di atas masih tercatat.
-- CI tidak menggantikan preflight dataset nyata atau observability di environment persisten.
+- AUDIT-5 belum `Closed` karena seluruh validasi di atas membutuhkan environment dan/atau data yang belum tersedia.
+- CI tidak menggantikan preflight dataset nyata, observability runtime, recovery drill, atau bukti performa pada distribusi data aktual.
 
 ### Rujukan
 
 - [Database and Tenant Integrity](AUDIT-5-DATABASE-TENANT-INTEGRITY.md)
+- [Composite Foreign-Key Evaluation](AUDIT-5-COMPOSITE-FK-EVALUATION.md)
 - [Report and Export Tenant Isolation](AUDIT-5-REPORT-EXPORT-ISOLATION.md)
+- [Report and Export Query-Plan Evidence](AUDIT-5-REPORT-EXPORT-PERFORMANCE-EVIDENCE.md)
+- [Storage Cleanup Observability and Retry](AUDIT-5-STORAGE-CLEANUP-OBSERVABILITY.md)
 - [Finance Ledger Audit](AUDIT-FINANCE-LEDGER.md)
 
 ---
@@ -313,12 +328,12 @@ Menilai query plan, index, pagination, export scale, queue throughput, storage b
 
 ### Bukti yang ada
 
-- AUDIT-5 secara eksplisit mencatat kebutuhan bukti `EXPLAIN (ANALYZE, BUFFERS)` untuk report/export tenant volume tinggi sebelum production rollout.
+- AUDIT-5 sekarang memiliki evidence query plan PostgreSQL 17 untuk beberapa report/export tenant-scoped dengan fixture tenant 5,000 baris dan noise tenant 30,000 baris.
 
 ### Yang belum dapat diklaim
 
-- Belum ada report benchmark, dataset production-like, query plan evidence, atau capacity baseline.
-- Tidak dapat disimpulkan bahwa performa aman pada volume data nyata dari CI fungsional.
+- Belum ada report benchmark, dataset representatif persisten, target SLA, export memory profile, atau capacity baseline.
+- Tidak dapat disimpulkan bahwa performa aman pada volume data nyata dari CI fungsional atau query-plan fixture.
 
 ### Kriteria closure yang diusulkan
 
