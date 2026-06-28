@@ -12,7 +12,7 @@ interface StorageCleanupAttempt {
 }
 
 interface StorageCleanupProcessorDeps {
-  prisma: Pick<PrismaClient, 'auditLog' | 'file'>;
+  prisma: Pick<PrismaClient, 'auditLog' | 'file' | 'letterRequest'>;
   storage: {
     deleteFile(path: string): Promise<void>;
     deletePrefix(prefix: string): Promise<void>;
@@ -58,6 +58,7 @@ export function parseStorageCleanupJob(data: unknown): StorageCleanupJob {
     fileId: job.fileId,
     path: job.path,
     target,
+    letterRequestId: job.letterRequestId,
     actorId: job.actorId ?? null,
     ipAddress: job.ipAddress ?? null,
   };
@@ -77,7 +78,12 @@ async function writeAudit(
       module: 'files',
       entityType: 'file',
       entityId: job.fileId,
-      metadata: { path: job.path, target: job.target ?? 'object', ...metadata },
+      metadata: {
+        path: job.path,
+        target: job.target ?? 'object',
+        ...(job.letterRequestId ? { letterRequestId: job.letterRequestId } : {}),
+        ...metadata,
+      },
       ipAddress: job.ipAddress ?? null,
     },
   });
@@ -91,9 +97,30 @@ export async function processStorageCleanupJob(
   const job = parseStorageCleanupJob(data);
   const attempt = Math.max(1, context.attempt);
   const maxAttempts = Math.max(1, context.maxAttempts);
+  let letterRequestClaimed = false;
 
   try {
     if (job.target === 'prefix') {
+      if (job.letterRequestId) {
+        const claim = await deps.prisma.letterRequest.updateMany({
+          where: {
+            id: job.letterRequestId,
+            tenantId: job.tenantId,
+            status: 'approved',
+          },
+          data: { status: 'generating' },
+        });
+        if (claim.count !== 1) {
+          await writeAudit(deps, job, 'storage_cleanup_skipped', {
+            attempt,
+            maxAttempts,
+            reason: 'letter_request_not_available_for_cleanup',
+          });
+          return { path: job.path };
+        }
+        letterRequestClaimed = true;
+      }
+
       const referencedFile = await deps.prisma.file.findFirst({
         where: {
           tenantId: job.tenantId,
@@ -130,6 +157,17 @@ export async function processStorageCleanupJob(
       },
     );
     throw error;
+  } finally {
+    if (letterRequestClaimed && job.letterRequestId) {
+      await deps.prisma.letterRequest.updateMany({
+        where: {
+          id: job.letterRequestId,
+          tenantId: job.tenantId,
+          status: 'generating',
+        },
+        data: { status: 'approved' },
+      });
+    }
   }
 }
 
