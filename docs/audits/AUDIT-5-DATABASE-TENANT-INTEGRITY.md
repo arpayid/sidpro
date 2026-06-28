@@ -1,6 +1,6 @@
 # AUDIT-5 — Database and Tenant Integrity
 
-**Status:** In progress — second P1/P2 guard set implemented in PR scope.
+**Status:** In progress — database guard implementation and PostgreSQL integration gate are active.
 
 ## Confirmed Findings
 
@@ -29,6 +29,22 @@ Migration `20260628000300_enforce_population_tenant_link_guards` extends Postgre
 
 Both migrations are non-destructive: they protect future writes and do not mutate historical rows.
 
+## PostgreSQL Integration Gate
+
+Workflow `Tenant Link Integrity` runs on every relevant pull request and push. It creates a clean PostgreSQL 17 database, applies all Prisma migrations, seeds the dataset, requires the centralized preflight to return zero rows, then performs valid and intentionally invalid writes in rollback-only transactions.
+
+The gate covers every P1 trigger currently introduced by the AUDIT-5 migrations. Invalid writes must fail with `SQLSTATE 23514` for:
+
+- family address and family head-resident links;
+- letter-template type links;
+- aid program, resident, and family links;
+- finance document, gallery, and letter-output file links;
+- letter-output request links;
+- neighborhood unit, address, resident, family-member, civil-event, and BUMDes links;
+- the address RT/RW-to-dusun hierarchy invariant.
+
+This verifies runtime database behavior rather than only static migration text. Test fixtures are always rolled back.
+
 ## Preflight Before Staging or Production
 
 Run the centralized integrity preflight before deploying either migration to a database containing existing data:
@@ -43,7 +59,6 @@ A zero-row result is required for a clean historical dataset. Any result must be
 
 1. Review and protect remaining tenant-owned links in letters, complaints, notifications, and role assignments where system/global scope semantics need explicit policy.
 2. Evaluate staged replacement of trigger guards with composite unique keys and composite foreign keys where Prisma migration support and data preflight make that practical.
-3. Add integration tests against PostgreSQL that attempt cross-tenant writes and expect an integrity error.
-4. Verify index plans for high-volume tenant-scoped filters and report/export queries.
-5. Add a durable storage-orphan cleanup worker for failures recorded as `storage_cleanup_required`.
-6. Reconcile any historical violations found by the preflight script before production go-live.
+3. Verify index plans for high-volume tenant-scoped filters and report/export queries.
+4. Add a durable storage-orphan cleanup worker for failures recorded as `storage_cleanup_required`.
+5. Reconcile any historical violations found by the preflight script before production go-live.
