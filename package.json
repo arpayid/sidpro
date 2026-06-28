@@ -9,7 +9,7 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
-    "test:coverage": "NODE_OPTIONS=--experimental-test-coverage pnpm test",
+    "test:coverage": "pnpm --filter @sidpro/types build && pnpm --filter @sidpro/validators build && pnpm --filter @sidpro/ui build && pnpm --filter @sidpro/api test:coverage && pnpm --filter @sidpro/web test:coverage && pnpm --filter @sidpro/worker test:coverage && pnpm --filter @sidpro/validators test:coverage",
     "audit:architecture": "tsx --test apps/api/test/architecture-boundaries.test.ts",
     "clean": "turbo run clean && rm -rf node_modules",
     "prisma:validate": "prisma validate --schema=prisma/schema.prisma",
