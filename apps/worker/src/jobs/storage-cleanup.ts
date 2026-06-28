@@ -12,7 +12,7 @@ interface StorageCleanupAttempt {
 }
 
 interface StorageCleanupProcessorDeps {
-  prisma: Pick<PrismaClient, 'auditLog'>;
+  prisma: Pick<PrismaClient, 'auditLog' | 'file'>;
   storage: {
     deleteFile(path: string): Promise<void>;
     deletePrefix(prefix: string): Promise<void>;
@@ -94,6 +94,23 @@ export async function processStorageCleanupJob(
 
   try {
     if (job.target === 'prefix') {
+      const referencedFile = await deps.prisma.file.findFirst({
+        where: {
+          tenantId: job.tenantId,
+          path: { startsWith: job.path },
+        },
+        select: { id: true },
+      });
+      if (referencedFile) {
+        await writeAudit(deps, job, 'storage_cleanup_skipped', {
+          attempt,
+          maxAttempts,
+          reason: 'referenced_file_exists',
+          referencedFileId: referencedFile.id,
+        });
+        return { path: job.path };
+      }
+
       await deps.storage.deletePrefix(job.path);
     } else {
       await deps.storage.deleteFile(job.path);
