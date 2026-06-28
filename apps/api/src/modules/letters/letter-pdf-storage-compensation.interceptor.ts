@@ -59,6 +59,7 @@ export class LetterPdfStorageCompensationInterceptor implements NestInterceptor 
 
     const { tenantId, letterRequestId, actorId, ipAddress } = input;
     const prefix = `${tenantId}/letters/${letterRequestId}/`;
+    let cleanupClaimed = false;
 
     try {
       const persistedOutput = await this.prisma.letterOutput.findFirst({
@@ -66,6 +67,13 @@ export class LetterPdfStorageCompensationInterceptor implements NestInterceptor 
         select: { id: true },
       });
       if (persistedOutput) return;
+
+      const claim = await this.prisma.letterRequest.updateMany({
+        where: { id: letterRequestId, tenantId, status: 'approved' },
+        data: { status: 'generating' },
+      });
+      if (claim.count !== 1) return;
+      cleanupClaimed = true;
 
       let paths: string[];
       try {
@@ -117,6 +125,20 @@ export class LetterPdfStorageCompensationInterceptor implements NestInterceptor 
         `Letter PDF storage compensation failed for request ${letterRequestId}`,
         error instanceof Error ? error.stack : undefined,
       );
+    } finally {
+      if (cleanupClaimed) {
+        try {
+          await this.prisma.letterRequest.updateMany({
+            where: { id: letterRequestId, tenantId, status: 'generating' },
+            data: { status: 'approved' },
+          });
+        } catch (error) {
+          this.logger.error(
+            `Letter PDF storage compensation could not release request ${letterRequestId}`,
+            error instanceof Error ? error.stack : undefined,
+          );
+        }
+      }
     }
   }
 
@@ -136,6 +158,7 @@ export class LetterPdfStorageCompensationInterceptor implements NestInterceptor 
       fileId: cleanupId,
       path: input.prefix,
       target: 'prefix',
+      letterRequestId: input.letterRequestId,
       actorId: input.actorId,
       ipAddress: input.ipAddress,
     });
