@@ -177,6 +177,12 @@ BEGIN
     RAISE EXCEPTION 'cross-tenant BUMDes financial record was accepted';
   EXCEPTION WHEN SQLSTATE '23514' THEN NULL;
   END;
+
+  BEGIN
+    DELETE FROM bumdes_units WHERE id = bumdes_unit_a;
+    RAISE EXCEPTION 'BUMDes unit deletion cascaded financial history';
+  EXCEPTION WHEN SQLSTATE '23503' THEN NULL;
+  END;
 END;
 $$;
 
