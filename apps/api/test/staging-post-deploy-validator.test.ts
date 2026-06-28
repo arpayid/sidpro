@@ -15,13 +15,15 @@ describe('staging post-deploy validator', () => {
     assert.match(script, /source "\$ENV_FILE"/);
   });
 
-  it('requires a clean tenant-link preflight before service checks', () => {
-    const preflightIndex = script.indexOf('verify-tenant-link-integrity.sql');
+  it('requires clean domain and identity tenant-link preflights before service checks', () => {
+    const domainPreflightIndex = script.indexOf('verify-tenant-link-integrity.sql');
+    const identityPreflightIndex = script.indexOf('verify-identity-tenant-link-integrity.sql');
     const healthcheckIndex = script.indexOf('bash scripts/healthcheck.sh');
 
-    assert.ok(preflightIndex >= 0);
-    assert.ok(healthcheckIndex >= 0);
-    assert.ok(preflightIndex < healthcheckIndex);
+    assert.ok(domainPreflightIndex >= 0);
+    assert.ok(identityPreflightIndex >= 0);
+    assert.ok(domainPreflightIndex < identityPreflightIndex);
+    assert.ok(identityPreflightIndex < healthcheckIndex);
     assert.match(script, /tenant-link integrity violations found/);
   });
 

@@ -1,10 +1,10 @@
 # AUDIT-5 — Database and Tenant Integrity
 
-**Status:** In progress — database guard implementation and PostgreSQL integration gate are active.
+**Status:** In progress — domain and identity tenant-link guards are covered by PostgreSQL integration gates.
 
 ## Confirmed Findings
 
-The schema keeps `tenant_id` on most domain rows, but several relationships use an independent reference ID without a composite foreign key that also verifies tenant ownership. Service-level checks cover common API paths; database-level enforcement is still required to protect imports, future mutation paths, and direct operational access.
+The schema keeps `tenant_id` on most domain rows, but several relationships use an independent reference ID without a composite foreign key that also verifies tenant ownership. Service-level checks cover common API paths; database-level enforcement is required to protect imports, future mutation paths, and direct operational access.
 
 | Severity | Relationship | Risk |
 | --- | --- | --- |
@@ -19,7 +19,14 @@ The schema keeps `tenant_id` on most domain rows, but several relationships use 
 | P1 | `finance_documents.file_id`, `gallery_items.file_id`, `letter_outputs.file_id` | Tenant-owned metadata can point to a file from another tenant. |
 | P1 | `letter_outputs.letter_request_id` | A generated output can be linked to a request from another tenant. |
 | P1 | `bumdes_financial_records.unit_id` | A BUMDes financial record can be linked to another tenant's business unit. |
+| P1 | `user_roles.user_id` ↔ `role_id` | A global user could receive a tenant role, or a user could receive a role owned by another tenant, escalating access. |
+| P1 | `notifications.user_id` | A notification row could target a user from another tenant. |
+| P1 | `complaints.reporter_id`, `assignee_id`, `complaint_responses.responder_id` | Complaint identity references could cross tenant boundaries despite normal API checks. |
 | P2 | Deleting a referenced file | The old file-delete path removed object storage before database metadata, risking dangling `file_id` values or a database row that points to a missing object. |
+
+## Tenant Scope Policy
+
+`superadmin_system` is a global role with `roles.tenant_id = NULL`. A global user may only hold global roles. A user with a non-null `users.tenant_id` may only hold roles with the exact same tenant ID. This makes global and tenant scope intentionally distinct, not interchangeable.
 
 ## Implemented Guard
 
@@ -27,11 +34,13 @@ Migration `20260628000200_enforce_tenant_link_guards` protects the initial P1 se
 
 Migration `20260628000300_enforce_population_tenant_link_guards` extends PostgreSQL `BEFORE INSERT OR UPDATE` triggers to the population hierarchy and BUMDes financial records. It also rejects an address when its selected RT/RW belongs to a different dusun, even if both rows happen to have the same tenant.
 
-Both migrations are non-destructive: they protect future writes and do not mutate historical rows.
+Migration `20260628000400_enforce_identity_tenant_link_guards` extends exact-scope checks to user-role grants, notifications, complaint reporter/assignee links, and complaint-response responders. It also prevents moving a user, role, or complaint to a different tenant while dependent identity links would become invalid. A nullable complaint responder now has a foreign key to `users` with `ON DELETE SET NULL`.
+
+All migrations are non-destructive: they protect future writes and do not mutate historical rows.
 
 ## PostgreSQL Integration Gate
 
-Workflow `Tenant Link Integrity` runs on every relevant pull request and push. It creates a clean PostgreSQL 17 database, applies all Prisma migrations, seeds the dataset, requires the centralized preflight to return zero rows, then performs valid and intentionally invalid writes in rollback-only transactions.
+Workflow `Tenant Link Integrity` runs on every relevant pull request and push. It creates a clean PostgreSQL 17 database, applies all Prisma migrations, seeds the dataset, requires the relevant preflights to return zero rows, then performs valid and intentionally invalid writes in rollback-only transactions.
 
 The gate covers every P1 trigger currently introduced by the AUDIT-5 migrations. Invalid writes must fail with `SQLSTATE 23514` for:
 
@@ -41,24 +50,26 @@ The gate covers every P1 trigger currently introduced by the AUDIT-5 migrations.
 - finance document, gallery, and letter-output file links;
 - letter-output request links;
 - neighborhood unit, address, resident, family-member, civil-event, and BUMDes links;
-- the address RT/RW-to-dusun hierarchy invariant.
+- the address RT/RW-to-dusun hierarchy invariant;
+- global-versus-tenant user-role scope, notification recipients, complaint reporter/assignee links, and complaint-response responders.
 
 This verifies runtime database behavior rather than only static migration text. Test fixtures are always rolled back.
 
 ## Preflight Before Staging or Production
 
-Run the centralized integrity preflight before deploying either migration to a database containing existing data:
+Run both integrity preflights before deploying any tenant-link guard migration to a database containing existing data:
 
 ```bash
 psql "$DATABASE_URL" -f scripts/db/verify-tenant-link-integrity.sql
+psql "$DATABASE_URL" -f scripts/db/verify-identity-tenant-link-integrity.sql
 ```
 
-A zero-row result is required for a clean historical dataset. Any result must be reconciled before production go-live.
+Each command must return zero rows. Any result must be reconciled before production go-live. `scripts/staging-post-deploy-validate.sh` runs both checks automatically.
 
 ## Remaining AUDIT-5 Work
 
-1. Review and protect remaining tenant-owned links in letters, complaints, notifications, and role assignments where system/global scope semantics need explicit policy.
+1. Review remaining tenant-owned links in letters and other future modules where system/global scope semantics need explicit policy.
 2. Evaluate staged replacement of trigger guards with composite unique keys and composite foreign keys where Prisma migration support and data preflight make that practical.
-3. Verify index plans for high-volume tenant-scoped filters and report/export queries.
+3. Verify index plans with production-like `EXPLAIN (ANALYZE, BUFFERS)` evidence for high-volume tenant-scoped reports and exports.
 4. Add a durable storage-orphan cleanup worker for failures recorded as `storage_cleanup_required`.
-5. Reconcile any historical violations found by the preflight script before production go-live.
+5. Reconcile any historical violations found by either preflight before production go-live.

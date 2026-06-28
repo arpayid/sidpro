@@ -84,16 +84,17 @@ export class UsersService {
     return Boolean(admin);
   }
 
-  private async assertRolesInTenant(user: JwtPayload, roleIds: string[]) {
+  private async assertRolesMatchTargetTenant(targetTenantId: string | null, roleIds: string[]) {
     if (!roleIds.length) return;
-    const count = await this.prisma.role.count({
-      where: {
-        id: { in: roleIds },
-        ...this.tenantWhere(user),
-      },
+    const roles = await this.prisma.role.findMany({
+      where: { id: { in: roleIds } },
+      select: { tenantId: true },
     });
-    if (count !== roleIds.length) {
-      throw new ForbiddenException('Role tidak valid untuk tenant ini');
+    if (
+      roles.length !== roleIds.length ||
+      roles.some((role) => role.tenantId !== targetTenantId)
+    ) {
+      throw new ForbiddenException('Role tidak valid untuk tenant user');
     }
   }
 
@@ -153,7 +154,7 @@ export class UsersService {
     if (parsed.roleIds?.length) {
       const roleCodes = await this.getRoleCodes(parsed.roleIds);
       assertSuperadminRoleAccess(user, roleCodes);
-      await this.assertRolesInTenant(user, parsed.roleIds);
+      await this.assertRolesMatchTargetTenant(user.tenantId, parsed.roleIds);
     }
 
     const existing = await this.prisma.user.findUnique({ where: { email: parsed.email } });
@@ -299,7 +300,7 @@ export class UsersService {
 
     const roleCodes = await this.getRoleCodes(parsed.roleIds);
     assertSuperadminRoleAccess(user, roleCodes);
-    await this.assertRolesInTenant(user, parsed.roleIds);
+    await this.assertRolesMatchTargetTenant(existing.tenantId, parsed.roleIds);
 
     if (id === user.sub) {
       const currentlyAdmin = await this.prisma.userRole.findFirst({

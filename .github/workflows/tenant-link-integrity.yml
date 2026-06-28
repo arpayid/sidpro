@@ -8,7 +8,9 @@ on:
       - 'prisma/migrations/**'
       - 'scripts/db/test-tenant-link-guards.sh'
       - 'scripts/db/test-initial-tenant-link-guards.sh'
+      - 'scripts/db/test-identity-tenant-link-guards.sh'
       - 'scripts/db/verify-tenant-link-integrity.sql'
+      - 'scripts/db/verify-identity-tenant-link-integrity.sql'
       - '.github/workflows/tenant-link-integrity.yml'
   pull_request:
     branches: [main, develop]
@@ -17,7 +19,9 @@ on:
       - 'prisma/migrations/**'
       - 'scripts/db/test-tenant-link-guards.sh'
       - 'scripts/db/test-initial-tenant-link-guards.sh'
+      - 'scripts/db/test-identity-tenant-link-guards.sh'
       - 'scripts/db/verify-tenant-link-integrity.sql'
+      - 'scripts/db/verify-identity-tenant-link-integrity.sql'
       - '.github/workflows/tenant-link-integrity.yml'
 
 jobs:
@@ -86,3 +90,4 @@ jobs:
         run: |
           bash scripts/db/test-tenant-link-guards.sh
           bash scripts/db/test-initial-tenant-link-guards.sh
+          bash scripts/db/test-identity-tenant-link-guards.sh
