@@ -18,6 +18,7 @@ const preflight = readScript('../../../scripts/production-preflight.sh');
 const postDeploy = readScript('../../../scripts/production-post-deploy-validate.sh');
 const compose = readScript('../../../docker-compose.prod.yml');
 const ledgerVerifier = readScript('../../../scripts/db/verify-budget-realization-ledger.sql');
+const releaseWorkflow = readScript('../../../.github/workflows/production-release-gate.yml');
 
 describe('production release gate', () => {
   it('passes Bash syntax validation', () => {
@@ -76,6 +77,12 @@ describe('production release gate', () => {
     assert.match(verifyBackup, /mc rb --force/);
   });
 
+  it('supports an empty bootstrap database but rejects a partial schema without migrations', () => {
+    assert.match(preflight, /Empty bootstrap database detected/);
+    assert.match(preflight, /application tables but no Prisma migration history/);
+    assert.match(verifyBackup, /Restored an empty bootstrap database/);
+  });
+
   it('blocks known migration hazards and verifies ledger consistency after deployment', () => {
     assert.match(preflight, /verify-tenant-link-integrity.sql/);
     assert.match(preflight, /verify-identity-tenant-link-integrity.sql/);
@@ -86,9 +93,11 @@ describe('production release gate', () => {
     assert.match(ledgerVerifier, /opening_balance_count/);
   });
 
-  it('keeps production service env files aligned with the runner override', () => {
+  it('keeps production service env files and CI validation aligned with the release runner', () => {
     assert.match(compose, /SIDPRO_COMPOSE_ENV_FILE:-\.env/);
     assert.match(postDeploy, /SIDPRO_RUN_AUTH_SMOKE/);
     assert.match(postDeploy, /SMOKE_RUN_SEED=0/);
+    assert.match(releaseWorkflow, /scripts\/production-release\.sh/);
+    assert.match(releaseWorkflow, /SIDPRO_BACKUP_DIR/);
   });
 });
