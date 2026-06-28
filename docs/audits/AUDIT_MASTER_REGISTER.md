@@ -30,6 +30,8 @@ Audit hanya boleh ditandai `Closed` bila seluruh kondisi berikut terpenuhi:
 | Bukti | Relevansi |
 | --- | --- |
 | [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md) | Deskripsi modular monolith, stack, struktur, batas modul, dan aturan desain. |
+| [AUDIT-1 Repository & Architecture](AUDIT-1-REPOSITORY-ARCHITECTURE.md) | Inventory, keputusan, exception register, dependency-map review, dan batas validasi runtime AUDIT-1. |
+| [AUDIT-1 Dependency Graph](AUDIT-1-DEPENDENCY-GRAPH.md) | Peta dependensi baseline, source-review reconciliation, dan aturan static-import yang dijaga CI. |
 | [`docs/CI_MERGE_GATE.md`](../CI_MERGE_GATE.md) | Gate merge CI, production smoke, Security Audit, dan Tenant Link Integrity bersyarat. |
 | [`docs/SECURITY_AUDIT.md`](../SECURITY_AUDIT.md) | Dependency audit, Gitleaks secret scan, dan Dependabot. |
 | [`docs/PRODUCTION_READINESS.md`](../PRODUCTION_READINESS.md) | Checklist readiness dengan status Done/In Progress dan go-live gate. |
@@ -39,6 +41,7 @@ Audit hanya boleh ditandai `Closed` bila seluruh kondisi berikut terpenuhi:
 | [AUDIT-5 Storage Cleanup Observability](AUDIT-5-STORAGE-CLEANUP-OBSERVABILITY.md) | Kontrak retry, retention, log kesehatan queue, dan kebutuhan runtime validation. |
 | PR #68, #69, #77 | Bukti hardening refresh endpoint, refresh-token replay handling, dan Security Audit gate. |
 | PR #71, #74, #75, #81–#90 | Bukti tenant guard, PostgreSQL runtime test, data lifecycle, storage cleanup, finance ledger, dan release gate. |
+| PR #95 | Bukti shared core address ownership untuk family dan population workflows. |
 
 ---
 
@@ -71,7 +74,7 @@ Menetapkan bagaimana audit diberi status, bagaimana bukti ditautkan, dan kapan r
 
 ## AUDIT-1 — Repository dan Arsitektur
 
-**Status baseline:** `Not Formally Assessed`
+**Status current:** `Validation Pending`
 
 ### Scope program
 
@@ -80,20 +83,39 @@ Menilai struktur monorepo, batas modul, arah dependensi, pemisahan concern, konf
 ### Bukti yang ada
 
 - `docs/ARCHITECTURE.md` menyatakan SIDPRO sebagai modular monolith dengan `apps/web`, `apps/api`, `apps/worker`, `packages/*`, dan `prisma`.
-- Dokumen tersebut menetapkan batas modul core/domain serta aturan isolasi modul, validasi API, permission, tenant filtering, audit log, dan background job.
+- `AUDIT-1-REPOSITORY-ARCHITECTURE.md` mencatat inventory, aturan arah dependensi, ADR, exception register, temuan, dan batas validasi runtime.
+- `AUDIT-1-DEPENDENCY-GRAPH.md` merekonsiliasi peta dependency dengan source repository pada commit merge PR #95 (`df36623615148124b7e52972712496b1f9bb0786`).
+- `apps/api/test/architecture-boundaries.test.ts` menolak core-to-domain, direct domain-to-domain, common-to-core/domain, app-to-app source path, dan package-manifest dependency yang dilarang.
+- Workflow **AUDIT-1 Architecture Boundaries** menjalankan `pnpm audit:architecture` dan juga dipicu bila sumber arsitektur atau bukti audit/roadmap AUDIT-1 berubah.
+- PR #95 menyelesaikan duplikasi address resolution pada population melalui shared `core/addressing` capability; family dan population sekarang bergantung pada `AddressResolutionService`.
+
+### Repository-level completion
+
+1. Inventory module dan dependency graph aktual telah didokumentasikan.
+2. Source import boundary lintas API, web, worker, dan packages memiliki regression gate yang dapat dieksekusi di CI.
+3. Exception reports sebagai tenant-scoped read model telah dicatat beserta guard-nya; tidak ada exception direct source import yang tidak terdokumentasi.
+4. Dependency-map review membedakan static source evidence dari validasi runtime dan merekonsiliasi register serta roadmap.
+5. Perubahan status atau dependency-map evidence AUDIT-1 sekarang memicu ulang focused boundary workflow.
+
+### Validation pending outside repository
+
+1. Jalankan dan catat validasi topology web/API/worker pada staging persisten, termasuk konfigurasi proses, health/readiness, dan contract antar-proses.
+2. Verifikasi deployed queue/worker, storage, dan kontrak runtime sesuai batas arsitektur yang didokumentasikan.
+3. Reconcile temuan staging yang mungkin muncul dengan dependency graph dan exception register sebelum mempertimbangkan closure.
 
 ### Yang belum dapat diklaim
 
-- Belum ada laporan audit yang memetakan seluruh dependency antar-module.
-- Belum ada keputusan formal bahwa semua module boundary atau import direction telah lulus review.
-- Belum ada closure record untuk architecture debt atau exception yang diterima.
+- AUDIT-1 belum `Closed` karena belum ada bukti staging/production persisten.
+- Static source scan tidak membuktikan Nest dependency injection saat runtime, variable import, queue execution, network/storage behavior, atau topology deployment.
+- CI Docker/Compose dan production smoke bukan pengganti bukti operasi environment persisten.
 
 ### Kriteria closure yang diusulkan
 
-- Buat inventory module dan dependency graph aktual.
-- Audit import boundary lintas `apps` dan `packages`.
-- Dokumentasikan keputusan arsitektur penting dan exception.
-- Tetapkan regression checks untuk boundary yang kritis.
+- Pertahankan inventory dan dependency graph aktual pada setiap perubahan arsitektur.
+- Jalankan required boundary gate pada perubahan source maupun evidence arsitektur.
+- Dokumentasikan owner, rationale, dan guard untuk setiap exception.
+- Simpan bukti validasi operational architecture API/worker/web pada persistent staging.
+- Pastikan AUDIT-2 sampai AUDIT-10 tidak digunakan sebagai pengganti bukti closure AUDIT-1.
 
 ---
 

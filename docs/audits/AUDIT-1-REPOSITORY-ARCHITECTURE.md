@@ -1,6 +1,6 @@
 # AUDIT-1 — Repository and Architecture
 
-**Status:** In Progress — repository topology, package contracts, import boundaries, and shared core address ownership are documented. Full CI confirmation and the remaining dependency-map review are required before this audit can move to `Validation Pending`.
+**Status:** `Validation Pending` — repository topology, package contracts, import boundaries, shared core address ownership, and the dependency-map source review are versioned. This audit is not `Closed`: persistent staging validation of the deployed web/API/worker topology has not occurred.
 
 ## Scope
 
@@ -51,6 +51,29 @@ A domain module may use `common`, `database`, and required core services. A doma
 - an event or queue contract for asynchronous work;
 - a narrowly scoped exported core service, introduced with an architecture decision and regression coverage.
 
+## Dependency-Map Review — 29 June 2026
+
+**Review scope:** source repository revision `df36623615148124b7e52972712496b1f9bb0786`, the merge commit of PR #95. This is a source-repository review only. It does not claim staging or production validation.
+
+**Method:**
+
+1. Reconcile the NestJS composition root with the documented core and domain inventory.
+2. Inspect the executable static-import scanner that walks `apps/api/src`, `apps/web/src`, `apps/worker/src`, and `packages` source roots plus shared-package manifests.
+3. Trace the source edges that are architectural exceptions or shared cross-domain capabilities: `families → core/addressing`, `population → core/addressing`, and `reports → Prisma/audit-log read model`.
+4. Reconcile the result with the dependency graph, exception register, audit master register, and roadmap.
+
+| Review area | Source evidence | Result |
+| --- | --- | --- |
+| Composition root | `AppModule` imports the recorded core/platform modules and all documented domain/delivery modules. `AddressingModule` is composed through its consuming domain modules rather than being registered as a root feature. | Inventory is reconciled; no module is added to the graph by this review. |
+| Prohibited API source edges | `architecture-boundaries.test.ts` resolves relative and `@/` imports, then rejects `core → domain`, `domain → other domain`, and `common → core/domain` edges. | No undocumented direct domain-to-domain source-import exception is accepted. The dedicated CI gate is the executable evidence. |
+| Application and package isolation | The same scanner rejects web/worker/package source-path imports into other deployable applications and rejects shared package manifests that depend on `@sidpro/api`, `@sidpro/web`, or `@sidpro/worker`. | Boundary policy covers both source paths and manifest declarations. |
+| Shared address capability | `FamiliesModule` and `PopulationModule` each import `AddressingModule`; both services inject `AddressResolutionService` for embedded address input. | Shared address ownership remains in `core/addressing`; no new population/family direct dependency is introduced. |
+| Report aggregation | `ReportsService` reads tenant-scoped aggregates through `PrismaService` and records audit activity through `AuditLogsService`, without importing domain services. | Existing read-model exception remains justified and is retained. |
+
+### Review limits
+
+The scanner is intentionally a static source-import control. It recognizes `from`, literal `import()`, and literal `require()` forms, then resolves API-relative and `@/` imports. It does not prove Nest runtime dependency-injection wiring, queue execution, filesystem/object-storage behavior, external network calls, variable import specifiers, or deployed process topology. Those operational concerns require persistent staging evidence and therefore prevent AUDIT-1 from becoming `Closed`.
+
 ## Enforced Import Boundary Rules
 
 `apps/api/test/architecture-boundaries.test.ts` scans source imports and package manifests and rejects:
@@ -63,7 +86,7 @@ A domain module may use `common`, `database`, and required core services. A doma
 6. `packages/**` importing source paths from any application.
 7. Any shared package manifest declaring `@sidpro/api`, `@sidpro/web`, or `@sidpro/worker` as a dependency.
 
-The gate resolves both API alias imports (`@/…`) and relative source imports. It runs as part of the existing API test command and in the dedicated **AUDIT-1 Architecture Boundaries** workflow, which retains a compact diagnostic artifact on failure.
+The gate resolves both API alias imports (`@/…`) and relative source imports. It runs as part of the existing API test command and in the dedicated **AUDIT-1 Architecture Boundaries** workflow, which retains a compact diagnostic artifact on failure. The dedicated workflow also runs when AUDIT-1 architecture evidence, the audit master register, the roadmap, or the architecture workflow definition changes, so a status transition cannot bypass the current source scan.
 
 ## Current Architecture Decisions
 
@@ -76,6 +99,7 @@ The gate resolves both API alias imports (`@/…`) and relative source imports. 
 | ADR-A1-005 | Report/dashboard aggregation may issue tenant-scoped Prisma reads across domain tables without importing domain services. | Accepted with review requirement |
 | ADR-A1-006 | Cross-domain workflow that needs write coordination must use a core contract, queue/event, or explicitly documented interface; it must not be introduced as an undocumented relative import. | Accepted |
 | ADR-A1-007 | Tenant-scoped address resolution is a shared core capability. Family and population workflows use `AddressResolutionService`; no domain owns a duplicate resolver. | Accepted |
+| ADR-A1-008 | Any AUDIT-1 status or dependency-map evidence change must trigger the dedicated static-boundary workflow. | Accepted |
 
 ## Architecture Exceptions Register
 
@@ -105,7 +129,7 @@ The initial scan found `FamiliesModule` importing `PopulationModule` and `Famili
 
 `PopulationService` previously retained the legacy address resolver after family workflows moved to `core/addressing`. That duplicated tenant, hamlet, and RT/RW validation across a domain service and the core service.
 
-**Treatment:** issue #94 injects `AddressResolutionService` through `PopulationModule`, removes the local resolver and local address input interface, and delegates resident create/update address input to core. Regression tests prove both family and population workflows use the shared capability.
+**Treatment:** PR #95 injects `AddressResolutionService` through `PopulationModule`, removes the local resolver and local address input interface, and delegates resident create/update address input to core. Regression tests prove both family and population workflows use the shared capability.
 
 ### A1-P2 Resolved in Documentation — Dependency and exception records were missing
 
@@ -119,12 +143,30 @@ Shared packages expose compiled `dist` artifacts. API tests build `@sidpro/types
 
 **Treatment:** retained in the API `pretest` hook and verified by CI.
 
-## Validation Required for `Validation Pending`
+### A1-R1 Resolved in Documentation — Audit master register status drift
 
-1. The architecture boundary test and focused workflow must pass on the current full repository source.
-2. CI must pass lint, typecheck, test, build, migration, smoke, and production Compose validation after the gate and remediation are added.
-3. The inventory and exception register must be reviewed against actual module imports discovered by the boundary test.
-4. Resident create/update and family address workflows must remain covered by regression tests that exercise the shared core resolver.
+The audit master register still classified AUDIT-1 as `Not Formally Assessed` even though the repository already contained an architecture report, dependency graph, executable boundary gate, and merged source remediation. That conflict could misstate the program's next required action.
+
+**Treatment:** the register and roadmap now record `Validation Pending`, distinguish completed repository-level evidence from persistent-environment validation, and reference this dependency-map review.
+
+### A1-R2 Resolved in CI Trigger Coverage — AUDIT evidence edits did not run the focused gate
+
+Before this review, a change limited to `docs/audits/AUDIT-1-*.md`, `docs/audits/AUDIT_MASTER_REGISTER.md`, `docs/ROADMAP.md`, or `docs/ARCHITECTURE.md` did not trigger the dedicated architecture-boundary workflow. A documentation-only status transition could therefore merge without re-running the current static source scan.
+
+**Treatment:** the workflow path filters now include those architecture and audit-evidence files. This does not turn a source scan into runtime validation; it preserves source-gate provenance when the audit record is updated.
+
+## Repository Evidence Completed for `Validation Pending`
+
+1. The architecture boundary test and focused workflow run against the full current repository source.
+2. CI covers lint, typecheck, test, build, migration, smoke, and production Compose validation.
+3. The documented inventory and exception register are reconciled with the static source dependency map above.
+4. Resident create/update and family address workflows retain regression coverage for the shared core resolver.
+
+## Validation Pending Outside the Repository
+
+1. Validate the deployed web, API, and worker process topology on a persistent staging environment, including their required configuration and health/readiness behavior.
+2. Record evidence that deployed runtime wiring matches the documented boundaries, particularly queue/worker operation and allowed cross-process contracts.
+3. Reconcile any staging-only exception or topology finding with this graph before considering AUDIT-1 closure.
 
 ## Closure Criteria
 
@@ -142,5 +184,6 @@ AUDIT-1 may move to `Closed` only when:
 - [SIDPRO Architecture](../ARCHITECTURE.md)
 - [Audit Master Register](AUDIT_MASTER_REGISTER.md)
 - [Audit Roadmap](../ROADMAP.md)
+- [AUDIT-1 Dependency Graph](AUDIT-1-DEPENDENCY-GRAPH.md)
 - [AUDIT-5 — Database and Tenant Integrity](AUDIT-5-DATABASE-TENANT-INTEGRITY.md)
 - [Production Readiness](../PRODUCTION_READINESS.md)
