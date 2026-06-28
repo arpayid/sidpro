@@ -69,7 +69,7 @@ docker run --rm \
   -e MINIO_BUCKET \
   --entrypoint /bin/sh \
   minio/mc \
-  -ec 'mc alias set local http://minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && mc mirror --quiet "local/${MINIO_BUCKET}" /backup-data/'
+  -ec 'mc alias set local http://minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && mc mb --ignore-existing "local/${MINIO_BUCKET}" >/dev/null && mc mirror --quiet "local/${MINIO_BUCKET}" /backup-data/'
 
 tar -czf "$OBJECT_TMP" -C "$OBJECT_STAGE" .
 tar -tzf "$OBJECT_TMP" >/dev/null
