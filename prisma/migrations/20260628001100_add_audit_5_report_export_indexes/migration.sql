@@ -2,15 +2,13 @@
 --
 -- These are intentionally PostgreSQL-specific indexes. The service queries filter
 -- by tenant and either sort by a recent timestamp or export active residents in
--- name order. Prisma schema relations are unchanged because no generated client
--- type changes are required.
+-- name order. The resident export already has a tenant-leading unique index;
+-- PostgreSQL's executed plan uses that existing index and an in-memory sort, so
+-- no redundant resident-only index is added here. Prisma schema relations are
+-- unchanged because no generated client type changes are required.
 --
 -- For a large existing production database, schedule this migration in a low-load
 -- window. The current repository release gate verifies a backup before migration.
-
-CREATE INDEX "residents_tenant_active_full_name_idx"
-  ON "residents" ("tenant_id", "full_name")
-  WHERE "deleted_at" IS NULL;
 
 CREATE INDEX "civil_events_tenant_event_date_idx"
   ON "civil_events" ("tenant_id", "event_date" DESC);
