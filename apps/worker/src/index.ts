@@ -1,57 +1,55 @@
-/**
- * SIDPRO Worker - Background job processor
- * Queues: pdf-generation, notifications, import-export
- */
-
-import { Worker, Queue } from 'bullmq';
-import { COMPLAINT_STATUS_EMAIL_JOB_NAME, NOTIFICATION_QUEUE_NAME } from '@sidpro/types';
+import { Queue, Worker } from 'bullmq';
+import {
+  COMPLAINT_STATUS_EMAIL_JOB_NAME,
+  NOTIFICATION_QUEUE_NAME,
+  STORAGE_CLEANUP_QUEUE_NAME,
+} from '@sidpro/types';
 import type { ComplaintStatusEmailJob } from '@sidpro/types';
 import { createEmailAdapter } from './email/factory';
 import { processComplaintStatusEmail } from './jobs/complaint-status-email';
 import { createLetterPdfProcessor } from './jobs/letter-pdf';
+import { createStorageCleanupProcessor } from './jobs/storage-cleanup';
 
 const redisUrl = process.env.REDIS_URL ?? 'redis://localhost:6379';
-const url = new URL(redisUrl);
-
+const redis = new URL(redisUrl);
 const connection = {
-  host: url.hostname,
-  port: Number(url.port) || 6379,
-  password: url.password || undefined,
+  host: redis.hostname,
+  port: Number(redis.port) || 6379,
+  password: redis.password || undefined,
   maxRetriesPerRequest: null as null,
 };
 
 const emailAdapter = createEmailAdapter();
 const pdfWorkerEnabled = process.env.ENABLE_PDF_WORKER === 'true';
+const storageCleanupWorkerEnabled = process.env.ENABLE_STORAGE_CLEANUP_WORKER === 'true';
 
 function assertPdfWorkerConfig() {
   if (!pdfWorkerEnabled) return;
-
   const missing = ['MINIO_ENDPOINT', 'MINIO_ROOT_USER', 'MINIO_ROOT_PASSWORD', 'MINIO_BUCKET'].filter(
     (key) => !process.env[key],
   );
   if (missing.length) {
-    throw new Error(
-      `ENABLE_PDF_WORKER=true requires explicit storage config: ${missing.join(', ')}`,
-    );
+    throw new Error(`ENABLE_PDF_WORKER=true requires explicit storage config: ${missing.join(', ')}`);
   }
 }
 
 assertPdfWorkerConfig();
 const letterPdfProcessor = pdfWorkerEnabled ? createLetterPdfProcessor() : null;
+const storageCleanupProcessor = storageCleanupWorkerEnabled ? createStorageCleanupProcessor() : null;
 
 const queues = {
   notifications: new Queue(NOTIFICATION_QUEUE_NAME, { connection }),
   importExport: new Queue('import-export', { connection }),
   ...(pdfWorkerEnabled ? { pdf: new Queue('pdf-generation', { connection }) } : {}),
+  ...(storageCleanupWorkerEnabled
+    ? { storageCleanup: new Queue(STORAGE_CLEANUP_QUEUE_NAME, { connection }) }
+    : {}),
 };
 
 const pdfWorker = pdfWorkerEnabled
   ? new Worker(
       'pdf-generation',
-      async (job) => {
-        console.log(`[pdf-generation] Processing job ${job.id}:`, job.data);
-        return letterPdfProcessor!.process(job.data);
-      },
+      async (job) => letterPdfProcessor!.process(job.data),
       { connection },
     )
   : null;
@@ -62,29 +60,46 @@ const notificationWorker = new Worker(
     if (job.name === COMPLAINT_STATUS_EMAIL_JOB_NAME) {
       return processComplaintStatusEmail(emailAdapter, job.data as ComplaintStatusEmailJob);
     }
-
-    console.log(`[notifications] Unknown job ${job.name}:`, job.data);
     return { status: 'ignored', jobName: job.name };
   },
   { connection },
 );
 
-pdfWorker?.on('completed', (job) => console.log(`[pdf-generation] Job ${job.id} completed`));
-pdfWorker?.on('failed', (job, err) => console.error(`[pdf-generation] Job ${job?.id} failed:`, err));
+const storageCleanupWorker = storageCleanupWorkerEnabled
+  ? new Worker(
+      STORAGE_CLEANUP_QUEUE_NAME,
+      async (job) =>
+        storageCleanupProcessor!.process(job.data, {
+          attempt: job.attemptsMade + 1,
+          maxAttempts: job.opts.attempts ?? 1,
+        }),
+      { connection },
+    )
+  : null;
 
-notificationWorker.on('completed', (job) =>
-  console.log(`[notifications] Job ${job.id} (${job.name}) completed`),
-);
-notificationWorker.on('failed', (job, err) =>
-  console.error(`[notifications] Job ${job?.id} (${job?.name}) failed:`, err),
-);
+for (const worker of [pdfWorker, notificationWorker, storageCleanupWorker]) {
+  worker?.on('failed', (job, error) => {
+    console.error(`[${worker.name}] Job ${job?.id} failed:`, error);
+  });
+}
 
 console.log('SIDPRO Worker started');
 console.log('Email adapter:', process.env.SMTP_HOST ? 'smtp' : 'console');
 console.log('PDF worker enabled:', pdfWorkerEnabled ? 'yes' : 'no');
+console.log('Storage cleanup worker enabled:', storageCleanupWorkerEnabled ? 'yes' : 'no');
 console.log('Queues:', Object.keys(queues).join(', '));
 
-process.on('SIGTERM', async () => {
-  await Promise.all([pdfWorker?.close(), notificationWorker.close(), letterPdfProcessor?.close()]);
-  process.exit(0);
+async function closeWorker() {
+  await Promise.all([
+    pdfWorker?.close(),
+    notificationWorker.close(),
+    storageCleanupWorker?.close(),
+    letterPdfProcessor?.close(),
+    storageCleanupProcessor?.close(),
+    ...Object.values(queues).map((queue) => queue.close()),
+  ]);
+}
+
+process.once('SIGTERM', () => {
+  void closeWorker();
 });
