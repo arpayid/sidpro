@@ -49,7 +49,7 @@ Migration `20260628000700_clean_soft_deleted_resident_links` intentionally recon
 
 Migrations `20260628000800_add_budget_realization_ledger` through `20260628001000_normalize_budget_item_initial_realized` create an append-only realization ledger. Ledger inserts update `budget_items.realized` as a read cache; updates and deletes are rejected, reversals cannot exceed the current balance, cross-tenant author and item links are rejected, and parent tenant drift is blocked. Historical and compatible initial realized values become explicit opening-balance ledger entries.
 
-Migration `20260628001100_add_audit_5_report_export_indexes` adds tenant/order indexes for active resident export, population civil events, letter requests, audit logs, and complaint timelines. The related workflow proves the planner uses the expected indexes on a tenant-selective PostgreSQL 17 fixture; it does not claim a production latency result.
+Migration `20260628001100_add_audit_5_report_export_indexes` adds tenant/order indexes for population civil events, letter requests, audit logs, and complaint timelines. The resident export already uses an existing tenant-leading unique index, which the query-plan workflow verifies alongside the new indexes. The workflow proves planner selection on a tenant-selective PostgreSQL 17 fixture; it does not claim a production latency result.
 
 Migrations `00200` through `00600` are non-destructive protections for future writes. Migration `00700` is an intentional, bounded data reconciliation and should be deployed only with a verified database backup. Migration `00800` rejects negative historical realized values and copies positive historical balances into ledger opening entries, so it also requires a verified database backup.
 
@@ -89,7 +89,7 @@ Before applying migrations `20260628000700_clean_soft_deleted_resident_links` or
 ## Repository-Level Work Completed
 
 1. **Composite-FK evaluation:** completed. Existing trigger guards remain authoritative; future conversion may be piloted only through a dedicated, preflight-gated migration.
-2. **Report/export performance evidence:** completed in CI. Tenant-selective executed plans are verified against expected PostgreSQL indexes.
+2. **Report/export performance evidence:** completed in CI. Tenant-selective executed plans are verified against the appropriate tenant-leading index for each tested query shape.
 3. **Storage cleanup retry and observability:** completed in code and tests. Failed jobs are retained for incident follow-up; the worker emits structured queue-health and failure events.
 
 ## Validation Still Required Outside the Repository
