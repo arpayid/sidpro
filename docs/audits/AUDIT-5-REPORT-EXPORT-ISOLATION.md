@@ -26,7 +26,7 @@ This audit covers all current authenticated report, dashboard, and tabular expor
 4. Population, family, report, and complaint exports write an audit event with the same authenticated tenant ID.
 5. `apps/api/test/reports-tenant-isolation.test.ts` exercises the actual services with a Prisma-call recorder. It asserts tenant scope for dashboard/report queries, XLSX exports, resident/family XLSX exports, complaint CSV export, composite finance lookup, missing-tenant rejection, and export audit events.
 6. Finance report and finance-export `year` accept only integer years from 1900 through 2200. Audit-report `days` accepts only integer windows from 1 through 365 and defaults to 30. Invalid values are rejected before a report service can issue a database query.
-7. Workflow `AUDIT-5 Query Plan Evidence` loads a tenant-selective PostgreSQL 17 fixture and asserts executed query plans use the indexes added for resident, civil-event, letter, and audit report/export paths.
+7. Workflow `AUDIT-5 Query Plan Evidence` loads a tenant-selective PostgreSQL 17 fixture and asserts executed query plans use the indexes added for resident, civil-event, letter, audit, and complaint report/export paths.
 
 ## Findings
 
