@@ -70,7 +70,7 @@ export class LetterPdfStorageCompensationInterceptor implements NestInterceptor 
       let paths: string[];
       try {
         paths = await this.storage.listFilesByPrefix(prefix);
-      } catch (error) {
+      } catch {
         await this.queuePrefixCleanup({
           tenantId,
           letterRequestId,
@@ -102,7 +102,7 @@ export class LetterPdfStorageCompensationInterceptor implements NestInterceptor 
           },
           ipAddress,
         });
-      } catch (error) {
+      } catch {
         await this.queuePrefixCleanup({
           tenantId,
           letterRequestId,
