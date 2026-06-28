@@ -48,7 +48,12 @@ export class ReportsController {
     @Query('year') year?: string,
   ) {
     const query = parseWithZod(financeReportQuerySchema, { year });
-    return this.reportsService.exportFinanceReport(user, req.ip, res, query.year);
+    return this.reportsService.exportFinanceReport(
+      user,
+      req.ip,
+      res,
+      query.year ? parseInt(query.year, 10) : undefined,
+    );
   }
 
   @Get('population')
@@ -67,13 +72,16 @@ export class ReportsController {
   @RequirePermissions('reports.finance')
   getFinanceReport(@CurrentUser() user: JwtPayload, @Query('year') year?: string) {
     const query = parseWithZod(financeReportQuerySchema, { year });
-    return this.reportsService.getFinanceReport(user, query.year);
+    return this.reportsService.getFinanceReport(
+      user,
+      query.year ? parseInt(query.year, 10) : undefined,
+    );
   }
 
   @Get('audit')
   @RequirePermissions('audit.read')
   getAuditReport(@CurrentUser() user: JwtPayload, @Query('days') days?: string) {
     const query = parseWithZod(auditReportQuerySchema, { days });
-    return this.reportsService.getAuditReport(user, query.days);
+    return this.reportsService.getAuditReport(user, parseInt(query.days, 10));
   }
 }
