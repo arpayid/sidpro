@@ -9,7 +9,7 @@
     "start:prod": "node dist/main",
     "lint": "eslint \"{src,test}/**/*.ts\"",
     "typecheck": "tsc --noEmit",
-    "pretest": "pnpm --filter @sidpro/validators build",
+    "pretest": "pnpm --filter @sidpro/types build && pnpm --filter @sidpro/validators build",
     "test": "node --import tsx --test test/*.test.ts",
     "clean": "rm -rf dist"
   },
