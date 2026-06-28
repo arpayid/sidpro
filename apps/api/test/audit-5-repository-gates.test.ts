@@ -54,9 +54,10 @@ describe('AUDIT-5 repository gates', () => {
     assert.match(queueService, /removeOnComplete: \{ age: 86_400, count: 1000 \}/);
     assert.match(queueService, /removeOnFail: \{ age: 604_800, count: 500 \}/);
     assert.match(worker, /storage_cleanup_queue_health/);
-    assert.match(worker, /storage_cleanup_job_failed/);
+    assert.match(worker, /createStorageCleanupFailureEvent/);
     assert.match(worker, /STORAGE_CLEANUP_HEALTH_LOG_INTERVAL_MS/);
     assert.match(worker, /STORAGE_CLEANUP_FAILED_THRESHOLD/);
+    assert.match(observability, /storage_cleanup_job_failed/);
     assert.match(observability, /finalAttempt/);
   });
 
