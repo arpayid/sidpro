@@ -119,6 +119,7 @@ docker compose config
 - [Operator Runbook](docs/OPERATIONS.md#operator-runbook)
 - [Staging Deploy](docs/STAGING_DEPLOY.md)
 - [Docker Production](docs/DOCKER_PRODUCTION.md)
+- [Guarded Production Release](docs/PRODUCTION_RELEASE.md)
 
 ## Scripts Operasional
 
@@ -136,6 +137,11 @@ Runbook lengkap untuk deploy, rollback, backup/restore, rotasi secret, pengeceka
 
 # Smoke test MVP
 STAGING_ADMIN_PASSWORD='<admin-password>' SMOKE_RUN_SEED=0 pnpm smoke
+
+# Production Compose release: backup + restore verification + preflight + migration + validation
+SIDPRO_ENV_FILE=/etc/sidpro/production.env \
+  SIDPRO_BACKUP_DIR=/var/backups/sidpro \
+  bash scripts/production-release.sh
 ```
 
 ## Lisensi
