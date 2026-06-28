@@ -64,6 +64,16 @@ describe('storage cleanup worker', () => {
       () => parseStorageCleanupJob({ ...job, target: 'prefix', path: 'tenant-a/letters/request-a' }),
       /prefix target must end with a slash/,
     );
+    assert.throws(
+      () =>
+        parseStorageCleanupJob({
+          ...job,
+          target: 'prefix',
+          path: 'tenant-a/letters/request-a/',
+          letterRequestId: 'request-b',
+        }),
+      /must match the letter request/,
+    );
   });
 
   it('deletes an object and writes a completion audit event', async () => {
