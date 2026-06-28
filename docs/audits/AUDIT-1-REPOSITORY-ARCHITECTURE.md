@@ -1,6 +1,6 @@
 # AUDIT-1 — Repository and Architecture
 
-**Status:** In Progress — repository topology, package contracts, import boundaries, and the first remediated cross-domain dependency are documented. Full CI confirmation and the remaining dependency-map review are required before this audit can move to `Validation Pending`.
+**Status:** In Progress — repository topology, package contracts, import boundaries, and shared core address ownership are documented. Full CI confirmation and the remaining dependency-map review are required before this audit can move to `Validation Pending`.
 
 ## Scope
 
@@ -38,7 +38,7 @@ It does **not** assess individual API behavior, database integrity, UI correctne
 
 Core services may be consumed by domain modules. Core code must not import domain modules because this would reverse the dependency direction and make platform changes depend on business features.
 
-`core/addressing` owns tenant-scoped address creation and territory hierarchy validation that is shared by population and family workflows.
+`core/addressing` owns tenant-scoped address creation and territory hierarchy validation used by both population and family workflows.
 
 ### Domain modules
 
@@ -75,7 +75,7 @@ The gate resolves both API alias imports (`@/…`) and relative source imports. 
 | ADR-A1-004 | Direct domain-to-domain source imports are prohibited by default. | Accepted |
 | ADR-A1-005 | Report/dashboard aggregation may issue tenant-scoped Prisma reads across domain tables without importing domain services. | Accepted with review requirement |
 | ADR-A1-006 | Cross-domain workflow that needs write coordination must use a core contract, queue/event, or explicitly documented interface; it must not be introduced as an undocumented relative import. | Accepted |
-| ADR-A1-007 | Tenant-scoped address resolution is a shared core capability. Family workflows use `AddressResolutionService` instead of importing `PopulationService`. | Accepted |
+| ADR-A1-007 | Tenant-scoped address resolution is a shared core capability. Family and population workflows use `AddressResolutionService`; no domain owns a duplicate resolver. | Accepted |
 
 ## Architecture Exceptions Register
 
@@ -101,11 +101,11 @@ The initial scan found `FamiliesModule` importing `PopulationModule` and `Famili
 
 **Treatment:** `AddressResolutionService` and `AddressingModule` now own the shared address capability. `families` imports core addressing, not population. Tests cover the resolver's tenant, hamlet, and RT/RW safeguards plus the family workflow delegation.
 
-### A1-P2 Remaining — Population address logic is not yet delegated to core
+### A1-P2 Resolved in Source — Population address logic now delegates to core
 
-`PopulationService` still contains the legacy implementation of address resolution. It no longer creates a forbidden source dependency, but it duplicates logic now owned by `core/addressing`.
+`PopulationService` previously retained the legacy address resolver after family workflows moved to `core/addressing`. That duplicated tenant, hamlet, and RT/RW validation across a domain service and the core service.
 
-**Treatment:** migrate population's internal address-resolution path to `AddressResolutionService` in the next bounded AUDIT-1 remediation, with population import/create/update regression coverage. This is a maintainability concern, not an accepted exception.
+**Treatment:** issue #94 injects `AddressResolutionService` through `PopulationModule`, removes the local resolver and local address input interface, and delegates resident create/update address input to core. Regression tests prove both family and population workflows use the shared capability.
 
 ### A1-P2 Resolved in Documentation — Dependency and exception records were missing
 
@@ -124,7 +124,7 @@ Shared packages expose compiled `dist` artifacts. API tests build `@sidpro/types
 1. The architecture boundary test and focused workflow must pass on the current full repository source.
 2. CI must pass lint, typecheck, test, build, migration, smoke, and production Compose validation after the gate and remediation are added.
 3. The inventory and exception register must be reviewed against actual module imports discovered by the boundary test.
-4. The remaining population address-resolution duplication must be removed or tracked as a scoped architecture-debt item with owner and target release.
+4. Resident create/update and family address workflows must remain covered by regression tests that exercise the shared core resolver.
 
 ## Closure Criteria
 
@@ -134,7 +134,7 @@ AUDIT-1 may move to `Closed` only when:
 2. architecture boundary rules run in required CI checks;
 3. every permitted exception has owner, rationale, and regression guard;
 4. the operational architecture of API/worker/web is validated on a persistent staging environment;
-5. the remaining population address-resolution duplication is reconciled;
+5. the current dependency graph and exception register are reconciled with CI evidence;
 6. related AUDIT-2 through AUDIT-10 findings are not being incorrectly used as architecture closure evidence.
 
 ## Related Documents
