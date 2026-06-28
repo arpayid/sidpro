@@ -9,6 +9,7 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
+    "audit:architecture": "tsx --test apps/api/test/architecture-boundaries.test.ts",
     "clean": "turbo run clean && rm -rf node_modules",
     "prisma:validate": "prisma validate --schema=prisma/schema.prisma",
     "prisma:generate": "prisma generate --schema=prisma/schema.prisma",
