@@ -1,6 +1,6 @@
 # AUDIT-5 — Report and Export Tenant Isolation
 
-**Status:** Implemented regression coverage; pending CI validation.
+**Status:** Tenant-isolation and report query-range regression coverage implemented; pending CI validation.
 
 ## Scope
 
@@ -25,6 +25,7 @@ This audit covers all current authenticated report, dashboard, and tabular expor
 3. Every inspected read applies the authenticated tenant to its Prisma `where` condition. Finance uses the composite `tenantId_year` unique key.
 4. Population, family, report, and complaint exports write an audit event with the same authenticated tenant ID.
 5. `apps/api/test/reports-tenant-isolation.test.ts` exercises the actual services with a Prisma-call recorder. It asserts tenant scope for dashboard/report queries, XLSX exports, resident/family XLSX exports, complaint CSV export, composite finance lookup, missing-tenant rejection, and export audit events.
+6. Finance report and finance-export `year` accept only integer years from 1900 through 2200. Audit-report `days` accepts only integer windows from 1 through 365 and defaults to 30. Invalid values are rejected before a report service can issue a database query.
 
 ## Findings
 
@@ -32,9 +33,9 @@ This audit covers all current authenticated report, dashboard, and tabular expor
 
 The current services use the authenticated tenant as their query boundary. The regression test protects this behavior from accidental future removal.
 
-### P2 Follow-up: Validate report query ranges explicitly
+### P2 Resolved: Explicit report query ranges
 
-`year` and `days` are currently parsed in the reports controller using `parseInt`. A separate hardening PR should reject invalid values, constrain audit-report windows, and define the allowed finance-year range. This is input-validation hardening; it is not a confirmed tenant-isolation bypass.
+The former `parseInt` handling for report `year` and audit `days` is replaced by shared Zod schemas. This rejects partial numbers such as `2026abc`, fractional values, empty values, and values outside the documented bounds.
 
 ## Remaining AUDIT-5 Work
 
@@ -53,4 +54,4 @@ Security Audit / Security Gate
 Tenant Link Integrity / tenant-link-integration
 ```
 
-The regression test is included in the API `pnpm test` command through the existing `test/*.test.ts` pattern.
+The regression tests are included in the API `pnpm test` command through the existing `test/*.test.ts` pattern.

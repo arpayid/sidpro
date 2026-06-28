@@ -7,3 +7,4 @@ export * from './letters';
 export * from './rbac';
 export * from './core';
 export * from './admin-modules';
+export * from './reports';
