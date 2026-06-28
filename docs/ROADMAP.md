@@ -7,8 +7,8 @@ Dokumen ini adalah ringkasan sumber-kebenaran untuk status audit, pekerjaan hard
 ## Snapshot Saat Ini
 
 - **Repository:** `arpayid/sidpro`
-- **Baseline register:** branch `main` setelah merge PR #90 (`a306c46c1ed6d9162aad8664d140829fb1b717e8`)
-- **Tanggal baseline:** 28 Juni 2026
+- **Baseline register:** branch `main` setelah merge PR #92 (`df357f582aff69deb296ead8b1041874a1a35ac7`)
+- **Tanggal baseline:** 29 Juni 2026
 - **Catatan lingkungan:** belum ada bukti eksekusi pada staging atau production persisten di register ini. Bukti CI Docker/Compose bukan pengganti bukti staging atau production.
 
 ## Definisi Status
@@ -29,7 +29,7 @@ Tidak ada status `Closed` dalam baseline ini.
 | Audit | Fokus Program | Status Baseline | Bukti yang Tercatat | Rujukan Detail |
 | --- | --- | --- | --- | --- |
 | AUDIT-0 | Evidence baseline dan tata kelola audit | `In Progress` | Register dan kebijakan pembaruan diperkenalkan oleh dokumen ini. | [Master Register](audits/AUDIT_MASTER_REGISTER.md#audit-0--evidence-baseline-dan-tata-kelola) |
-| AUDIT-1 | Repository dan arsitektur | `Not Formally Assessed` | Arsitektur modular monolith didokumentasikan, tetapi belum ada laporan audit arsitektur dan closure record. | [Master Register](audits/AUDIT_MASTER_REGISTER.md#audit-1--repository-dan-arsitektur) |
+| AUDIT-1 | Repository dan arsitektur | `In Progress` | Inventory modular monolith, architecture decision register, and executable source-import boundary gate are introduced; full repository scan and CI evidence are pending. | [AUDIT-1 Architecture](audits/AUDIT-1-REPOSITORY-ARCHITECTURE.md) |
 | AUDIT-2 | Dependency dan code quality | `Evidence Partial` | CI menjalankan lint, typecheck, test, build; dependency audit tersedia melalui Security Audit. Belum ada audit code-quality menyeluruh. | [Master Register](audits/AUDIT_MASTER_REGISTER.md#audit-2--dependency-dan-code-quality) |
 | AUDIT-3 | API dan domain logic | `Evidence Partial` | Ada perbaikan/regression test terarah, tetapi belum ada inventaris dan closure audit seluruh API/domain. | [Master Register](audits/AUDIT_MASTER_REGISTER.md#audit-3--api-dan-domain-logic) |
 | AUDIT-4 | Security | `Evidence Partial` | Security Audit, dependency scan, secret scan, hardening refresh-token, dan guard permissions tercatat. Audit keamanan menyeluruh belum ditutup. | [Master Register](audits/AUDIT_MASTER_REGISTER.md#audit-4--security) |
@@ -42,7 +42,7 @@ Tidak ada status `Closed` dalam baseline ini.
 
 ## Prioritas Saat Ini
 
-1. **Mulai AUDIT-1 secara formal:** inventory module, dependency graph, import boundary, dan architectural-exception register.
+1. **Selesaikan baseline AUDIT-1:** jalankan architecture boundary scan pada CI, rekonsiliasi setiap violation, dan lengkapi dependency/exception inventory.
 2. **AUDIT-5 tetap `Validation Pending`:** historical-data preflight, real query-plan evidence, object cleanup recovery drill, dan log alert membutuhkan environment persisten.
 3. **Lanjut AUDIT-2 sampai AUDIT-4 setelah AUDIT-1:** pekerjaan hardening terdahulu adalah evidence, bukan closure otomatis.
 4. **Buka AUDIT-9 setelah scope workload disepakati:** query-plan fixture tidak menggantikan benchmark, latency target, export memory profile, atau capacity planning.
@@ -57,6 +57,7 @@ PR yang tidak mengubah status atau bukti roadmap tetap wajib menyatakan `No road
 
 - [Audit Master Register](audits/AUDIT_MASTER_REGISTER.md)
 - [Roadmap Update Policy](audits/ROADMAP_UPDATE_POLICY.md)
+- [AUDIT-1 — Repository and Architecture](audits/AUDIT-1-REPOSITORY-ARCHITECTURE.md)
 - [AUDIT-5 — Database and Tenant Integrity](audits/AUDIT-5-DATABASE-TENANT-INTEGRITY.md)
 - [AUDIT-5 — Composite Foreign-Key Evaluation](audits/AUDIT-5-COMPOSITE-FK-EVALUATION.md)
 - [AUDIT-5 — Report and Export Tenant Isolation](audits/AUDIT-5-REPORT-EXPORT-ISOLATION.md)
