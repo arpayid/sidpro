@@ -1,6 +1,6 @@
 # AUDIT-5 — Database and Tenant Integrity
 
-**Status:** In progress — domain and identity tenant-link guards plus BUMDes financial-history retention are covered by PostgreSQL integration gates.
+**Status:** In progress — domain and identity tenant-link guards, BUMDes financial-history retention, and resident-family lifecycle cleanup are covered by PostgreSQL integration gates.
 
 ## Confirmed Findings
 
@@ -15,6 +15,8 @@ The schema keeps `tenant_id` on most domain rows, but several relationships use 
 | P1 | `family_members.family_id`, `resident_id` | A household member can combine a family and resident from different tenants. |
 | P1 | `civil_events.resident_id` | A population event can be recorded against a resident from another tenant. |
 | P1 | `letter_templates.letter_type_id` | A tenant can persist a template linked to another tenant's letter type. |
+| P1 | `letter_requests.requester_id`, `resident_id`, `letter_type_id` | A request can combine identity, resident, or type records from different tenant scopes. |
+| P1 | `letter_approvals.letter_request_id`, `approver_id`; `letter_number_sequences.letter_type_id` | Approval and numbering rows can be attached across tenant boundaries; approver had no foreign key. |
 | P1 | `aid_recipients.program_id`, `resident_id`, `family_id` | Aid recipients can combine records from separate tenants. |
 | P1 | `finance_documents.file_id`, `gallery_items.file_id`, `letter_outputs.file_id` | Tenant-owned metadata can point to a file from another tenant. |
 | P1 | `letter_outputs.letter_request_id` | A generated output can be linked to a request from another tenant. |
@@ -23,6 +25,7 @@ The schema keeps `tenant_id` on most domain rows, but several relationships use 
 | P1 | `user_roles.user_id` ↔ `role_id` | A global user could receive a tenant role, or a user could receive a role owned by another tenant, escalating access. |
 | P1 | `notifications.user_id` | A notification row could target a user from another tenant. |
 | P1 | `complaints.reporter_id`, `assignee_id`, `complaint_responses.responder_id` | Complaint identity references could cross tenant boundaries despite normal API checks. |
+| P2 | Soft-deleted resident linked as a family member or head | A resident marked deleted can remain visible as an active household member or head of family. |
 | P2 | Deleting a referenced file | The old file-delete path removed object storage before database metadata, risking dangling `file_id` values or a database row that points to a missing object. |
 
 ## Tenant Scope Policy
@@ -39,7 +42,11 @@ Migration `20260628000400_enforce_identity_tenant_link_guards` extends exact-sco
 
 Migration `20260628000500_protect_bumdes_financial_history` replaces the `bumdes_financial_records.unit_id` cascade with `ON DELETE RESTRICT`. Units with posted financial records must be changed to `inactive`; they cannot be hard-deleted. The API performs an explanatory pre-check and maps a concurrent foreign-key conflict to a safe conflict response.
 
-All migrations are non-destructive: they protect future writes and do not mutate historical rows.
+Migration `20260628000600_enforce_letter_tenant_link_guards` protects letter request requester, resident, and type links; approval request and approver links; and letter-number-sequence type links. It also blocks parent tenant moves that would invalidate these relationships and adds `letter_approvals.approver_id → users.id ON DELETE SET NULL`.
+
+Migration `20260628000700_clean_soft_deleted_resident_links` intentionally reconciles historical records: it removes family-membership rows for already deleted residents, clears affected household heads, and clears their direct family link. Thereafter, trigger guards perform the same cleanup whenever `residents.deleted_at` transitions from `NULL` to a timestamp. Restoring a resident does not recreate a prior family assignment; re-assignment remains an explicit administrative action.
+
+Migrations `00200` through `00600` are non-destructive protections for future writes. Migration `00700` is an intentional, bounded data reconciliation and should be deployed only with a verified database backup.
 
 ## PostgreSQL Integration Gate
 
@@ -48,7 +55,7 @@ Workflow `Tenant Link Integrity` runs on every relevant pull request and push. I
 The gate covers every P1 trigger currently introduced by the AUDIT-5 migrations. Invalid writes must fail with `SQLSTATE 23514` for:
 
 - family address and family head-resident links;
-- letter-template type links;
+- letter-template, request, approval, and numbering links;
 - aid program, resident, and family links;
 - finance document, gallery, and letter-output file links;
 - letter-output request links;
@@ -56,11 +63,11 @@ The gate covers every P1 trigger currently introduced by the AUDIT-5 migrations.
 - the address RT/RW-to-dusun hierarchy invariant;
 - global-versus-tenant user-role scope, notification recipients, complaint reporter/assignee links, and complaint-response responders.
 
-A BUMDes unit deletion with financial records must fail with `SQLSTATE 23503`, ensuring accounting history is not cascade-deleted. This verifies runtime database behavior rather than only static migration text. Test fixtures are always rolled back.
+A BUMDes unit deletion with financial records must fail with `SQLSTATE 23503`. The resident-family lifecycle test verifies a deleted resident loses direct family membership, household membership, and household-head status without affecting other active members or implicitly restoring stale links. This verifies runtime database behavior rather than only static migration text. Test fixtures are always rolled back.
 
 ## Preflight Before Staging or Production
 
-Run both integrity preflights before deploying any tenant-link guard migration to a database containing existing data:
+Run both integrity preflights before deploying tenant-link guard migrations to a database containing existing data:
 
 ```bash
 psql "$DATABASE_URL" -f scripts/db/verify-tenant-link-integrity.sql
@@ -69,10 +76,12 @@ psql "$DATABASE_URL" -f scripts/db/verify-identity-tenant-link-integrity.sql
 
 Each command must return zero rows. Any result must be reconciled before production go-live. `scripts/staging-post-deploy-validate.sh` runs both checks automatically.
 
+Before applying migration `20260628000700_clean_soft_deleted_resident_links`, create and verify a database backup. The migration intentionally reconciles obsolete household links for rows already marked deleted.
+
 ## Remaining AUDIT-5 Work
 
-1. Review remaining tenant-owned links in letters and other future modules where system/global scope semantics need explicit policy.
-2. Evaluate staged replacement of trigger guards with composite unique keys and composite foreign keys where Prisma migration support and data preflight make that practical.
-3. Verify index plans with production-like `EXPLAIN (ANALYZE, BUFFERS)` evidence for high-volume tenant-scoped reports and exports.
-4. Verify deployment, observability, and retry handling for the durable storage-orphan cleanup worker.
-5. Reconcile any historical violations found by either preflight before production go-live.
+1. Evaluate staged replacement of trigger guards with composite unique keys and composite foreign keys where Prisma migration support and data preflight make that practical.
+2. Verify index plans with production-like `EXPLAIN (ANALYZE, BUFFERS)` evidence for high-volume tenant-scoped reports and exports.
+3. Verify deployment, observability, and retry handling for the durable storage-orphan cleanup worker.
+4. Reconcile any historical violations found by the tenant-link preflights before production go-live.
+5. Define an append-only financial ledger before treating `budget_items.realized` as an authoritative accounting value.
