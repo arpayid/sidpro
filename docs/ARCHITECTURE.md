@@ -29,9 +29,9 @@ SIDPRO menggunakan **modular monolith**: satu codebase dan database utama, denga
 
 ### Platform/core
 
-`database`, `config`, `health`, `common`, `auth`, `users`, `roles`, `permissions`, `tenants`, `audit-logs`, `files`, `storage`, `queue`, `settings`, dan `notifications` adalah core/platform concerns.
+`database`, `config`, `health`, `common`, `addressing`, `auth`, `users`, `roles`, `permissions`, `tenants`, `audit-logs`, `files`, `storage`, `queue`, `settings`, dan `notifications` adalah core/platform concerns.
 
-Core menyediakan kemampuan untuk domain dan **tidak boleh mengimpor code domain**.
+Core menyediakan kemampuan untuk domain dan **tidak boleh mengimpor code domain**. `core/addressing` adalah capability bersama untuk memvalidasi serta membuat alamat tenant-scoped dari dusun, RT/RW, dan jalan.
 
 ### Domain and delivery modules
 
@@ -47,21 +47,22 @@ Domain dapat menggunakan `common`, `database`, dan core services. Domain **tidak
 4. Core dapat dipakai domain, tetapi core tidak boleh memakai domain.
 5. Domain-to-domain source import dilarang secara default.
 6. Cross-domain read aggregation, seperti dashboard/report, dapat memakai query Prisma tenant-scoped tanpa mengimpor domain service lain.
-7. Cross-domain write orchestration harus memakai contract, queue/event, atau exported interface yang terdokumentasi dan diuji.
+7. Cross-domain write orchestration harus memakai contract, queue/event, atau exported core interface yang terdokumentasi dan diuji.
 8. Input API harus tervalidasi; admin route harus dilindungi permission; data tenant-owned harus selalu difilter tenant; perubahan penting harus audit-logged.
 
 ## Executable Boundary Gate
 
-`apps/api/test/architecture-boundaries.test.ts` memindai import source pada CI dan menolak:
+`apps/api/test/architecture-boundaries.test.ts` memindai import source dan manifest package pada CI dan menolak:
 
 - core → domain import;
 - domain → domain import lintas modul;
 - common → core/domain import;
 - web → API/worker source import;
 - worker → web/API source import;
-- shared package → application source import.
+- shared package → application source import;
+- shared package manifest → deployable application dependency.
 
-Aturan lengkap, register exception, dan status audit dicatat di [AUDIT-1 — Repository and Architecture](audits/AUDIT-1-REPOSITORY-ARCHITECTURE.md).
+Workflow **AUDIT-1 Architecture Boundaries** menjalankan scanner yang sama secara terpisah dan mengunggah log diagnostik pada kegagalan. Aturan lengkap, register exception, dan status audit dicatat di [AUDIT-1 — Repository and Architecture](audits/AUDIT-1-REPOSITORY-ARCHITECTURE.md).
 
 ## Intentional Exceptions
 
