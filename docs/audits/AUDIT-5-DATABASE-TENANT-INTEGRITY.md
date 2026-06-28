@@ -1,6 +1,6 @@
 # AUDIT-5 — Database and Tenant Integrity
 
-**Status:** In progress — domain and identity tenant-link guards, BUMDes financial-history retention, resident-family lifecycle cleanup, and budget-realization ledger controls are covered by PostgreSQL integration gates.
+**Status:** Validation Pending — repository-level tenant integrity, report/export query-plan evidence, and storage-cleanup retry/observability controls are implemented. Historical-data preflight and persistent staging/production validation remain required before a `Closed` status is possible.
 
 ## Confirmed Findings
 
@@ -49,6 +49,8 @@ Migration `20260628000700_clean_soft_deleted_resident_links` intentionally recon
 
 Migrations `20260628000800_add_budget_realization_ledger` through `20260628001000_normalize_budget_item_initial_realized` create an append-only realization ledger. Ledger inserts update `budget_items.realized` as a read cache; updates and deletes are rejected, reversals cannot exceed the current balance, cross-tenant author and item links are rejected, and parent tenant drift is blocked. Historical and compatible initial realized values become explicit opening-balance ledger entries.
 
+Migration `20260628001100_add_audit_5_report_export_indexes` adds tenant/order indexes for active resident export, population civil events, letter requests, audit logs, and complaint timelines. The related workflow proves the planner uses the expected indexes on a tenant-selective PostgreSQL 17 fixture; it does not claim a production latency result.
+
 Migrations `00200` through `00600` are non-destructive protections for future writes. Migration `00700` is an intentional, bounded data reconciliation and should be deployed only with a verified database backup. Migration `00800` rejects negative historical realized values and copies positive historical balances into ledger opening entries, so it also requires a verified database backup.
 
 ## PostgreSQL Integration Gate
@@ -69,6 +71,8 @@ The gate covers every P1 trigger currently introduced by the AUDIT-5 migrations.
 
 A BUMDes unit deletion with financial records must fail with `SQLSTATE 23503`. The resident-family lifecycle test verifies a deleted resident loses direct family membership, household membership, and household-head status without affecting other active members or implicitly restoring stale links. The budget ledger test verifies initial-value normalization and that budget items with ledger history cannot be deleted. This verifies runtime database behavior rather than only static migration text. Test fixtures are always rolled back.
 
+Workflow `AUDIT-5 Query Plan Evidence` applies the same migrations to PostgreSQL 17, loads a 5,000-row tenant fixture plus 30,000-row noise tenant, and verifies executed `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)` plans for report/export query shapes. See the report/export performance evidence document for the exact scope and limits of that proof.
+
 ## Preflight Before Staging or Production
 
 Run both integrity preflights before deploying tenant-link guard migrations to a database containing existing data:
@@ -82,9 +86,24 @@ Each command must return zero rows. Any result must be reconciled before product
 
 Before applying migrations `20260628000700_clean_soft_deleted_resident_links` or `20260628000800_add_budget_realization_ledger`, create and verify a database backup. The former reconciles obsolete household links; the latter copies historical positive cache values into opening ledger entries and rejects negative values.
 
-## Remaining AUDIT-5 Work
+## Repository-Level Work Completed
 
-1. Evaluate staged replacement of trigger guards with composite unique keys and composite foreign keys where Prisma migration support and data preflight make that practical.
-2. Verify index plans with production-like `EXPLAIN (ANALYZE, BUFFERS)` evidence for high-volume tenant-scoped reports and exports.
-3. Verify deployment, observability, and retry handling for the durable storage-orphan cleanup worker.
-4. Reconcile any historical violations found by the tenant-link preflights before production go-live.
+1. **Composite-FK evaluation:** completed. Existing trigger guards remain authoritative; future conversion may be piloted only through a dedicated, preflight-gated migration.
+2. **Report/export performance evidence:** completed in CI. Tenant-selective executed plans are verified against expected PostgreSQL indexes.
+3. **Storage cleanup retry and observability:** completed in code and tests. Failed jobs are retained for incident follow-up; the worker emits structured queue-health and failure events.
+
+## Validation Still Required Outside the Repository
+
+1. Run tenant-link and identity preflights against each historical staging/production dataset before go-live.
+2. Run and store representative-dataset `EXPLAIN (ANALYZE, BUFFERS)` results, including export duration/memory evidence.
+3. Verify the deployed worker enables storage cleanup, forwards structured JSON logs to a persistent collector, and raises alerts for degraded queue health and final failures.
+4. Perform a controlled Redis/MinIO outage-and-recovery drill and record queue retry behavior.
+5. Verify release migration lock behavior on a persistent staging dataset before applying indexes to a large database.
+
+## Rujukan
+
+- [Composite Foreign-Key Evaluation](AUDIT-5-COMPOSITE-FK-EVALUATION.md)
+- [Report and Export Tenant Isolation](AUDIT-5-REPORT-EXPORT-ISOLATION.md)
+- [Report and Export Query-Plan Evidence](AUDIT-5-REPORT-EXPORT-PERFORMANCE-EVIDENCE.md)
+- [Storage Cleanup Observability and Retry](AUDIT-5-STORAGE-CLEANUP-OBSERVABILITY.md)
+- [Finance Ledger Audit](AUDIT-FINANCE-LEDGER.md)
