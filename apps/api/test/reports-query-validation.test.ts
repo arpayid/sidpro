@@ -61,7 +61,7 @@ describe('reports query validation', () => {
   it('rejects malformed and out-of-range finance years before the service is called', () => {
     const { controller, calls } = createController();
 
-    for (const year of ['', '2026abc', '2026.5', '1899', '2201']) {
+    for (const year of ['', '2026abc', '2026.5', '0x7ea', '2.026e3', '1899', '2201']) {
       assert.throws(() => controller.getFinanceReport(user, year), BadRequestException);
       assert.throws(
         () => controller.exportFinanceReport(user, request, response, year),
@@ -85,7 +85,7 @@ describe('reports query validation', () => {
   it('rejects malformed and unbounded audit windows before the service is called', () => {
     const { controller, calls } = createController();
 
-    for (const days of ['', '0', '366', '30.5', '30days']) {
+    for (const days of ['', '0', '366', '30.5', '0x12c', '3e2', '30days']) {
       assert.throws(() => controller.getAuditReport(user, days), BadRequestException);
     }
 
