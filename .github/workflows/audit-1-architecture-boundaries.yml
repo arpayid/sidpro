@@ -10,6 +10,10 @@ on:
       - 'apps/worker/src/**'
       - 'packages/**'
       - 'package.json'
+      - 'docs/ARCHITECTURE.md'
+      - 'docs/ROADMAP.md'
+      - 'docs/audits/AUDIT-1-*.md'
+      - 'docs/audits/AUDIT_MASTER_REGISTER.md'
       - '.github/workflows/audit-1-architecture-boundaries.yml'
   pull_request:
     branches: [main, develop]
@@ -20,6 +24,10 @@ on:
       - 'apps/worker/src/**'
       - 'packages/**'
       - 'package.json'
+      - 'docs/ARCHITECTURE.md'
+      - 'docs/ROADMAP.md'
+      - 'docs/audits/AUDIT-1-*.md'
+      - 'docs/audits/AUDIT_MASTER_REGISTER.md'
       - '.github/workflows/audit-1-architecture-boundaries.yml'
   workflow_dispatch:
 
