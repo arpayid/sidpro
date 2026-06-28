@@ -29,6 +29,7 @@ flowchart LR
   Domains --> Common[common utilities]
 
   Families[families] --> Addressing
+  Population[population] --> Addressing
   Reports[reports] --> Prisma
   Reports --> Audit
 ```
@@ -66,16 +67,16 @@ flowchart TB
 
 ## Reconciled Dependency
 
-The baseline scanner identified `families → population` as a direct source dependency. The dependency existed only to resolve tenant-scoped address input. It is now replaced by:
+The baseline scanner identified `families → population` as a direct source dependency. The dependency existed only to resolve tenant-scoped address input. Both workflows now depend on the same core capability:
 
 ```mermaid
 flowchart LR
   Families[families] --> Addressing[core/addressing\nAddressResolutionService]
-  Population[population] --> Legacy[legacy local address resolver\nremediation pending]
+  Population[population] --> Addressing
   Addressing --> Prisma[PrismaService]
 ```
 
-`PopulationService` still contains a legacy local resolver. This is tracked as A1-P2 in the AUDIT-1 findings register; it is not an allowed direct domain dependency.
+`PopulationService` no longer contains an address resolver. Resident create/update and family create/update use `AddressResolutionService`, which preserves tenant, hamlet, and RT/RW validation in one owned capability.
 
 ## Regeneration and Review
 

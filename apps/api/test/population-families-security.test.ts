@@ -29,7 +29,7 @@ describe('population and family security', () => {
         },
       },
     };
-    const service = new PopulationService(prisma as never, auditMock() as never);
+    const service = new PopulationService(prisma as never, auditMock() as never, {} as never);
 
     await assert.rejects(
       service.create(user as never, {
@@ -57,7 +57,7 @@ describe('population and family security', () => {
       },
       family: { findFirst: async () => null },
     };
-    const service = new PopulationService(prisma as never, auditMock() as never);
+    const service = new PopulationService(prisma as never, auditMock() as never, {} as never);
 
     await service.update(user as never, 'resident-a', {
       birthDate: '1990-01-31T00:00:00.000Z',
@@ -72,6 +72,54 @@ describe('population and family security', () => {
     assert.deepEqual(calls[0]?.data.address, { disconnect: true });
     assert.equal(calls[0]?.data.religion, null);
     assert.equal(calls[0]?.data.education, null);
+  });
+
+  it('delegates resident address creation and update to core addressing', async () => {
+    const resolverCalls: Array<{ tenantId: string; input: Record<string, unknown> }> = [];
+    const created: Array<{ data: Record<string, unknown> }> = [];
+    const updated: Array<{ data: Record<string, unknown> }> = [];
+    const prisma = {
+      resident: {
+        findUnique: async () => null,
+        create: async ({ data }: { data: Record<string, unknown> }) => {
+          created.push({ data });
+          return { id: 'resident-created', ...data };
+        },
+        findFirst: async () => ({ id: 'resident-existing', tenantId: 'tenant-a' }),
+        update: async ({ data }: { data: Record<string, unknown> }) => {
+          updated.push({ data });
+          return { id: 'resident-existing', ...data };
+        },
+      },
+      family: { findFirst: async () => null },
+    };
+    const addressing = {
+      resolveAddress: async (tenantId: string, input: Record<string, unknown>) => {
+        resolverCalls.push({ tenantId, input });
+        return resolverCalls.length === 1 ? 'address-created' : 'address-updated';
+      },
+    };
+    const service = new PopulationService(prisma as never, auditMock() as never, addressing as never);
+
+    await service.create(user as never, {
+      nik: '3201010101010001',
+      fullName: 'Budi Santoso',
+      gender: 'male',
+      birthPlace: 'Bandung',
+      birthDate: '1990-01-31',
+      residentStatus: 'permanent',
+      address: { street: 'Jl. Merdeka' },
+    });
+    await service.update(user as never, 'resident-existing', {
+      address: { street: 'Jl. Raya Desa' },
+    });
+
+    assert.deepEqual(resolverCalls, [
+      { tenantId: 'tenant-a', input: { street: 'Jl. Merdeka' } },
+      { tenantId: 'tenant-a', input: { street: 'Jl. Raya Desa' } },
+    ]);
+    assert.equal(created[0]?.data.addressId, 'address-created');
+    assert.deepEqual(updated[0]?.data.address, { connect: { id: 'address-updated' } });
   });
 
   it('tenant-scopes family member resident lookup to block cross-tenant access', async () => {
