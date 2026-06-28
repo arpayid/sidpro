@@ -18,6 +18,7 @@ DECLARE
   year_b text := 'ci-ledger-year-b-' || s;
   item_a text := 'ci-ledger-item-a-' || s;
   item_b text := 'ci-ledger-item-b-' || s;
+  item_initial text := 'ci-ledger-item-initial-' || s;
   entry_a text := 'ci-ledger-entry-a-' || s;
   entry_b text := 'ci-ledger-entry-b-' || s;
   current_realized numeric(15,2);
@@ -131,10 +132,26 @@ BEGIN
   EXCEPTION WHEN SQLSTATE '23514' THEN NULL;
   END;
 
+  INSERT INTO budget_items (id, budget_year_id, category, name, planned, realized)
+  VALUES (item_initial, year_a, 'CI', 'Initial ledger cache', 1.00, 1.00);
+
+  SELECT realized INTO current_realized FROM budget_items WHERE id = item_initial;
+  IF current_realized <> 1.00
+    OR NOT EXISTS (
+      SELECT 1
+      FROM budget_realization_entries
+      WHERE budget_item_id = item_initial
+        AND entry_type = 'migration_opening_balance'
+        AND amount = 1.00
+    )
+  THEN
+    RAISE EXCEPTION 'initial realized value was not normalized into an opening ledger balance';
+  END IF;
+
   BEGIN
     INSERT INTO budget_items (id, budget_year_id, category, name, planned, realized)
-    VALUES ('ci-ledger-direct-cache-' || s, year_a, 'CI', 'Invalid direct cache', 1.00, 1.00);
-    RAISE EXCEPTION 'nonzero realized cache was accepted on budget item creation';
+    VALUES ('ci-ledger-negative-cache-' || s, year_a, 'CI', 'Negative cache', 1.00, -1.00);
+    RAISE EXCEPTION 'negative initial realized cache was accepted';
   EXCEPTION WHEN SQLSTATE '23514' THEN NULL;
   END;
 
