@@ -14,12 +14,18 @@ const job = {
   ipAddress: '127.0.0.1',
 } as const;
 
-function createHarness(deleteFile?: () => Promise<void>) {
+function createHarness(options?: {
+  deleteFile?: () => Promise<void>;
+  deletePrefix?: () => Promise<void>;
+}) {
   const audits: Array<Record<string, unknown>> = [];
   return {
     audits,
     deps: {
-      storage: { deleteFile: async () => deleteFile?.() },
+      storage: {
+        deleteFile: async () => options?.deleteFile?.(),
+        deletePrefix: async () => options?.deletePrefix?.(),
+      },
       prisma: {
         auditLog: {
           create: async ({ data }: { data: Record<string, unknown> }) => {
@@ -32,15 +38,24 @@ function createHarness(deleteFile?: () => Promise<void>) {
 }
 
 describe('storage cleanup worker', () => {
-  it('rejects malformed and cross-tenant storage paths', () => {
+  it('defaults legacy jobs to object cleanup and rejects malformed targets', () => {
+    assert.equal(parseStorageCleanupJob(job).target, 'object');
     assert.throws(() => parseStorageCleanupJob({}), /Invalid storage cleanup job type/);
     assert.throws(
       () => parseStorageCleanupJob({ ...job, path: 'tenant-b/uploads/file-a.pdf' }),
       /tenant prefix/,
     );
+    assert.throws(
+      () => parseStorageCleanupJob({ ...job, target: 'invalid' }),
+      /target must be object or prefix/,
+    );
+    assert.throws(
+      () => parseStorageCleanupJob({ ...job, target: 'prefix', path: 'tenant-a/letters/request-a' }),
+      /prefix target must end with a slash/,
+    );
   });
 
-  it('deletes the orphan and writes a completion audit event', async () => {
+  it('deletes an object and writes a completion audit event', async () => {
     const { deps, audits } = createHarness();
 
     const result = await processStorageCleanupJob(deps as never, job, {
@@ -53,14 +68,42 @@ describe('storage cleanup worker', () => {
     assert.equal(audits[0]?.action, 'storage_cleanup_completed');
     assert.deepEqual(audits[0]?.metadata, {
       path: job.path,
+      target: 'object',
+      attempt: 1,
+      maxAttempts: 8,
+    });
+  });
+
+  it('deletes every object below a tenant-scoped prefix', async () => {
+    let prefixDeleted = false;
+    const { deps, audits } = createHarness({
+      deletePrefix: async () => {
+        prefixDeleted = true;
+      },
+    });
+    const prefixJob = {
+      ...job,
+      fileId: 'letter-pdf-orphan-a',
+      path: 'tenant-a/letters/request-a/',
+      target: 'prefix' as const,
+    };
+
+    await processStorageCleanupJob(deps as never, prefixJob, { attempt: 1, maxAttempts: 8 });
+
+    assert.equal(prefixDeleted, true);
+    assert.deepEqual(audits[0]?.metadata, {
+      path: prefixJob.path,
+      target: 'prefix',
       attempt: 1,
       maxAttempts: 8,
     });
   });
 
   it('records retry intent and rethrows before the final attempt', async () => {
-    const { deps, audits } = createHarness(async () => {
-      throw new Error('MinIO unavailable');
+    const { deps, audits } = createHarness({
+      deleteFile: async () => {
+        throw new Error('MinIO unavailable');
+      },
     });
 
     await assert.rejects(
@@ -71,6 +114,7 @@ describe('storage cleanup worker', () => {
     assert.equal(audits[0]?.action, 'storage_cleanup_retry');
     assert.deepEqual(audits[0]?.metadata, {
       path: job.path,
+      target: 'object',
       attempt: 2,
       maxAttempts: 8,
       error: 'MinIO unavailable',
@@ -78,8 +122,10 @@ describe('storage cleanup worker', () => {
   });
 
   it('records permanent failure on the final attempt', async () => {
-    const { deps, audits } = createHarness(async () => {
-      throw new Error('MinIO unavailable');
+    const { deps, audits } = createHarness({
+      deleteFile: async () => {
+        throw new Error('MinIO unavailable');
+      },
     });
 
     await assert.rejects(
