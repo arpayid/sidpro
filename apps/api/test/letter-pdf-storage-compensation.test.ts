@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { ExecutionContext } from '@nestjs/common';
+import type { ExecutionContext } from '@nestjs/common';
 import { lastValueFrom, throwError } from 'rxjs';
 import { LetterPdfStorageCompensationInterceptor } from '../src/modules/letters/letter-pdf-storage-compensation.interceptor.js';
 
@@ -125,7 +125,7 @@ describe('letter PDF storage compensation', () => {
     assert.equal(queued.length, 1);
     assert.deepEqual(queued[0], {
       tenantId: 'tenant-a',
-      fileId: `letter-pdf-orphan-${'f8aa2ca590d49eb9c2f2d70d808ac321866d7ba8941c7745c26c1386907707be'}`,
+      fileId: `letter-pdf-orphan-${'435cdf97fe61b73db11d291153f4df587ffa7bc8a2a043d6c955e2a2e04da82b'}`,
       path: 'tenant-a/letters/request-b/',
       target: 'prefix',
       actorId: 'user-a',
