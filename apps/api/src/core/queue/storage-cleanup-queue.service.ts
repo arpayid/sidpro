@@ -54,8 +54,10 @@ export class StorageCleanupQueueService implements OnModuleDestroy {
         jobId: `storage-cleanup-${payload.fileId}`,
         attempts: 8,
         backoff: { type: 'exponential', delay: 5000 },
-        removeOnComplete: 1000,
-        removeOnFail: 500,
+        // Keep enough recent state for queue-health logs and incident follow-up.
+        // BullMQ interprets age in seconds.
+        removeOnComplete: { age: 86_400, count: 1000 },
+        removeOnFail: { age: 604_800, count: 500 },
       });
       return true;
     } catch (error) {

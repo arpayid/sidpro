@@ -1,0 +1,103 @@
+name: AUDIT-5 Query Plan Evidence
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'prisma/migrations/**'
+      - 'apps/api/src/modules/reports/**'
+      - 'apps/api/src/modules/population/**'
+      - 'apps/api/src/modules/complaints/**'
+      - 'scripts/db/test-report-export-query-plans.sh'
+      - 'scripts/db/test-complaint-export-query-plan.sh'
+      - '.github/workflows/audit-5-query-plan-evidence.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'prisma/migrations/**'
+      - 'apps/api/src/modules/reports/**'
+      - 'apps/api/src/modules/population/**'
+      - 'apps/api/src/modules/complaints/**'
+      - 'scripts/db/test-report-export-query-plans.sh'
+      - 'scripts/db/test-complaint-export-query-plan.sh'
+      - '.github/workflows/audit-5-query-plan-evidence.yml'
+  workflow_dispatch:
+
+jobs:
+  query-plan-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: sidpro_test
+          POSTGRES_PASSWORD: sidpro_test_password
+          POSTGRES_DB: sidpro
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://sidpro_test:sidpro_test_password@localhost:5432/sidpro?schema=public
+      NODE_ENV: test
+      JWT_SECRET: test-only-jwt-secret-not-for-production
+      SEED_ADMIN_EMAIL: admin@audit5.test
+      SEED_ADMIN_PASSWORD: test-only-seed-password
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.18.3
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm prisma:generate
+
+      - name: Apply migrations and seed PostgreSQL 17
+        run: |
+          pnpm exec prisma migrate deploy --schema=prisma/schema.prisma
+          pnpm prisma:seed
+
+      - name: Install PostgreSQL 17 client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq curl ca-certificates
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+            -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17
+
+      - name: Capture and verify report/export query plans
+        run: |
+          set -o pipefail
+          {
+            bash scripts/db/test-report-export-query-plans.sh
+            bash scripts/db/test-complaint-export-query-plan.sh
+          } 2>&1 | tee audit-5-query-plan.log
+
+      - name: Upload query plan diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-5-query-plan-log
+          path: audit-5-query-plan.log
+          if-no-files-found: ignore
+          retention-days: 14
