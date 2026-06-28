@@ -9,6 +9,7 @@ export interface StorageCleanupJob {
   fileId: string;
   path: string;
   target?: StorageCleanupTarget;
+  letterRequestId?: string;
   actorId?: string | null;
   ipAddress?: string | null;
 }
