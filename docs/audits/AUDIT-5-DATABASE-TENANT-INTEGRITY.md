@@ -1,6 +1,6 @@
 # AUDIT-5 — Database and Tenant Integrity
 
-**Status:** In progress — domain and identity tenant-link guards are covered by PostgreSQL integration gates.
+**Status:** In progress — domain and identity tenant-link guards plus BUMDes financial-history retention are covered by PostgreSQL integration gates.
 
 ## Confirmed Findings
 
@@ -19,6 +19,7 @@ The schema keeps `tenant_id` on most domain rows, but several relationships use 
 | P1 | `finance_documents.file_id`, `gallery_items.file_id`, `letter_outputs.file_id` | Tenant-owned metadata can point to a file from another tenant. |
 | P1 | `letter_outputs.letter_request_id` | A generated output can be linked to a request from another tenant. |
 | P1 | `bumdes_financial_records.unit_id` | A BUMDes financial record can be linked to another tenant's business unit. |
+| P1 | Deleting `bumdes_units` with financial history | A cascading foreign key can silently erase accounting records. |
 | P1 | `user_roles.user_id` ↔ `role_id` | A global user could receive a tenant role, or a user could receive a role owned by another tenant, escalating access. |
 | P1 | `notifications.user_id` | A notification row could target a user from another tenant. |
 | P1 | `complaints.reporter_id`, `assignee_id`, `complaint_responses.responder_id` | Complaint identity references could cross tenant boundaries despite normal API checks. |
@@ -35,6 +36,8 @@ Migration `20260628000200_enforce_tenant_link_guards` protects the initial P1 se
 Migration `20260628000300_enforce_population_tenant_link_guards` extends PostgreSQL `BEFORE INSERT OR UPDATE` triggers to the population hierarchy and BUMDes financial records. It also rejects an address when its selected RT/RW belongs to a different dusun, even if both rows happen to have the same tenant.
 
 Migration `20260628000400_enforce_identity_tenant_link_guards` extends exact-scope checks to user-role grants, notifications, complaint reporter/assignee links, and complaint-response responders. It also prevents moving a user, role, or complaint to a different tenant while dependent identity links would become invalid. A nullable complaint responder now has a foreign key to `users` with `ON DELETE SET NULL`.
+
+Migration `20260628000500_protect_bumdes_financial_history` replaces the `bumdes_financial_records.unit_id` cascade with `ON DELETE RESTRICT`. Units with posted financial records must be changed to `inactive`; they cannot be hard-deleted. The API performs an explanatory pre-check and maps a concurrent foreign-key conflict to a safe conflict response.
 
 All migrations are non-destructive: they protect future writes and do not mutate historical rows.
 
@@ -53,7 +56,7 @@ The gate covers every P1 trigger currently introduced by the AUDIT-5 migrations.
 - the address RT/RW-to-dusun hierarchy invariant;
 - global-versus-tenant user-role scope, notification recipients, complaint reporter/assignee links, and complaint-response responders.
 
-This verifies runtime database behavior rather than only static migration text. Test fixtures are always rolled back.
+A BUMDes unit deletion with financial records must fail with `SQLSTATE 23503`, ensuring accounting history is not cascade-deleted. This verifies runtime database behavior rather than only static migration text. Test fixtures are always rolled back.
 
 ## Preflight Before Staging or Production
 
@@ -71,5 +74,5 @@ Each command must return zero rows. Any result must be reconciled before product
 1. Review remaining tenant-owned links in letters and other future modules where system/global scope semantics need explicit policy.
 2. Evaluate staged replacement of trigger guards with composite unique keys and composite foreign keys where Prisma migration support and data preflight make that practical.
 3. Verify index plans with production-like `EXPLAIN (ANALYZE, BUFFERS)` evidence for high-volume tenant-scoped reports and exports.
-4. Add a durable storage-orphan cleanup worker for failures recorded as `storage_cleanup_required`.
+4. Verify deployment, observability, and retry handling for the durable storage-orphan cleanup worker.
 5. Reconcile any historical violations found by either preflight before production go-live.
