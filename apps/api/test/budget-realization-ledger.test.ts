@@ -22,6 +22,13 @@ const parentScopeMigration = readFileSync(
   ),
   'utf8',
 );
+const initialValueMigration = readFileSync(
+  new URL(
+    '../../../prisma/migrations/20260628001000_normalize_budget_item_initial_realized/migration.sql',
+    import.meta.url,
+  ),
+  'utf8',
+);
 const runtimeTest = readFileSync(
   new URL('../../../scripts/db/test-budget-realization-ledger.sh', import.meta.url),
   'utf8',
@@ -115,6 +122,12 @@ describe('budget realization ledger', () => {
     assert.match(migration, /budget_item_id must belong to the same tenant/);
   });
 
+  it('normalizes compatible initial values into an opening balance entry', () => {
+    assert.match(initialValueMigration, /budget_items_initial_realized_normalization/);
+    assert.match(initialValueMigration, /Saldo awal realisasi saat pembuatan item/);
+    assert.match(initialValueMigration, /budget_items\.realized cannot start below zero/);
+  });
+
   it('prevents parent-side tenant drift after a ledger entry exists', () => {
     assert.match(parentScopeMigration, /budget_items_realization_budget_year_scope_guard/);
     assert.match(parentScopeMigration, /budget_years_realization_tenant_scope_guard/);
@@ -131,6 +144,7 @@ describe('budget realization ledger', () => {
     assert.match(runtimeTest, /ledger budget item was moved to a year from another tenant/);
     assert.match(runtimeTest, /ledger budget year tenant was changed/);
     assert.match(runtimeTest, /ledger author tenant was changed/);
+    assert.match(runtimeTest, /initial realized value was not normalized into an opening ledger balance/);
     assert.match(workflow, /scripts\/db\/test-budget-realization-ledger\.sh/);
     assert.match(workflow, /bash scripts\/db\/test-budget-realization-ledger\.sh/);
   });
