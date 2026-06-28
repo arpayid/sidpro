@@ -1,8 +1,9 @@
-import { DeleteObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { DeleteObjectCommand, ListObjectsV2Command, S3Client } from '@aws-sdk/client-s3';
 import { PrismaClient } from '@prisma/client';
 import {
   STORAGE_CLEANUP_JOB_NAME,
   type StorageCleanupJob,
+  type StorageCleanupTarget,
 } from '@sidpro/types';
 
 interface StorageCleanupAttempt {
@@ -12,7 +13,10 @@ interface StorageCleanupAttempt {
 
 interface StorageCleanupProcessorDeps {
   prisma: Pick<PrismaClient, 'auditLog'>;
-  storage: { deleteFile(path: string): Promise<void> };
+  storage: {
+    deleteFile(path: string): Promise<void>;
+    deletePrefix(prefix: string): Promise<void>;
+  };
 }
 
 interface StorageCleanupRuntime {
@@ -25,6 +29,12 @@ function safeErrorMessage(error: unknown): string {
   return message.slice(0, 500);
 }
 
+function parseCleanupTarget(value: unknown): StorageCleanupTarget {
+  if (value === undefined || value === null) return 'object';
+  if (value === 'object' || value === 'prefix') return value;
+  throw new Error('Storage cleanup target must be object or prefix');
+}
+
 export function parseStorageCleanupJob(data: unknown): StorageCleanupJob {
   const job = data as Partial<StorageCleanupJob> | null;
   if (!job || job.type !== STORAGE_CLEANUP_JOB_NAME) {
@@ -33,8 +43,13 @@ export function parseStorageCleanupJob(data: unknown): StorageCleanupJob {
   if (!job.tenantId || !job.fileId || !job.path) {
     throw new Error('Storage cleanup job requires tenantId, fileId, and path');
   }
+
+  const target = parseCleanupTarget(job.target);
   if (!job.path.startsWith(`${job.tenantId}/`)) {
     throw new Error('Storage cleanup path must remain within the job tenant prefix');
+  }
+  if (target === 'prefix' && !job.path.endsWith('/')) {
+    throw new Error('Storage cleanup prefix target must end with a slash');
   }
 
   return {
@@ -42,6 +57,7 @@ export function parseStorageCleanupJob(data: unknown): StorageCleanupJob {
     tenantId: job.tenantId,
     fileId: job.fileId,
     path: job.path,
+    target,
     actorId: job.actorId ?? null,
     ipAddress: job.ipAddress ?? null,
   };
@@ -61,7 +77,7 @@ async function writeAudit(
       module: 'files',
       entityType: 'file',
       entityId: job.fileId,
-      metadata: { path: job.path, ...metadata },
+      metadata: { path: job.path, target: job.target ?? 'object', ...metadata },
       ipAddress: job.ipAddress ?? null,
     },
   });
@@ -77,7 +93,11 @@ export async function processStorageCleanupJob(
   const maxAttempts = Math.max(1, context.maxAttempts);
 
   try {
-    await deps.storage.deleteFile(job.path);
+    if (job.target === 'prefix') {
+      await deps.storage.deletePrefix(job.path);
+    } else {
+      await deps.storage.deleteFile(job.path);
+    }
     await writeAudit(deps, job, 'storage_cleanup_completed', { attempt, maxAttempts });
     return { path: job.path };
   } catch (error) {
@@ -129,6 +149,24 @@ function createStorageClientFromEnv() {
   return {
     deleteFile: async (path: string) => {
       await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: path }));
+    },
+    deletePrefix: async (prefix: string) => {
+      let continuationToken: string | undefined;
+      do {
+        const page = await client.send(
+          new ListObjectsV2Command({
+            Bucket: bucket,
+            Prefix: prefix,
+            ContinuationToken: continuationToken,
+          }),
+        );
+        for (const object of page.Contents ?? []) {
+          if (object.Key) {
+            await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: object.Key }));
+          }
+        }
+        continuationToken = page.IsTruncated ? page.NextContinuationToken : undefined;
+      } while (continuationToken);
     },
   };
 }
