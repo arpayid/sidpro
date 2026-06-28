@@ -12,6 +12,7 @@ import { parseWithZod } from '../../common/utils/zod-validation.util';
 import { PrismaService } from '../../database/prisma.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { StorageService } from '../storage/storage.service';
+import { StorageCleanupQueueService } from '../queue/storage-cleanup-queue.service';
 import { JwtPayload } from '../../common/decorators/current-user.decorator';
 import { paginatedResponse, successResponse } from '../../common/utils/response.util';
 import { assertMimeMatchesBuffer } from '../../common/utils/file-mime.util';
@@ -33,6 +34,7 @@ export class FilesService {
     private prisma: PrismaService,
     private auditLogs: AuditLogsService,
     private storage: StorageService,
+    private storageCleanupQueue: StorageCleanupQueueService,
   ) {}
 
   private requireTenant(user: JwtPayload): string {
@@ -72,6 +74,36 @@ export class FilesService {
     return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003';
   }
 
+  private async scheduleStorageCleanup(input: {
+    tenantId: string;
+    fileId: string;
+    path: string;
+    reason: string;
+    actorId?: string | null;
+    ipAddress?: string;
+  }): Promise<boolean> {
+    const queued = await this.storageCleanupQueue.enqueueStorageCleanup({
+      tenantId: input.tenantId,
+      fileId: input.fileId,
+      path: input.path,
+      actorId: input.actorId,
+      ipAddress: input.ipAddress,
+    });
+
+    await this.auditLogs.log({
+      tenantId: input.tenantId,
+      actorId: input.actorId ?? undefined,
+      action: queued ? 'storage_cleanup_required' : 'storage_cleanup_enqueue_failed',
+      module: 'files',
+      entityType: 'file',
+      entityId: input.fileId,
+      metadata: { reason: input.reason, cleanupQueued: queued },
+      ipAddress: input.ipAddress,
+    });
+
+    return queued;
+  }
+
   private async purgeStalePublicComplaintFiles(tenantId: string, maxAgeHours = 24) {
     const cutoff = new Date(Date.now() - maxAgeHours * 60 * 60 * 1000);
     const stale = await this.prisma.file.findMany({
@@ -87,7 +119,12 @@ export class FilesService {
       try {
         await this.storage.deleteFile(file.path);
       } catch {
-        // ignore storage cleanup errors for stale orphans
+        await this.scheduleStorageCleanup({
+          tenantId,
+          fileId: file.id,
+          path: file.path,
+          reason: 'stale_public_complaint_file',
+        });
       }
       await this.prisma.file.delete({ where: { id: file.id } });
     }
@@ -314,19 +351,17 @@ export class FilesService {
     try {
       await this.storage.deleteFile(deleted.path);
     } catch {
-      await this.auditLogs.log({
+      const storageCleanupQueued = await this.scheduleStorageCleanup({
         tenantId,
+        fileId: id,
+        path: deleted.path,
+        reason: 'delete_after_metadata_removal',
         actorId: user.sub,
-        action: 'storage_cleanup_required',
-        module: 'files',
-        entityType: 'file',
-        entityId: id,
-        metadata: { reason: 'delete_after_metadata_removal' },
         ipAddress,
       });
       return successResponse(
-        { storageCleanupRequired: true },
-        'Metadata file dihapus, tetapi pembersihan object storage perlu ditindaklanjuti',
+        { storageCleanupRequired: true, storageCleanupQueued },
+        'Metadata file dihapus, tetapi pembersihan object storage sedang dijadwalkan ulang',
       );
     }
 
