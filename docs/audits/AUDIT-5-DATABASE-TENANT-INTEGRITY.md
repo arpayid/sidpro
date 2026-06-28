@@ -31,9 +31,19 @@ Both migrations are non-destructive: they protect future writes and do not mutat
 
 ## PostgreSQL Integration Gate
 
-Workflow `Tenant Link Integrity` runs on every relevant pull request and push. It creates a clean PostgreSQL 17 database, applies all Prisma migrations, seeds the dataset, requires the centralized preflight to return zero rows, then performs valid and intentionally invalid writes in a transaction that is rolled back.
+Workflow `Tenant Link Integrity` runs on every relevant pull request and push. It creates a clean PostgreSQL 17 database, applies all Prisma migrations, seeds the dataset, requires the centralized preflight to return zero rows, then performs valid and intentionally invalid writes in rollback-only transactions.
 
-The negative cases must fail with `SQLSTATE 23514` for cross-tenant or invalid hierarchy links in neighborhood units, addresses, residents, family members, civil events, and BUMDes financial records. This verifies database triggers rather than only static migration text.
+The gate covers every P1 trigger currently introduced by the AUDIT-5 migrations. Invalid writes must fail with `SQLSTATE 23514` for:
+
+- family address and family head-resident links;
+- letter-template type links;
+- aid program, resident, and family links;
+- finance document, gallery, and letter-output file links;
+- letter-output request links;
+- neighborhood unit, address, resident, family-member, civil-event, and BUMDes links;
+- the address RT/RW-to-dusun hierarchy invariant.
+
+This verifies runtime database behavior rather than only static migration text. Test fixtures are always rolled back.
 
 ## Preflight Before Staging or Production
 
