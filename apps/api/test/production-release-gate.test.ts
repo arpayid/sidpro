@@ -1,9 +1,14 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+
+function fileUrl(path: string) {
+  return new URL(path, import.meta.url);
+}
 
 function readScript(path: string) {
-  return readFileSync(new URL(path, import.meta.url), 'utf8');
+  return readFileSync(fileUrl(path), 'utf8');
 }
 
 const release = readScript('../../../scripts/production-release.sh');
@@ -15,6 +20,19 @@ const compose = readScript('../../../docker-compose.prod.yml');
 const ledgerVerifier = readScript('../../../scripts/db/verify-budget-realization-ledger.sql');
 
 describe('production release gate', () => {
+  it('passes Bash syntax validation', () => {
+    for (const path of [
+      '../../../scripts/production/lib.sh',
+      '../../../scripts/production-backup.sh',
+      '../../../scripts/verify-production-backup.sh',
+      '../../../scripts/production-preflight.sh',
+      '../../../scripts/production-post-deploy-validate.sh',
+      '../../../scripts/production-release.sh',
+    ]) {
+      execFileSync('bash', ['-n', fileUrl(path).pathname], { stdio: 'pipe' });
+    }
+  });
+
   it('requires a production environment and releases committed source only', () => {
     assert.match(release, /NODE_ENV.*production/);
     assert.match(release, /repository contains uncommitted tracked changes/);
