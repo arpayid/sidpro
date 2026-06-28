@@ -1,6 +1,6 @@
 # AUDIT-1 — Repository and Architecture
 
-**Status:** In Progress — repository structure, package contracts, and enforceable import boundaries are now being formalized. A full dependency inventory and CI validation are required before this audit can become `Validation Pending`.
+**Status:** In Progress — repository topology, package contracts, import boundaries, and the first remediated cross-domain dependency are documented. Full CI confirmation and the remaining dependency-map review are required before this audit can move to `Validation Pending`.
 
 ## Scope
 
@@ -34,9 +34,11 @@ It does **not** assess individual API behavior, database integrity, UI correctne
 
 ### Platform and core
 
-`database`, `config`, `health`, `common`, `auth`, `users`, `roles`, `permissions`, `tenants`, `audit-logs`, `files`, `storage`, `queue`, `settings`, and `notifications` are platform/core concerns.
+`database`, `config`, `health`, `common`, `addressing`, `auth`, `users`, `roles`, `permissions`, `tenants`, `audit-logs`, `files`, `storage`, `queue`, `settings`, and `notifications` are platform/core concerns.
 
 Core services may be consumed by domain modules. Core code must not import domain modules because this would reverse the dependency direction and make platform changes depend on business features.
+
+`core/addressing` owns tenant-scoped address creation and territory hierarchy validation that is shared by population and family workflows.
 
 ### Domain modules
 
@@ -47,11 +49,11 @@ A domain module may use `common`, `database`, and required core services. A doma
 - a database read model or aggregate query owned by the coordinating module;
 - a shared transport/validation contract in `packages/types` or `packages/validators`;
 - an event or queue contract for asynchronous work;
-- a narrowly scoped exported service, introduced only with an architecture decision and regression coverage.
+- a narrowly scoped exported core service, introduced with an architecture decision and regression coverage.
 
 ## Enforced Import Boundary Rules
 
-`apps/api/test/architecture-boundaries.test.ts` scans source imports and rejects:
+`apps/api/test/architecture-boundaries.test.ts` scans source imports and package manifests and rejects:
 
 1. `apps/api/src/core/**` importing `apps/api/src/modules/**`.
 2. One backend domain module directly importing another backend domain module.
@@ -59,8 +61,9 @@ A domain module may use `common`, `database`, and required core services. A doma
 4. `apps/web/src/**` importing source paths from API or worker.
 5. `apps/worker/src/**` importing source paths from API or web.
 6. `packages/**` importing source paths from any application.
+7. Any shared package manifest declaring `@sidpro/api`, `@sidpro/web`, or `@sidpro/worker` as a dependency.
 
-The gate resolves both API alias imports (`@/…`) and relative source imports. It runs as part of the existing API test command and therefore the required CI test gate.
+The gate resolves both API alias imports (`@/…`) and relative source imports. It runs as part of the existing API test command and in the dedicated **AUDIT-1 Architecture Boundaries** workflow, which retains a compact diagnostic artifact on failure.
 
 ## Current Architecture Decisions
 
@@ -71,7 +74,8 @@ The gate resolves both API alias imports (`@/…`) and relative source imports. 
 | ADR-A1-003 | Core platform code may be imported by domain modules; core must not import domain code. | Accepted |
 | ADR-A1-004 | Direct domain-to-domain source imports are prohibited by default. | Accepted |
 | ADR-A1-005 | Report/dashboard aggregation may issue tenant-scoped Prisma reads across domain tables without importing domain services. | Accepted with review requirement |
-| ADR-A1-006 | Cross-domain workflow that needs write coordination must be explicitly documented and tested; it must not be introduced as an undocumented relative import. | Accepted |
+| ADR-A1-006 | Cross-domain workflow that needs write coordination must use a core contract, queue/event, or explicitly documented interface; it must not be introduced as an undocumented relative import. | Accepted |
+| ADR-A1-007 | Tenant-scoped address resolution is a shared core capability. Family workflows use `AddressResolutionService` instead of importing `PopulationService`. | Accepted |
 
 ## Architecture Exceptions Register
 
@@ -85,30 +89,42 @@ No undocumented source-import exception is accepted at this baseline.
 
 ## Findings
 
-### A1-P1 — No executable architecture boundary existed
+### A1-P1 Resolved in Source — No executable architecture boundary existed
 
 Before this audit, the architecture document described module isolation, but TypeScript and ESLint only exposed broad aliases and generic lint rules. There was no executable guard against a core module importing a business module, a business module importing another business module, or application source being imported by a shared package.
 
-**Treatment:** `architecture-boundaries.test.ts` establishes an executable regression gate. CI result is required to determine whether existing source code already violates the policy.
+**Treatment:** `architecture-boundaries.test.ts` establishes a source and manifest regression gate. The focused workflow provides explicit architecture-scan evidence independent of the general CI log.
 
-### A1-P2 — Architecture documentation lacked dependency and exception records
+### A1-P1 Resolved in Source — `families` imported `population`
 
-The previous architecture document listed folders and high-level rules but did not state allowed dependency direction, role of reports as a cross-domain read model, or the process for accepting exceptions.
+The initial scan found `FamiliesModule` importing `PopulationModule` and `FamiliesService` importing `PopulationService`. The only shared behavior was tenant-scoped address resolution. This was a direct domain-to-domain dependency and made family behavior dependent on population module implementation.
 
-**Treatment:** this audit document and the expanded architecture guide define the rules and exception register.
+**Treatment:** `AddressResolutionService` and `AddressingModule` now own the shared address capability. `families` imports core addressing, not population. Tests cover the resolver's tenant, hamlet, and RT/RW safeguards plus the family workflow delegation.
 
-### A1-P2 — Shared package build contract was implicit
+### A1-P2 Remaining — Population address logic is not yet delegated to core
 
-Shared packages expose compiled `dist` artifacts. API tests now build `@sidpro/types` and `@sidpro/validators` before running, which makes that contract explicit and prevents a clean checkout from resolving stale/nonexistent package output.
+`PopulationService` still contains the legacy implementation of address resolution. It no longer creates a forbidden source dependency, but it duplicates logic now owned by `core/addressing`.
+
+**Treatment:** migrate population's internal address-resolution path to `AddressResolutionService` in the next bounded AUDIT-1 remediation, with population import/create/update regression coverage. This is a maintainability concern, not an accepted exception.
+
+### A1-P2 Resolved in Documentation — Dependency and exception records were missing
+
+The previous architecture document listed folders and high-level rules but did not state allowed dependency direction, the role of reports as a cross-domain read model, or the process for accepting exceptions.
+
+**Treatment:** this audit document and the expanded architecture guide define the rules, decisions, and exception register.
+
+### A1-P2 Resolved in Test Setup — Shared package build contract was implicit
+
+Shared packages expose compiled `dist` artifacts. API tests build `@sidpro/types` and `@sidpro/validators` before running, which prevents a clean checkout from resolving stale or nonexistent package output.
 
 **Treatment:** retained in the API `pretest` hook and verified by CI.
 
 ## Validation Required for `Validation Pending`
 
-1. The architecture boundary test must pass on the current full repository source.
-2. CI must pass lint, typecheck, test, build, migration, smoke, and production Compose validation after the gate is added.
+1. The architecture boundary test and focused workflow must pass on the current full repository source.
+2. CI must pass lint, typecheck, test, build, migration, smoke, and production Compose validation after the gate and remediation are added.
 3. The inventory and exception register must be reviewed against actual module imports discovered by the boundary test.
-4. Any direct domain-to-domain imports found by the scan must be removed or recorded as an explicit decision before status can advance.
+4. The remaining population address-resolution duplication must be removed or tracked as a scoped architecture-debt item with owner and target release.
 
 ## Closure Criteria
 
@@ -118,7 +134,8 @@ AUDIT-1 may move to `Closed` only when:
 2. architecture boundary rules run in required CI checks;
 3. every permitted exception has owner, rationale, and regression guard;
 4. the operational architecture of API/worker/web is validated on a persistent staging environment;
-5. related AUDIT-2 through AUDIT-10 findings are not being incorrectly used as architecture closure evidence.
+5. the remaining population address-resolution duplication is reconciled;
+6. related AUDIT-2 through AUDIT-10 findings are not being incorrectly used as architecture closure evidence.
 
 ## Related Documents
 
