@@ -9,11 +9,13 @@ import {
   createResidentSchema,
   residentMutationSchema,
   updateResidentSchema,
+  type ResidentAddressInput,
 } from '@sidpro/validators';
 import { parseWithZod } from '../../common/utils/zod-validation.util';
 import { Response } from 'express';
 import { PrismaService } from '../../database/prisma.service';
 import { sendXlsxDownload, xlsxBufferToJson } from '../../common/utils/spreadsheet.util';
+import { AddressResolutionService } from '../../core/addressing/address-resolution.service';
 import { AuditLogsService } from '../../core/audit-logs/audit-logs.service';
 import { JwtPayload } from '../../common/decorators/current-user.decorator';
 import { paginatedResponse, successResponse, maskNik } from '../../common/utils/response.util';
@@ -38,17 +40,12 @@ export interface RowValidationError {
   errors: string[];
 }
 
-export interface ResidentAddressInput {
-  hamletId?: string;
-  neighborhoodUnitId?: string;
-  street?: string;
-}
-
 @Injectable()
 export class PopulationService {
   constructor(
     private prisma: PrismaService,
     private auditLogs: AuditLogsService,
+    private addressResolution: AddressResolutionService,
   ) {}
 
   private requireTenant(user: JwtPayload): string {
@@ -61,56 +58,12 @@ export class PopulationService {
     return { ...resident, nik: maskNik(resident.nik) };
   }
 
-  async resolveAddress(tenantId: string, input: ResidentAddressInput): Promise<string> {
-    const { hamletId, neighborhoodUnitId, street } = input;
-
-    if (neighborhoodUnitId) {
-      const unit = await this.prisma.neighborhoodUnit.findFirst({
-        where: { id: neighborhoodUnitId, tenantId },
-      });
-      if (!unit) throw new NotFoundException('RT/RW tidak ditemukan');
-
-      if (hamletId && hamletId !== unit.hamletId) {
-        throw new ConflictException('RT/RW tidak sesuai dengan dusun yang dipilih');
-      }
-
-      const address = await this.prisma.address.create({
-        data: {
-          tenantId,
-          hamletId: hamletId ?? unit.hamletId,
-          neighborhoodUnitId: unit.id,
-          rt: unit.rt,
-          rw: unit.rw,
-          street,
-        },
-      });
-      return address.id;
-    }
-
-    if (hamletId) {
-      const hamlet = await this.prisma.hamlet.findFirst({
-        where: { id: hamletId, tenantId },
-      });
-      if (!hamlet) throw new NotFoundException('Dusun tidak ditemukan');
-
-      const address = await this.prisma.address.create({
-        data: { tenantId, hamletId, street },
-      });
-      return address.id;
-    }
-
-    const address = await this.prisma.address.create({
-      data: { tenantId, street },
-    });
-    return address.id;
-  }
-
   private async resolveResidentAddressId(
     tenantId: string,
     body: { addressId?: string | null; address?: ResidentAddressInput },
   ): Promise<string | undefined> {
     if (body.address) {
-      return this.resolveAddress(tenantId, body.address);
+      return this.addressResolution.resolveAddress(tenantId, body.address);
     }
     if (body.addressId) {
       const existing = await this.prisma.address.findFirst({
