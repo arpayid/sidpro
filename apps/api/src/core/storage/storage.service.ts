@@ -7,6 +7,7 @@ import {
   GetObjectCommand,
   HeadBucketCommand,
   CreateBucketCommand,
+  ListObjectsV2Command,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import {
@@ -111,5 +112,31 @@ export class StorageService implements OnModuleInit {
         Key: key,
       }),
     );
+  }
+
+  async listFilesByPrefix(prefix: string): Promise<string[]> {
+    const keys: string[] = [];
+    let continuationToken: string | undefined;
+
+    do {
+      const page = await this.client.send(
+        new ListObjectsV2Command({
+          Bucket: this.bucket,
+          Prefix: prefix,
+          ContinuationToken: continuationToken,
+        }),
+      );
+      keys.push(...(page.Contents ?? []).flatMap((object) => (object.Key ? [object.Key] : [])));
+      continuationToken = page.IsTruncated ? page.NextContinuationToken : undefined;
+    } while (continuationToken);
+
+    return keys;
+  }
+
+  async deletePrefix(prefix: string): Promise<void> {
+    const keys = await this.listFilesByPrefix(prefix);
+    for (const key of keys) {
+      await this.deleteFile(key);
+    }
   }
 }
