@@ -15,6 +15,13 @@ const migration = readFileSync(
   ),
   'utf8',
 );
+const parentScopeMigration = readFileSync(
+  new URL(
+    '../../../prisma/migrations/20260628000900_enforce_budget_realization_parent_scope/migration.sql',
+    import.meta.url,
+  ),
+  'utf8',
+);
 const runtimeTest = readFileSync(
   new URL('../../../scripts/db/test-budget-realization-ledger.sh', import.meta.url),
   'utf8',
@@ -92,7 +99,10 @@ describe('budget realization ledger', () => {
     assert.equal(result.data.entry.amount, 125);
     assert.equal(result.data.budgetItem.realized, 125);
     assert.equal(auditEvents[0]?.entityType, 'budget_realization_entry');
-    assert.equal(auditEvents[0]?.metadata?.budgetItemId, 'item-a');
+    assert.equal(
+      (auditEvents[0]?.metadata as { budgetItemId?: string } | undefined)?.budgetItemId,
+      'item-a',
+    );
   });
 
   it('backfills historical realized values and guards the cache plus ledger mutations', () => {
@@ -105,6 +115,12 @@ describe('budget realization ledger', () => {
     assert.match(migration, /budget_item_id must belong to the same tenant/);
   });
 
+  it('prevents parent-side tenant drift after a ledger entry exists', () => {
+    assert.match(parentScopeMigration, /budget_items_realization_budget_year_scope_guard/);
+    assert.match(parentScopeMigration, /budget_years_realization_tenant_scope_guard/);
+    assert.match(parentScopeMigration, /users_realization_author_tenant_scope_guard/);
+  });
+
   it('runs a PostgreSQL runtime gate for cache, tenant, and append-only invariants', () => {
     assert.match(runtimeTest, /direct realized cache edit was accepted/);
     assert.match(runtimeTest, /ledger update was accepted/);
@@ -112,6 +128,9 @@ describe('budget realization ledger', () => {
     assert.match(runtimeTest, /over-reversal was accepted/);
     assert.match(runtimeTest, /cross-tenant budget item link was accepted/);
     assert.match(runtimeTest, /cross-tenant ledger author link was accepted/);
+    assert.match(runtimeTest, /ledger budget item was moved to a year from another tenant/);
+    assert.match(runtimeTest, /ledger budget year tenant was changed/);
+    assert.match(runtimeTest, /ledger author tenant was changed/);
     assert.match(workflow, /scripts\/db\/test-budget-realization-ledger\.sh/);
     assert.match(workflow, /bash scripts\/db\/test-budget-realization-ledger\.sh/);
   });
