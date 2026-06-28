@@ -114,6 +114,24 @@ BEGIN
   END;
 
   BEGIN
+    UPDATE budget_items SET budget_year_id = year_b WHERE id = item_a;
+    RAISE EXCEPTION 'ledger budget item was moved to a year from another tenant';
+  EXCEPTION WHEN SQLSTATE '23514' THEN NULL;
+  END;
+
+  BEGIN
+    UPDATE budget_years SET tenant_id = tenant_b, updated_at = now_at WHERE id = year_a;
+    RAISE EXCEPTION 'ledger budget year tenant was changed';
+  EXCEPTION WHEN SQLSTATE '23514' THEN NULL;
+  END;
+
+  BEGIN
+    UPDATE users SET tenant_id = tenant_b, updated_at = now_at WHERE id = user_a;
+    RAISE EXCEPTION 'ledger author tenant was changed';
+  EXCEPTION WHEN SQLSTATE '23514' THEN NULL;
+  END;
+
+  BEGIN
     INSERT INTO budget_items (id, budget_year_id, category, name, planned, realized)
     VALUES ('ci-ledger-direct-cache-' || s, year_a, 'CI', 'Invalid direct cache', 1.00, 1.00);
     RAISE EXCEPTION 'nonzero realized cache was accepted on budget item creation';
