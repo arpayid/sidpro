@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Verifies backup checksums and restores the database dump into a disposable database.
+# Verifies backup checksums and restores database and object archives into disposable targets.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -62,12 +62,27 @@ gzip -t "$DB_FILE"
 tar -tzf "$OBJECT_FILE" >/dev/null
 
 sidpro_wait_for_service postgres
+sidpro_wait_for_service minio
 TEMP_DB="sidpro_restore_verify_$(date -u +%Y%m%d%H%M%S)_$RANDOM"
+TEMP_BUCKET="sidpro-restore-verify-$(date -u +%Y%m%d%H%M%S)-$RANDOM"
+OBJECT_STAGE="$(mktemp -d)"
+MINIO_CONTAINER_ID="$(sidpro_compose ps -q minio)"
+MINIO_NETWORK="$(docker inspect --format '{{range $name, $_ := .NetworkSettings.Networks}}{{println $name}}{{end}}' "$MINIO_CONTAINER_ID" | head -n 1)"
 
-cleanup_temp_db() {
+cleanup_verification_targets() {
   sidpro_compose exec -T postgres sh -ec "psql -X -v ON_ERROR_STOP=1 -U \"\$POSTGRES_USER\" -d postgres -c 'DROP DATABASE IF EXISTS \"$TEMP_DB\" WITH (FORCE)'" >/dev/null 2>&1 || true
+  if [ -n "${MINIO_NETWORK:-}" ]; then
+    docker run --rm \
+      --network "$MINIO_NETWORK" \
+      -e MINIO_ROOT_USER \
+      -e MINIO_ROOT_PASSWORD \
+      --entrypoint /bin/sh \
+      minio/mc \
+      -ec "mc alias set local http://minio:9000 \"\$MINIO_ROOT_USER\" \"\$MINIO_ROOT_PASSWORD\" >/dev/null && mc rb --force \"local/$TEMP_BUCKET\"" >/dev/null 2>&1 || true
+  fi
+  rm -rf "$OBJECT_STAGE"
 }
-trap cleanup_temp_db EXIT
+trap cleanup_verification_targets EXIT
 
 printf '%s\n' '[verify-production-backup] Restoring database dump into a disposable database...'
 sidpro_compose exec -T postgres sh -ec "psql -X -v ON_ERROR_STOP=1 -U \"\$POSTGRES_USER\" -d postgres -c 'CREATE DATABASE \"$TEMP_DB\"'" >/dev/null
@@ -81,6 +96,22 @@ if ! [[ "$MIGRATION_COUNT" =~ ^[1-9][0-9]*$ ]]; then
   exit 1
 fi
 
-cleanup_temp_db
+printf '%s\n' '[verify-production-backup] Restoring object archive into a disposable bucket...'
+tar -xzf "$OBJECT_FILE" -C "$OBJECT_STAGE"
+if [ -z "$MINIO_NETWORK" ]; then
+  echo '[verify-production-backup] ERROR: unable to resolve MinIO network' >&2
+  exit 1
+fi
+
+docker run --rm \
+  --network "$MINIO_NETWORK" \
+  -v "$OBJECT_STAGE:/restore-data:ro" \
+  -e MINIO_ROOT_USER \
+  -e MINIO_ROOT_PASSWORD \
+  --entrypoint /bin/sh \
+  minio/mc \
+  -ec "mc alias set local http://minio:9000 \"\$MINIO_ROOT_USER\" \"\$MINIO_ROOT_PASSWORD\" >/dev/null && mc mb \"local/$TEMP_BUCKET\" >/dev/null && mc mirror --quiet /restore-data \"local/$TEMP_BUCKET\" && mc ls \"local/$TEMP_BUCKET\" >/dev/null"
+
+cleanup_verification_targets
 trap - EXIT
-printf '%s\n' '[verify-production-backup] PASS: backup archive and disposable restore verified.'
+printf '%s\n' '[verify-production-backup] PASS: database and object archives restore successfully into disposable targets.'
