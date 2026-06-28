@@ -8,7 +8,7 @@ import { Response } from 'express';
 import { PrismaService } from '../../database/prisma.service';
 import { sendXlsxDownload } from '../../common/utils/spreadsheet.util';
 import { AuditLogsService } from '../../core/audit-logs/audit-logs.service';
-import { PopulationService } from '../population/population.service';
+import { AddressResolutionService } from '../../core/addressing/address-resolution.service';
 import { JwtPayload } from '../../common/decorators/current-user.decorator';
 import type { ResidentAddressInput } from '@sidpro/validators';
 import { addFamilyMemberSchema, createFamilySchema, updateFamilySchema } from '@sidpro/validators';
@@ -20,7 +20,7 @@ export class FamiliesService {
   constructor(
     private prisma: PrismaService,
     private auditLogs: AuditLogsService,
-    private populationService: PopulationService,
+    private addressResolution: AddressResolutionService,
   ) {}
 
   private requireTenant(user: JwtPayload): string {
@@ -113,7 +113,7 @@ export class FamiliesService {
 
     let addressId = parsed.addressId;
     if (parsed.address) {
-      addressId = await this.populationService.resolveAddress(tenantId, parsed.address);
+      addressId = await this.addressResolution.resolveAddress(tenantId, parsed.address);
     }
 
     const family = await this.prisma.family.create({
@@ -175,7 +175,7 @@ export class FamiliesService {
 
     let addressId = parsed.addressId;
     if (parsed.address) {
-      addressId = await this.populationService.resolveAddress(tenantId, parsed.address);
+      addressId = await this.addressResolution.resolveAddress(tenantId, parsed.address);
     }
 
     const family = await this.prisma.family.update({
@@ -253,8 +253,9 @@ export class FamiliesService {
     const existingMember = await this.prisma.familyMember.findUnique({
       where: { familyId_residentId: { familyId, residentId: parsed.residentId } },
     });
-    if (existingMember)
+    if (existingMember) {
       throw new ConflictException('Penduduk sudah terdaftar sebagai anggota KK ini');
+    }
 
     const resident = await this.prisma.resident.findFirst({
       where: { id: parsed.residentId, tenantId, deletedAt: null },
