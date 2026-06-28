@@ -8,9 +8,9 @@ BEGIN
   IF EXISTS (
     SELECT 1
     FROM "budget_realization_entries" bre
-    JOIN "budget_years" by ON by."id" = NEW."budget_year_id"
+    JOIN "budget_years" budget_year ON budget_year."id" = NEW."budget_year_id"
     WHERE bre."budget_item_id" = NEW."id"
-      AND bre."tenant_id" IS DISTINCT FROM by."tenant_id"
+      AND bre."tenant_id" IS DISTINCT FROM budget_year."tenant_id"
   ) THEN
     RAISE EXCEPTION USING
       ERRCODE = '23514',
