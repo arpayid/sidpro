@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
+import { AddressingModule } from '../../core/addressing/addressing.module';
 import { FamiliesService } from './families.service';
 import { FamiliesController } from './families.controller';
-import { PopulationModule } from '../population/population.module';
 
 @Module({
-  imports: [PopulationModule],
+  imports: [AddressingModule],
   controllers: [FamiliesController],
   providers: [FamiliesService],
   exports: [FamiliesService],
