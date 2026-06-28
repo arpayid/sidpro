@@ -75,9 +75,10 @@ sudo cp scripts/systemd/sidpro-*.service.example /etc/systemd/system/
 sudo systemctl enable sidpro-api sidpro-web sidpro-worker
 sudo systemctl start sidpro-api sidpro-web sidpro-worker
 
-# 6. Healthcheck & smoke test
-./scripts/healthcheck.sh
-STAGING_ADMIN_PASSWORD='<same-as-seed>' ./scripts/smoke-test.sh
+# 6. Healthcheck and staging release validation
+# The validator requires a zero-row tenant-integrity preflight, verifies migration status,
+# checks services, then runs the live smoke suite without reseeding.
+bash scripts/staging-post-deploy-validate.sh
 ```
 
 MinIO bucket `MINIO_BUCKET` is auto-created when the API starts (`StorageService.onModuleInit`).
@@ -125,7 +126,7 @@ After code or env changes:
 cd /opt/sidpro
 git pull && pnpm install && pnpm build
 sudo systemctl restart sidpro-api sidpro-web sidpro-worker
-./scripts/healthcheck.sh
+bash scripts/staging-post-deploy-validate.sh
 ```
 
 ## Nginx (placeholder — no domain yet)
@@ -181,7 +182,7 @@ mkdir -p /tmp/sidpro-restore && tar -xzf /var/backups/sidpro/uploads_YYYYMMDD_HH
 
 ```bash
 sudo systemctl restart sidpro-api sidpro-web sidpro-worker
-./scripts/healthcheck.sh
+bash scripts/staging-post-deploy-validate.sh
 ```
 
 ## Rollback
@@ -191,7 +192,7 @@ sudo systemctl restart sidpro-api sidpro-web sidpro-worker
 3. `pnpm prisma migrate deploy` (review migration notes)
 4. Restore from `/var/backups/sidpro/` if needed
 5. `sudo systemctl restart sidpro-api sidpro-web sidpro-worker sidpro-worker`
-6. `./scripts/healthcheck.sh`
+6. `bash scripts/staging-post-deploy-validate.sh`
 
 ## Health Endpoints
 
