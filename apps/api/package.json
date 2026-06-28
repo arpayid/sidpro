@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit",
     "pretest": "pnpm --filter @sidpro/types build && pnpm --filter @sidpro/validators build",
     "test": "node --import tsx --test test/*.test.ts",
+    "test:coverage": "node --experimental-test-coverage --import tsx --test test/*.test.ts",
     "clean": "rm -rf dist"
   },
   "dependencies": {
