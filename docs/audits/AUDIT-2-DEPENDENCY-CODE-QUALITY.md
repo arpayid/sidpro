@@ -36,7 +36,20 @@ The existing test commands executed Node's test runner, but neither the root scr
 
 **Treatment:** this PR adds package-level `test:coverage` commands and a root orchestration command. Each command invokes Node 20's built-in experimental test-coverage mode directly through the `node` CLI, preserving the existing package test globs while avoiding unsupported `NODE_OPTIONS` forwarding. The dedicated **AUDIT-2 Code Quality Baseline** workflow runs these commands and uploads its combined log as a CI artifact. No percentage threshold is introduced before the first baseline is reviewed.
 
-**Reason for no threshold yet:** a threshold chosen without a measured baseline would be arbitrary and could incentivize superficial tests. The next AUDIT-2 step must record baseline values, define critical-path coverage expectations, and propose ratcheting thresholds.
+#### First observed baseline
+
+The first successful artifact from this PR records the following package-run coverage summaries:
+
+| Test run | Line | Branch | Function |
+| --- | ---: | ---: | ---: |
+| `@sidpro/api` | 61.48% | 83.75% | 70.80% |
+| `@sidpro/web` | 85.98% | 78.75% | 35.29% |
+| `@sidpro/worker` | 88.69% | 73.79% | 83.04% |
+| `@sidpro/validators` | 94.58% | 90.00% | 51.16% |
+
+These numbers are an initial measurement, not a release-quality assertion or a cross-package threshold. Node's report includes executed test files and shared workspace source that is loaded by a package run; it should be used for trend and risk-based planning, not as a single weighted repository percentage.
+
+**Reason for no threshold yet:** a threshold chosen without a measured baseline would be arbitrary and could incentivize superficial tests. The next AUDIT-2 step must define critical-path coverage expectations and propose ratcheting thresholds using this evidence.
 
 ### A2-P2 Open — Dependency exception governance is incomplete
 
@@ -74,7 +87,7 @@ The AUDIT-2 workflow is deliberately a baseline-control, not a closure gate:
 
 ## Required Next Steps
 
-1. Review the first coverage artifact and record per-package and critical-workflow baseline values.
+1. Define critical-path coverage expectations and a threshold-ratchet proposal using the recorded baseline.
 2. Create a dependency exception register for every currently ignored advisory, including owner, rationale, compensating control, review cadence, and expiry/removal condition.
 3. Define manifest version policy for runtime-critical dependencies, beginning with Prisma and production-image packages.
 4. Capture lint warning inventory; decide whether `no-explicit-any` and logging policy should be ratcheted by package or risk tier.
