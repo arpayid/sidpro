@@ -27,4 +27,14 @@ jobs:
       - name: Generate Prisma client
         run: pnpm prisma:generate
       - name: Run API tests
-        run: pnpm --filter @sidpro/api test
+        run: |
+          set -o pipefail
+          pnpm --filter @sidpro/api test 2>&1 | tee audit-5-api-tests.log
+      - name: Upload API test diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-5-api-test-log
+          path: audit-5-api-tests.log
+          if-no-files-found: ignore
+          retention-days: 14
