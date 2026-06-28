@@ -9,10 +9,12 @@ import {
   Query,
   Req,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { Request } from 'express';
 import { LettersService } from './letters.service';
+import { LetterPdfStorageCompensationInterceptor } from './letter-pdf-storage-compensation.interceptor';
 import { Public, RequirePermissions } from '../../common/decorators';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
@@ -181,6 +183,7 @@ export class LettersController {
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @UseInterceptors(LetterPdfStorageCompensationInterceptor)
   @Post('letter-requests/:id/generate-pdf')
   @RequirePermissions('letters.generate')
   generatePdf(@CurrentUser() user: JwtPayload, @Param('id') id: string, @Req() req: Request) {
