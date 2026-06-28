@@ -90,10 +90,20 @@ sidpro_compose exec -T postgres sh -ec "psql -X -v ON_ERROR_STOP=1 -U \"\$POSTGR
 gzip -cd "$DB_FILE" \
   | sidpro_compose exec -T postgres sh -ec "exec psql -X -v ON_ERROR_STOP=1 -U \"\$POSTGRES_USER\" -d \"$TEMP_DB\"" >/dev/null
 
-MIGRATION_COUNT="$(sidpro_compose exec -T postgres sh -ec "psql -X -A -t -v ON_ERROR_STOP=1 -U \"\$POSTGRES_USER\" -d \"$TEMP_DB\" -c 'SELECT COUNT(*) FROM \"_prisma_migrations\"'")"
-if ! [[ "$MIGRATION_COUNT" =~ ^[1-9][0-9]*$ ]]; then
-  echo '[verify-production-backup] ERROR: restored database has no Prisma migration history' >&2
-  exit 1
+MIGRATION_TABLE_EXISTS="$(sidpro_compose exec -T postgres sh -ec "psql -X -A -t -v ON_ERROR_STOP=1 -U \"\$POSTGRES_USER\" -d \"$TEMP_DB\" -c \"SELECT to_regclass('public.\\\"_prisma_migrations\\\"') IS NOT NULL\"")"
+if [ "$MIGRATION_TABLE_EXISTS" = 't' ]; then
+  MIGRATION_COUNT="$(sidpro_compose exec -T postgres sh -ec "psql -X -A -t -v ON_ERROR_STOP=1 -U \"\$POSTGRES_USER\" -d \"$TEMP_DB\" -c 'SELECT COUNT(*) FROM \"_prisma_migrations\"'")"
+  if ! [[ "$MIGRATION_COUNT" =~ ^[1-9][0-9]*$ ]]; then
+    echo '[verify-production-backup] ERROR: restored database has an empty Prisma migration history' >&2
+    exit 1
+  fi
+else
+  APP_TABLE_COUNT="$(sidpro_compose exec -T postgres sh -ec "psql -X -A -t -v ON_ERROR_STOP=1 -U \"\$POSTGRES_USER\" -d \"$TEMP_DB\" -c \"SELECT COUNT(*) FROM pg_tables WHERE schemaname = 'public'\"")"
+  if [ "$APP_TABLE_COUNT" != '0' ]; then
+    echo '[verify-production-backup] ERROR: restored database has application tables but no Prisma migration history' >&2
+    exit 1
+  fi
+  printf '%s\n' '[verify-production-backup] Restored an empty bootstrap database; migration history will be created by the first release.'
 fi
 
 printf '%s\n' '[verify-production-backup] Restoring object archive into a disposable bucket...'
