@@ -9,6 +9,31 @@ source "$SCRIPT_DIR/production/lib.sh"
 sidpro_init "$@"
 sidpro_require_commands
 
+MIGRATION_TABLE_EXISTS="$(sidpro_psql <<'SQL'
+SELECT EXISTS (
+  SELECT 1
+  FROM information_schema.tables
+  WHERE table_schema = 'public'
+    AND table_name = '_prisma_migrations'
+);
+SQL
+)"
+
+if [ "$MIGRATION_TABLE_EXISTS" != 't' ]; then
+  APP_TABLE_COUNT="$(sidpro_psql <<'SQL'
+SELECT COUNT(*)
+FROM pg_tables
+WHERE schemaname = 'public';
+SQL
+)"
+  if [ "$APP_TABLE_COUNT" != '0' ]; then
+    echo '[production-preflight] ERROR: database contains application tables but no Prisma migration history.' >&2
+    exit 1
+  fi
+  printf '%s\n' '[production-preflight] Empty bootstrap database detected; tenant checks will run after the first migration.'
+  exit 0
+fi
+
 printf '%s\n' '[production-preflight] Verifying tenant-link integrity...'
 sidpro_assert_sql_file_empty \
   'domain tenant-link preflight' \
