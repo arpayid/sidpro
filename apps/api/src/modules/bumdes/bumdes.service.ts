@@ -11,6 +11,9 @@ import { paginatedResponse, successResponse } from '../../common/utils/response.
 import { parseWithZod } from '../../common/utils/zod-validation.util';
 import { createBumdesBusinessSchema, createBumdesFinancialRecordSchema, updateBumdesBusinessSchema } from '@sidpro/validators';
 
+const BUMDES_FINANCIAL_HISTORY_DELETE_MESSAGE =
+  'Unit BUMDes tidak dapat dihapus karena sudah memiliki transaksi. Ubah status unit menjadi tidak aktif agar riwayat keuangan tetap tersimpan.';
+
 @Injectable()
 export class BumdesService {
   constructor(
@@ -104,7 +107,23 @@ export class BumdesService {
     const existing = await this.prisma.bumdesUnit.findFirst({ where: { id, tenantId } });
     if (!existing) throw new NotFoundException('Unit BUMDes tidak ditemukan');
 
-    await this.prisma.bumdesUnit.delete({ where: { id } });
+    const financialRecordCount = await this.prisma.bumdesFinancialRecord.count({
+      where: { tenantId, unitId: id },
+    });
+    if (financialRecordCount > 0) {
+      throw new ConflictException(BUMDES_FINANCIAL_HISTORY_DELETE_MESSAGE);
+    }
+
+    try {
+      await this.prisma.bumdesUnit.delete({ where: { id } });
+    } catch (error) {
+      // A transaction may be added between the count and delete. PostgreSQL's
+      // restrictive foreign key remains the final race-safe protection.
+      if ((error as { code?: unknown }).code === 'P2003') {
+        throw new ConflictException(BUMDES_FINANCIAL_HISTORY_DELETE_MESSAGE);
+      }
+      throw error;
+    }
 
     await this.auditLogs.log({
       tenantId,
