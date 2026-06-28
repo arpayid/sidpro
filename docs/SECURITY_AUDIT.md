@@ -12,4 +12,4 @@ The workflow has read-only repository token permissions and does not deploy or a
 
 ## Dependency updates
 
-Dependabot opens weekly pull requests for npm/pnpm dependencies and GitHub Actions versions. Every Dependabot PR must pass the normal `CI`, `Tenant Link Integrity`, and `Security Audit` checks before merge.
+Dependabot opens weekly pull requests for npm/pnpm dependencies and GitHub Actions versions. Every Dependabot PR must pass the global `CI` and `Security Audit` gates. The conditional `Tenant Link Integrity` workflow must also pass whenever a pull request changes its configured schema, migration, guard-script, or workflow paths.
