@@ -55,12 +55,19 @@ describe('letter PDF storage compensation', () => {
     assert.equal(listCalled, false);
   });
 
-  it('deletes an orphan prefix when no letter output was persisted', async () => {
+  it('locks, clears, and releases an orphan prefix when no letter output was persisted', async () => {
     const auditEvents: Array<Record<string, unknown>> = [];
+    const requestMutations: Array<Record<string, unknown>> = [];
     let deletedPrefix: string | null = null;
     const interceptor = new LetterPdfStorageCompensationInterceptor(
       {
         letterOutput: { findFirst: async () => null },
+        letterRequest: {
+          updateMany: async (input: Record<string, unknown>) => {
+            requestMutations.push(input);
+            return { count: 1 };
+          },
+        },
       } as never,
       {
         listFilesByPrefix: async (prefix: string) => [`${prefix}SKD-2026-0001.pdf`],
@@ -82,6 +89,16 @@ describe('letter PDF storage compensation', () => {
     );
 
     assert.equal(deletedPrefix, 'tenant-a/letters/request-a/');
+    assert.deepEqual(requestMutations, [
+      {
+        where: { id: 'request-a', tenantId: 'tenant-a', status: 'approved' },
+        data: { status: 'generating' },
+      },
+      {
+        where: { id: 'request-a', tenantId: 'tenant-a', status: 'generating' },
+        data: { status: 'approved' },
+      },
+    ]);
     assert.equal(auditEvents[0]?.action, 'storage_cleanup_completed');
     assert.deepEqual(auditEvents[0]?.metadata, {
       reason: 'letter_pdf_metadata_transaction_failed',
@@ -98,6 +115,7 @@ describe('letter PDF storage compensation', () => {
     const interceptor = new LetterPdfStorageCompensationInterceptor(
       {
         letterOutput: { findFirst: async () => null },
+        letterRequest: { updateMany: async () => ({ count: 1 }) },
       } as never,
       {
         listFilesByPrefix: async () => {
@@ -128,9 +146,37 @@ describe('letter PDF storage compensation', () => {
       fileId: `letter-pdf-orphan-${'435cdf97fe61b73db11d291153f4df587ffa7bc8a2a043d6c955e2a2e04da82b'}`,
       path: 'tenant-a/letters/request-b/',
       target: 'prefix',
+      letterRequestId: 'request-b',
       actorId: 'user-a',
       ipAddress: '127.0.0.1',
     });
     assert.equal(auditEvents[0]?.action, 'storage_cleanup_required');
+  });
+
+  it('does not compete with a retry that has already claimed the request', async () => {
+    let listCalled = false;
+    const interceptor = new LetterPdfStorageCompensationInterceptor(
+      {
+        letterOutput: { findFirst: async () => null },
+        letterRequest: { updateMany: async () => ({ count: 0 }) },
+      } as never,
+      {
+        listFilesByPrefix: async () => {
+          listCalled = true;
+          return [];
+        },
+      } as never,
+      {} as never,
+      {} as never,
+    );
+
+    await assert.rejects(
+      lastValueFrom(
+        interceptor.intercept(contextFor('request-c'), handlerWithError(new Error('transaction failed'))),
+      ),
+      /transaction failed/,
+    );
+
+    assert.equal(listCalled, false);
   });
 });
