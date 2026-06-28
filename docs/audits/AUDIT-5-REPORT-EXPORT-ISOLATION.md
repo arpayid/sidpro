@@ -1,6 +1,6 @@
 # AUDIT-5 — Report and Export Tenant Isolation
 
-**Status:** Tenant-isolation and report query-range regression coverage implemented; pending CI validation.
+**Status:** Tenant-isolation and report query-range regression coverage implemented and validated through the merged CI gates; production-like performance evidence and historical-data preflight remain open.
 
 ## Scope
 
@@ -55,3 +55,7 @@ Tenant Link Integrity / tenant-link-integration
 ```
 
 The regression tests are included in the API `pnpm test` command through the existing `test/*.test.ts` pattern.
+
+## Register Reference
+
+Current cross-audit status is maintained in [Audit Master Register](AUDIT_MASTER_REGISTER.md) and summarized in the [Audit Roadmap](../ROADMAP.md).

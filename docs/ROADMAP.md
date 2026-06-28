@@ -1,0 +1,64 @@
+# SIDPRO Roadmap dan Audit Program
+
+Dokumen ini adalah ringkasan sumber-kebenaran untuk status audit, pekerjaan hardening, dan kesiapan rilis SIDPRO.
+
+> **Prinsip utama:** tidak ada audit yang boleh diberi status `Closed` hanya karena ada satu atau beberapa pull request yang relevan. Status `Closed` memerlukan scope yang terdokumentasi, temuan yang direkonsiliasi, bukti validasi, dan tidak adanya pekerjaan tersisa yang diketahui dalam scope audit tersebut.
+
+## Snapshot Saat Ini
+
+- **Repository:** `arpayid/sidpro`
+- **Baseline register:** branch `main` setelah merge PR #90 (`a306c46c1ed6d9162aad8664d140829fb1b717e8`)
+- **Tanggal baseline:** 28 Juni 2026
+- **Catatan lingkungan:** belum ada bukti eksekusi pada staging atau production persisten di register ini. Bukti CI Docker/Compose bukan pengganti bukti staging atau production.
+
+## Definisi Status
+
+| Status | Makna |
+| --- | --- |
+| `Not Formally Assessed` | Belum ada scope audit, temuan, dan bukti closure yang dicatat sebagai satu audit formal. Ini **bukan** klaim bahwa area belum pernah disentuh. |
+| `Evidence Partial` | Ada kontrol, tes, dokumen, atau PR relevan; tetapi belum cukup untuk menyatakan audit area tersebut selesai menyeluruh. |
+| `In Progress` | Scope audit dan pekerjaan tersisa telah dicatat; perbaikan atau validasi masih berjalan. |
+| `Blocked by Environment` | Validasi memerlukan environment, data, atau akses yang belum tersedia. Status ini hanya dipakai jika blocker dicatat secara eksplisit. |
+| `Validation Pending` | Implementasi ada, tetapi bukti validasi yang disyaratkan oleh scope audit belum tersedia. |
+| `Closed` | Scope, temuan, bukti, dan kriteria closure terdokumentasi; tidak ada pekerjaan tersisa yang diketahui dalam scope tersebut. |
+
+Tidak ada status `Closed` dalam baseline ini.
+
+## Ringkasan Register Audit
+
+| Audit | Fokus Program | Status Baseline | Bukti yang Tercatat | Rujukan Detail |
+| --- | --- | --- | --- | --- |
+| AUDIT-0 | Evidence baseline dan tata kelola audit | `In Progress` | Register dan kebijakan pembaruan diperkenalkan oleh dokumen ini. | [Master Register](audits/AUDIT_MASTER_REGISTER.md#audit-0--evidence-baseline-dan-tata-kelola) |
+| AUDIT-1 | Repository dan arsitektur | `Not Formally Assessed` | Arsitektur modular monolith didokumentasikan, tetapi belum ada laporan audit arsitektur dan closure record. | [Master Register](audits/AUDIT_MASTER_REGISTER.md#audit-1--repository-dan-arsitektur) |
+| AUDIT-2 | Dependency dan code quality | `Evidence Partial` | CI menjalankan lint, typecheck, test, build; dependency audit tersedia melalui Security Audit. Belum ada audit code-quality menyeluruh. | [Master Register](audits/AUDIT_MASTER_REGISTER.md#audit-2--dependency-dan-code-quality) |
+| AUDIT-3 | API dan domain logic | `Evidence Partial` | Ada perbaikan/regression test terarah, tetapi belum ada inventaris dan closure audit seluruh API/domain. | [Master Register](audits/AUDIT_MASTER_REGISTER.md#audit-3--api-dan-domain-logic) |
+| AUDIT-4 | Security | `Evidence Partial` | Security Audit, dependency scan, secret scan, hardening refresh-token, dan guard permissions tercatat. Audit keamanan menyeluruh belum ditutup. | [Master Register](audits/AUDIT_MASTER_REGISTER.md#audit-4--security) |
+| AUDIT-5 | Database dan tenant integrity | `In Progress` | Tenant-link guard, PostgreSQL integration gate, BUMDes retention, resident cleanup, report/export isolation, dan finance ledger terdokumentasi. | [AUDIT-5 Database](audits/AUDIT-5-DATABASE-TENANT-INTEGRITY.md) |
+| AUDIT-6 | Frontend | `Not Formally Assessed` | Belum ada laporan audit frontend formal di register. | [Master Register](audits/AUDIT_MASTER_REGISTER.md#audit-6--frontend) |
+| AUDIT-7 | DevOps dan delivery | `Evidence Partial` | CI merge gate, production smoke, dan guarded production release gate tersedia; belum ada bukti operasi pada environment persisten. | [Master Register](audits/AUDIT_MASTER_REGISTER.md#audit-7--devops-dan-delivery) |
+| AUDIT-8 | Backup dan recovery | `Evidence Partial` | Backup PostgreSQL/MinIO serta restore verification dijalankan pada CI; restore drill staging/production belum dicatat. | [Master Register](audits/AUDIT_MASTER_REGISTER.md#audit-8--backup-dan-recovery) |
+| AUDIT-9 | Performance dan scale | `Not Formally Assessed` | AUDIT-5 mencatat kebutuhan `EXPLAIN (ANALYZE, BUFFERS)` untuk report/export volume tinggi; audit performance terpisah belum dibuka. | [Master Register](audits/AUDIT_MASTER_REGISTER.md#audit-9--performance-dan-scale) |
+| AUDIT-10 | UAT dan commercial readiness | `Evidence Partial` | Production readiness dan client-handover checklist ada; bukti UAT/cutover nyata belum dicatat. | [Master Register](audits/AUDIT_MASTER_REGISTER.md#audit-10--uat-dan-commercial-readiness) |
+
+## Prioritas Saat Ini
+
+1. **Selesaikan pekerjaan tersisa AUDIT-5 yang dapat dikerjakan dari repository:** bukti index plan report/export dan penguatan observability/retry worker cleanup.
+2. **Buka scope formal AUDIT-1 sampai AUDIT-4:** jangan menganggap pekerjaan hardening yang sudah merged sebagai closure audit menyeluruh.
+3. **Pertahankan bukti deployment sebagai status terpisah:** validasi CI sudah ada, tetapi staging/production memerlukan bukti runbook pada environment nyata ketika tersedia.
+4. **Mulai AUDIT-9 setelah inventaris query report/export ditetapkan:** hasil `EXPLAIN (ANALYZE, BUFFERS)` harus disimpan sebagai bukti, bukan hanya kesimpulan.
+
+## Aturan Pembaruan Roadmap
+
+Setiap pull request harus menyatakan dampak roadmap dengan format yang dijelaskan di [Roadmap Update Policy](audits/ROADMAP_UPDATE_POLICY.md). Bila PR menutup temuan, menemukan risiko baru, menambah bukti validasi, atau mengubah prioritas, dokumen audit terkait dan register ini harus diperbarui dalam PR yang sama.
+
+PR yang tidak mengubah status atau bukti roadmap tetap wajib menyatakan `No roadmap impact` beserta alasan singkat di bagian **Roadmap Impact**.
+
+## Dokumen Terkait
+
+- [Audit Master Register](audits/AUDIT_MASTER_REGISTER.md)
+- [Roadmap Update Policy](audits/ROADMAP_UPDATE_POLICY.md)
+- [AUDIT-5 — Database and Tenant Integrity](audits/AUDIT-5-DATABASE-TENANT-INTEGRITY.md)
+- [AUDIT-5 — Report and Export Tenant Isolation](audits/AUDIT-5-REPORT-EXPORT-ISOLATION.md)
+- [Production Readiness Checklist](PRODUCTION_READINESS.md)
+- [CI Merge Gate](CI_MERGE_GATE.md)
+- [Security Audit Automation](SECURITY_AUDIT.md)
