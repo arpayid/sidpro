@@ -143,6 +143,24 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION is_tenant_being_deleted(p_tenant_id text)
+RETURNS boolean
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  tenant_still_exists boolean;
+BEGIN
+  IF p_tenant_id IS NULL THEN
+    RETURN false;
+  END IF;
+
+  SELECT EXISTS (SELECT 1 FROM tenants WHERE id = p_tenant_id)
+    INTO tenant_still_exists;
+
+  RETURN NOT tenant_still_exists;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION enforce_user_role_tenant_links()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -158,6 +176,13 @@ RETURNS trigger
 LANGUAGE plpgsql
 AS $$
 BEGIN
+  IF OLD.tenant_id IS NOT NULL
+    AND NEW.tenant_id IS NULL
+    AND is_tenant_being_deleted(OLD.tenant_id)
+  THEN
+    RETURN NEW;
+  END IF;
+
   IF EXISTS (
     SELECT 1
     FROM user_roles ur
@@ -213,6 +238,13 @@ RETURNS trigger
 LANGUAGE plpgsql
 AS $$
 BEGIN
+  IF OLD.tenant_id IS NOT NULL
+    AND NEW.tenant_id IS NULL
+    AND is_tenant_being_deleted(OLD.tenant_id)
+  THEN
+    RETURN NEW;
+  END IF;
+
   IF EXISTS (
     SELECT 1
     FROM user_roles ur
