@@ -34,7 +34,7 @@ jobs:
         run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Fail on high-severity dependency vulnerabilities
-        run: pnpm audit --audit-level=high --ignore-unfixable
+        run: pnpm audit --audit-level=high
 
   secret-scan:
     name: Secret Scan
@@ -42,14 +42,16 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Detect committed secrets with Gitleaks
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_COMMENTS: 'false'
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: 'false'
 
   security-gate:
     name: Security Gate
