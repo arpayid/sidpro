@@ -9,6 +9,7 @@ on:
       - 'apps/web/src/**'
       - 'apps/worker/src/**'
       - 'packages/**'
+      - 'package.json'
       - '.github/workflows/audit-1-architecture-boundaries.yml'
   pull_request:
     branches: [main, develop]
@@ -18,6 +19,7 @@ on:
       - 'apps/web/src/**'
       - 'apps/worker/src/**'
       - 'packages/**'
+      - 'package.json'
       - '.github/workflows/audit-1-architecture-boundaries.yml'
   workflow_dispatch:
 
@@ -39,7 +41,7 @@ jobs:
       - name: Scan architecture boundaries
         run: |
           set -o pipefail
-          pnpm exec tsx --test apps/api/test/architecture-boundaries.test.ts 2>&1 | tee audit-1-architecture-boundaries.log
+          pnpm audit:architecture 2>&1 | tee audit-1-architecture-boundaries.log
       - name: Upload scan diagnostics
         if: always()
         uses: actions/upload-artifact@v4
