@@ -77,6 +77,14 @@ const storageCleanupWorker = storageCleanupWorkerEnabled
     )
   : null;
 
+notificationWorker.on('completed', (job) =>
+  console.log(`[notifications] Job ${job.id} (${job.name}) completed`),
+);
+pdfWorker?.on('completed', (job) => console.log(`[pdf-generation] Job ${job.id} completed`));
+storageCleanupWorker?.on('completed', (job) =>
+  console.log(`[storage-cleanup] Job ${job.id} completed`),
+);
+
 for (const worker of [pdfWorker, notificationWorker, storageCleanupWorker]) {
   worker?.on('failed', (job, error) => {
     console.error(`[${worker.name}] Job ${job?.id} failed:`, error);
