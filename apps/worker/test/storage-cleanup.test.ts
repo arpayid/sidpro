@@ -17,6 +17,7 @@ const job = {
 function createHarness(options?: {
   deleteFile?: () => Promise<void>;
   deletePrefix?: () => Promise<void>;
+  findReferencedFile?: () => Promise<{ id: string } | null>;
 }) {
   const audits: Array<Record<string, unknown>> = [];
   return {
@@ -27,6 +28,9 @@ function createHarness(options?: {
         deletePrefix: async () => options?.deletePrefix?.(),
       },
       prisma: {
+        file: {
+          findFirst: async () => options?.findReferencedFile?.() ?? null,
+        },
         auditLog: {
           create: async ({ data }: { data: Record<string, unknown> }) => {
             audits.push(data);
@@ -74,7 +78,7 @@ describe('storage cleanup worker', () => {
     });
   });
 
-  it('deletes every object below a tenant-scoped prefix', async () => {
+  it('deletes every unreferenced object below a tenant-scoped prefix', async () => {
     let prefixDeleted = false;
     const { deps, audits } = createHarness({
       deletePrefix: async () => {
@@ -96,6 +100,35 @@ describe('storage cleanup worker', () => {
       target: 'prefix',
       attempt: 1,
       maxAttempts: 8,
+    });
+  });
+
+  it('skips prefix cleanup when a retry has persisted a referenced file', async () => {
+    let prefixDeleted = false;
+    const { deps, audits } = createHarness({
+      deletePrefix: async () => {
+        prefixDeleted = true;
+      },
+      findReferencedFile: async () => ({ id: 'file-retry-a' }),
+    });
+    const prefixJob = {
+      ...job,
+      fileId: 'letter-pdf-orphan-a',
+      path: 'tenant-a/letters/request-a/',
+      target: 'prefix' as const,
+    };
+
+    await processStorageCleanupJob(deps as never, prefixJob, { attempt: 1, maxAttempts: 8 });
+
+    assert.equal(prefixDeleted, false);
+    assert.equal(audits[0]?.action, 'storage_cleanup_skipped');
+    assert.deepEqual(audits[0]?.metadata, {
+      path: prefixJob.path,
+      target: 'prefix',
+      attempt: 1,
+      maxAttempts: 8,
+      reason: 'referenced_file_exists',
+      referencedFileId: 'file-retry-a',
     });
   });
 
