@@ -7,11 +7,14 @@ import { fileURLToPath } from 'node:url';
 const repositoryRoot = fileURLToPath(new URL('../../../', import.meta.url));
 const apiSourceRoot = join(repositoryRoot, 'apps/api/src');
 const sourceExtensions = ['.ts', '.tsx', '.js', '.jsx'];
+const ignoredDirectories = new Set(['node_modules', 'dist', '.next', 'coverage', '.turbo']);
 
 function walk(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const path = join(directory, entry.name);
-    if (entry.isDirectory()) return walk(path);
+    if (entry.isDirectory()) {
+      return ignoredDirectories.has(entry.name) ? [] : walk(path);
+    }
     return sourceExtensions.includes(extname(entry.name)) ? [path] : [];
   });
 }
