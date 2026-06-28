@@ -34,7 +34,7 @@ This audit does **not** claim production performance, runtime availability, prod
 
 The existing test commands executed Node's test runner, but neither the root scripts nor CI enabled test coverage or retained a report. A passing test result therefore did not establish an observable coverage baseline for later risk-based improvement.
 
-**Treatment:** this PR adds `pnpm test:coverage`, using Node 20's built-in experimental test-coverage mode. The dedicated **AUDIT-2 Code Quality Baseline** workflow runs the existing test suite under coverage and uploads its combined log as a CI artifact. No percentage threshold is introduced before the first baseline is reviewed.
+**Treatment:** this PR adds package-level `test:coverage` commands and a root orchestration command. Each command invokes Node 20's built-in experimental test-coverage mode directly through the `node` CLI, preserving the existing package test globs while avoiding unsupported `NODE_OPTIONS` forwarding. The dedicated **AUDIT-2 Code Quality Baseline** workflow runs these commands and uploads its combined log as a CI artifact. No percentage threshold is introduced before the first baseline is reviewed.
 
 **Reason for no threshold yet:** a threshold chosen without a measured baseline would be arbitrary and could incentivize superficial tests. The next AUDIT-2 step must record baseline values, define critical-path coverage expectations, and propose ratcheting thresholds.
 
@@ -68,7 +68,7 @@ The AUDIT-2 workflow is deliberately a baseline-control, not a closure gate:
 
 1. It installs from the lockfile using `--frozen-lockfile`.
 2. It generates the Prisma client before running tests.
-3. It runs the existing root test graph with Node test coverage enabled.
+3. It builds the required shared workspaces, then runs the existing API, web, worker, and validators test globs with Node test coverage enabled.
 4. It uploads the coverage/test log even when a test fails, so a failure remains diagnosable.
 5. It does not publish a coverage percentage as a quality guarantee and does not claim persistent-environment validation.
 
