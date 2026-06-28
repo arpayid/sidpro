@@ -1,0 +1,50 @@
+name: AUDIT-1 Architecture Boundaries
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'apps/api/test/architecture-boundaries.test.ts'
+      - 'apps/api/src/**'
+      - 'apps/web/src/**'
+      - 'apps/worker/src/**'
+      - 'packages/**'
+      - '.github/workflows/audit-1-architecture-boundaries.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'apps/api/test/architecture-boundaries.test.ts'
+      - 'apps/api/src/**'
+      - 'apps/web/src/**'
+      - 'apps/worker/src/**'
+      - 'packages/**'
+      - '.github/workflows/audit-1-architecture-boundaries.yml'
+  workflow_dispatch:
+
+jobs:
+  architecture-boundaries:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.18.3
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Install test runner dependencies
+        run: pnpm install --frozen-lockfile --reporter=silent
+      - name: Scan architecture boundaries
+        run: |
+          set -o pipefail
+          pnpm exec tsx --test apps/api/test/architecture-boundaries.test.ts 2>&1 | tee audit-1-architecture-boundaries.log
+      - name: Upload scan diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-1-architecture-boundaries-log
+          path: audit-1-architecture-boundaries.log
+          if-no-files-found: ignore
+          retention-days: 14
