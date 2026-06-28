@@ -7,8 +7,9 @@
 set -euo pipefail
 
 : "${DATABASE_URL:?DATABASE_URL is required}"
-
-PSQL=(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1)
+# Prisma appends ?schema=public to the URL; libpq/psql does not use that parameter.
+DB_URL="${DATABASE_URL%%\?*}"
+PSQL=(psql "$DB_URL" -X -v ON_ERROR_STOP=1)
 
 printf '%s\n' '[audit-5-query-plans] Loading tenant-scoped report/export fixture...'
 "${PSQL[@]}" <<'SQL'
@@ -177,7 +178,8 @@ assert_plan_uses_index() {
   plan="$("${PSQL[@]}" -A -t -c "EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) $sql")"
 
   PLAN_JSON="$plan" PLAN_LABEL="$label" EXPECTED_INDEX="$expected_index" node -e '
-    const plan = JSON.parse(process.env.PLAN_JSON)[0].Plan;
+    const explain = JSON.parse(process.env.PLAN_JSON)[0];
+    const plan = explain.Plan;
     const indexes = new Set();
     const nodeTypes = new Set();
     const walk = (node) => {
@@ -186,12 +188,23 @@ assert_plan_uses_index() {
       for (const child of node.Plans ?? []) walk(child);
     };
     walk(plan);
+    const evidence = {
+      event: "audit_5_query_plan",
+      label: process.env.PLAN_LABEL,
+      expectedIndex: process.env.EXPECTED_INDEX,
+      indexes: [...indexes],
+      nodeTypes: [...nodeTypes],
+      planningTimeMs: explain["Planning Time"] ?? null,
+      executionTimeMs: explain["Execution Time"] ?? null,
+      sharedHitBlocks: plan["Shared Hit Blocks"] ?? null,
+      sharedReadBlocks: plan["Shared Read Blocks"] ?? null,
+    };
     if (!indexes.has(process.env.EXPECTED_INDEX)) {
       console.error(`[audit-5-query-plans] ERROR: ${process.env.PLAN_LABEL} did not use ${process.env.EXPECTED_INDEX}`);
-      console.error(JSON.stringify({ indexes: [...indexes], nodeTypes: [...nodeTypes], plan }, null, 2));
+      console.error(JSON.stringify({ ...evidence, plan }, null, 2));
       process.exit(1);
     }
-    console.log(`[audit-5-query-plans] PASS: ${process.env.PLAN_LABEL} used ${process.env.EXPECTED_INDEX}`);
+    console.log(JSON.stringify(evidence));
   '
 }
 
