@@ -15,6 +15,11 @@ const runtimeTest = readFileSync(
   'utf8',
 );
 
+const workflow = readFileSync(
+  new URL('../../../.github/workflows/tenant-link-integrity.yml', import.meta.url),
+  'utf8',
+);
+
 describe('resident family detachment on archival', () => {
   it('reconciles historical archived residents before installing the guard', () => {
     assert.match(migration, /DELETE FROM family_members fm[\s\S]*r\.deleted_at IS NOT NULL/);
@@ -37,5 +42,10 @@ describe('resident family detachment on archival', () => {
     assert.match(runtimeTest, /archived resident remained family head/);
     assert.match(runtimeTest, /restoring a resident silently restored stale family links/);
     assert.match(runtimeTest, /ROLLBACK;/);
+  });
+
+  it('runs the runtime fixture in the tenant-integrity workflow', () => {
+    assert.match(workflow, /scripts\/db\/test-resident-family-detach\.sh/);
+    assert.match(workflow, /bash scripts\/db\/test-resident-family-detach\.sh/);
   });
 });
