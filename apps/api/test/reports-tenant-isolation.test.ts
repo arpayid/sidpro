@@ -77,7 +77,6 @@ describe('report and export tenant isolation', () => {
   it('applies the authenticated tenant to every reports read and export query', async () => {
     const calls: PrismaCall[] = [];
     const auditEvents: Record<string, unknown>[] = [];
-
     const prisma = {
       resident: {
         count: record(calls, 'resident', 'count', 0),
@@ -190,6 +189,7 @@ describe('report and export tenant isolation', () => {
         resident: { findMany: record(populationCalls, 'resident', 'findMany', []) },
       } as never,
       auditLogs as never,
+      {} as never,
     );
     const familiesService = new FamiliesService(
       {
