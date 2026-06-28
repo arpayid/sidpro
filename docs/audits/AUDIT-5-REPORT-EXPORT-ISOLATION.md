@@ -26,7 +26,7 @@ This audit covers all current authenticated report, dashboard, and tabular expor
 4. Population, family, report, and complaint exports write an audit event with the same authenticated tenant ID.
 5. `apps/api/test/reports-tenant-isolation.test.ts` exercises the actual services with a Prisma-call recorder. It asserts tenant scope for dashboard/report queries, XLSX exports, resident/family XLSX exports, complaint CSV export, composite finance lookup, missing-tenant rejection, and export audit events.
 6. Finance report and finance-export `year` accept only integer years from 1900 through 2200. Audit-report `days` accepts only integer windows from 1 through 365 and defaults to 30. Invalid values are rejected before a report service can issue a database query.
-7. Workflow `AUDIT-5 Query Plan Evidence` loads a tenant-selective PostgreSQL 17 fixture and asserts executed query plans use the indexes added for resident, civil-event, letter, audit, and complaint report/export paths.
+7. Workflow `AUDIT-5 Query Plan Evidence` loads a tenant-selective PostgreSQL 17 fixture and asserts executed plans use tenant-leading indexes for resident, civil-event, letter, audit, and complaint report/export paths. The resident export uses its existing unique tenant index; the workflow verifies newly added indexes for the other paths.
 
 ## Findings
 
@@ -40,7 +40,7 @@ The former `parseInt` handling for report `year` and audit `days` is replaced by
 
 ### P2 Resolved at Repository Level: Tenant-scoped report/export index evidence
 
-Migration `20260628001100_add_audit_5_report_export_indexes` and its dedicated workflow verify that executed PostgreSQL 17 plans use the expected indexes against a 5,000-row tenant fixture plus 30,000-row noise tenant. This is evidence of planner selection under the fixture; it is not a production SLA claim.
+Migration `20260628001100_add_audit_5_report_export_indexes` and its dedicated workflow verify that executed PostgreSQL 17 plans use the expected tenant-leading indexes against a 5,000-row tenant fixture plus 30,000-row noise tenant. The resident query uses an existing index; the new migration indexes cover civil events, letter requests, audit logs, and complaints. This is evidence of planner selection under the fixture; it is not a production SLA claim.
 
 ## Remaining Environment Validation
 
