@@ -10,11 +10,12 @@ Migration `20260628001100_add_audit_5_report_export_indexes` adds:
 
 | Index | Query shape protected |
 | --- | --- |
-| `residents_tenant_active_full_name_idx` | Resident XLSX export: active rows for one tenant ordered by `full_name`. |
 | `civil_events_tenant_event_date_idx` | Population report/export: one tenant ordered by newest `event_date`. |
 | `letter_requests_tenant_submitted_at_idx` | Letter report/export: one tenant ordered by newest `submitted_at`. |
 | `audit_logs_tenant_created_at_idx` | Audit report: one tenant with a date window ordered by newest activity. |
 | `complaints_tenant_created_at_idx` | Complaint CSV export and tenant-scoped complaint list ordered by newest `created_at`. |
+
+The resident XLSX export does **not** add a new index in this migration. On the fixture, PostgreSQL selects the existing unique index `residents_tenant_id_nik_key` to isolate the tenant, then performs an in-memory sort by `full_name`. The proposed partial index was tested and removed because the planner did not select it for the real full-export query shape.
 
 ## CI Evidence Method
 
@@ -26,18 +27,19 @@ Workflow **AUDIT-5 Query Plan Evidence** runs against PostgreSQL 17 after all Pr
 
 For each critical query the scripts:
 
-1. confirm the expected PostgreSQL index exists;
+1. confirm the expected PostgreSQL index exists when the index is introduced by this migration;
 2. run `ANALYZE` on the fixture tables;
 3. run `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)`;
-4. fail when the expected index does not appear in the executed plan.
+4. fail when the expected tenant-leading index does not appear in the executed plan.
 
 The coverage includes resident XLSX export, population civil-event export, letter XLSX export, recent audit activity, and complaint CSV export.
 
 ## What This Proves
 
 - Migration-created indexes exist in PostgreSQL 17.
-- Under a tenant-selective high-volume fixture, the PostgreSQL planner chooses the intended index for the tested query shapes.
-- A future schema/query change that removes the index from an executed CI plan fails the audit workflow.
+- Under a tenant-selective high-volume fixture, the PostgreSQL planner chooses a tenant-leading index for the tested query shapes.
+- A future schema/query change that removes the expected index from an executed CI plan fails the audit workflow.
+- The resident export decision is evidence-based: a redundant index is not retained merely because it appears plausible.
 
 ## What This Does Not Prove
 
