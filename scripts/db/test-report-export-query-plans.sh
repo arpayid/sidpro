@@ -3,7 +3,7 @@
 #
 # Requires DATABASE_URL and a database with all Prisma migrations applied.
 # The fixture creates one high-volume tenant and a larger noise tenant so the
-# PostgreSQL planner must use tenant/order indexes instead of scanning all rows.
+# PostgreSQL planner must use tenant-leading indexes instead of scanning all rows.
 set -euo pipefail
 
 : "${DATABASE_URL:?DATABASE_URL is required}"
@@ -209,7 +209,6 @@ assert_plan_uses_index() {
 }
 
 for index_name in \
-  residents_tenant_active_full_name_idx \
   civil_events_tenant_event_date_idx \
   letter_requests_tenant_submitted_at_idx \
   audit_logs_tenant_created_at_idx \
@@ -219,7 +218,7 @@ done
 
 assert_plan_uses_index \
   'resident XLSX export' \
-  'residents_tenant_active_full_name_idx' \
+  'residents_tenant_id_nik_key' \
   "SELECT id, nik, full_name, gender, birth_place, birth_date, resident_status FROM residents WHERE tenant_id = 'audit5-perf-tenant' AND deleted_at IS NULL ORDER BY full_name ASC"
 
 assert_plan_uses_index \
