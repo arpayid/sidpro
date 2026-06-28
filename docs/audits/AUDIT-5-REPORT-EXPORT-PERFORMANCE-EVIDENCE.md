@@ -14,24 +14,24 @@ Migration `20260628001100_add_audit_5_report_export_indexes` adds:
 | `civil_events_tenant_event_date_idx` | Population report/export: one tenant ordered by newest `event_date`. |
 | `letter_requests_tenant_submitted_at_idx` | Letter report/export: one tenant ordered by newest `submitted_at`. |
 | `audit_logs_tenant_created_at_idx` | Audit report: one tenant with a date window ordered by newest activity. |
-| `complaints_tenant_created_at_idx` | Tenant-scoped complaint timeline/list reads ordered by creation time. |
+| `complaints_tenant_created_at_idx` | Complaint CSV export and tenant-scoped complaint list ordered by newest `created_at`. |
 
 ## CI Evidence Method
 
-Workflow **AUDIT-5 Query Plan Evidence** runs against PostgreSQL 17 after all Prisma migrations and seed data are applied. Its fixture creates:
+Workflow **AUDIT-5 Query Plan Evidence** runs against PostgreSQL 17 after all Prisma migrations and seed data are applied. Its fixtures create:
 
-- 5,000 report/export rows for the tenant under test;
+- 5,000 rows for the tenant under test;
 - 30,000 equivalent rows for a separate noise tenant;
-- residents, civil events, letter requests, and audit logs that match current service query shapes.
+- residents, civil events, letter requests, audit logs, and complaints that match current service query shapes.
 
-For each critical query the script:
+For each critical query the scripts:
 
-1. confirms the expected PostgreSQL index exists;
-2. runs `ANALYZE` on the fixture tables;
-3. runs `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)`;
-4. fails when the expected index does not appear in the executed plan.
+1. confirm the expected PostgreSQL index exists;
+2. run `ANALYZE` on the fixture tables;
+3. run `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)`;
+4. fail when the expected index does not appear in the executed plan.
 
-The coverage includes resident XLSX export, population civil-event export, letter XLSX export, and recent audit activity.
+The coverage includes resident XLSX export, population civil-event export, letter XLSX export, recent audit activity, and complaint CSV export.
 
 ## What This Proves
 
