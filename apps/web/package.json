@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test test/app.test.ts",
+    "test:coverage": "node --experimental-test-coverage --import tsx --test test/app.test.ts",
     "clean": "rm -rf .next"
   },
   "dependencies": {
