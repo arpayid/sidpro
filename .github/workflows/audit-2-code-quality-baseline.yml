@@ -1,0 +1,62 @@
+name: AUDIT-2 Code Quality Baseline
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'apps/**'
+      - 'packages/**'
+      - 'prisma/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'turbo.json'
+      - '.github/workflows/audit-2-code-quality-baseline.yml'
+      - 'docs/audits/AUDIT-2-*.md'
+      - 'docs/audits/AUDIT_MASTER_REGISTER.md'
+      - 'docs/ROADMAP.md'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'apps/**'
+      - 'packages/**'
+      - 'prisma/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'turbo.json'
+      - '.github/workflows/audit-2-code-quality-baseline.yml'
+      - 'docs/audits/AUDIT-2-*.md'
+      - 'docs/audits/AUDIT_MASTER_REGISTER.md'
+      - 'docs/ROADMAP.md'
+  workflow_dispatch:
+
+jobs:
+  test-coverage-baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.18.3
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile --reporter=silent
+      - name: Generate Prisma client
+        run: pnpm prisma:generate
+      - name: Run test coverage baseline
+        run: |
+          set -o pipefail
+          pnpm test:coverage 2>&1 | tee audit-2-test-coverage.log
+      - name: Upload coverage baseline log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-2-test-coverage-log
+          path: audit-2-test-coverage.log
+          if-no-files-found: ignore
+          retention-days: 30
