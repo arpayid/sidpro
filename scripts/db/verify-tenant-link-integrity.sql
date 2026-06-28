@@ -113,6 +113,57 @@ WHERE lty.id IS NULL OR lty.tenant_id <> lt.tenant_id
 
 UNION ALL
 
+SELECT 'letter_requests.requester_id', lr.id, lr.tenant_id,
+       lr.requester_id, u.tenant_id
+FROM letter_requests lr
+LEFT JOIN users u ON u.id = lr.requester_id
+WHERE lr.requester_id IS NOT NULL
+  AND (u.id IS NULL OR u.tenant_id IS DISTINCT FROM lr.tenant_id)
+
+UNION ALL
+
+SELECT 'letter_requests.resident_id', lr.id, lr.tenant_id,
+       lr.resident_id, r.tenant_id
+FROM letter_requests lr
+LEFT JOIN residents r ON r.id = lr.resident_id
+WHERE lr.resident_id IS NOT NULL
+  AND (r.id IS NULL OR r.tenant_id <> lr.tenant_id)
+
+UNION ALL
+
+SELECT 'letter_requests.letter_type_id', lr.id, lr.tenant_id,
+       lr.letter_type_id, lty.tenant_id
+FROM letter_requests lr
+LEFT JOIN letter_types lty ON lty.id = lr.letter_type_id
+WHERE lty.id IS NULL OR lty.tenant_id <> lr.tenant_id
+
+UNION ALL
+
+SELECT 'letter_approvals.letter_request_id', la.id, la.tenant_id,
+       la.letter_request_id, lr.tenant_id
+FROM letter_approvals la
+LEFT JOIN letter_requests lr ON lr.id = la.letter_request_id
+WHERE lr.id IS NULL OR lr.tenant_id <> la.tenant_id
+
+UNION ALL
+
+SELECT 'letter_approvals.approver_id', la.id, la.tenant_id,
+       la.approver_id, u.tenant_id
+FROM letter_approvals la
+LEFT JOIN users u ON u.id = la.approver_id
+WHERE la.approver_id IS NOT NULL
+  AND (u.id IS NULL OR u.tenant_id IS DISTINCT FROM la.tenant_id)
+
+UNION ALL
+
+SELECT 'letter_number_sequences.letter_type_id', lns.id, lns.tenant_id,
+       lns.letter_type_id, lty.tenant_id
+FROM letter_number_sequences lns
+LEFT JOIN letter_types lty ON lty.id = lns.letter_type_id
+WHERE lty.id IS NULL OR lty.tenant_id <> lns.tenant_id
+
+UNION ALL
+
 SELECT 'aid_recipients.program_id', ar.id, ar.tenant_id,
        ar.program_id, ap.tenant_id
 FROM aid_recipients ar
