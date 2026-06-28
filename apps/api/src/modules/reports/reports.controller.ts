@@ -1,10 +1,12 @@
 import { Controller, Get, Query, Req, Res, UseGuards } from '@nestjs/common';
 import { Request, Response } from 'express';
+import { auditReportQuerySchema, financeReportQuerySchema } from '@sidpro/validators';
 import { ReportsService } from './reports.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequireAllPermissions, RequirePermissions } from '../../common/decorators';
 import { CurrentUser, JwtPayload } from '../../common/decorators/current-user.decorator';
+import { parseWithZod } from '../../common/utils/zod-validation.util';
 
 @Controller('reports')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -45,12 +47,8 @@ export class ReportsController {
     @Res() res: Response,
     @Query('year') year?: string,
   ) {
-    return this.reportsService.exportFinanceReport(
-      user,
-      req.ip,
-      res,
-      year ? parseInt(year, 10) : undefined,
-    );
+    const query = parseWithZod(financeReportQuerySchema, { year });
+    return this.reportsService.exportFinanceReport(user, req.ip, res, query.year);
   }
 
   @Get('population')
@@ -68,15 +66,14 @@ export class ReportsController {
   @Get('finance')
   @RequirePermissions('reports.finance')
   getFinanceReport(@CurrentUser() user: JwtPayload, @Query('year') year?: string) {
-    return this.reportsService.getFinanceReport(
-      user,
-      year ? parseInt(year, 10) : undefined,
-    );
+    const query = parseWithZod(financeReportQuerySchema, { year });
+    return this.reportsService.getFinanceReport(user, query.year);
   }
 
   @Get('audit')
   @RequirePermissions('audit.read')
-  getAuditReport(@CurrentUser() user: JwtPayload, @Query('days') days = '30') {
-    return this.reportsService.getAuditReport(user, parseInt(days, 10));
+  getAuditReport(@CurrentUser() user: JwtPayload, @Query('days') days?: string) {
+    const query = parseWithZod(auditReportQuerySchema, { days });
+    return this.reportsService.getAuditReport(user, query.days);
   }
 }
