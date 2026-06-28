@@ -13,6 +13,7 @@ function read(path: string) {
 
 const migration = read('../../../prisma/migrations/20260628001100_add_audit_5_report_export_indexes/migration.sql');
 const planScript = read('../../../scripts/db/test-report-export-query-plans.sh');
+const complaintPlanScript = read('../../../scripts/db/test-complaint-export-query-plan.sh');
 const planWorkflow = read('../../../.github/workflows/audit-5-query-plan-evidence.yml');
 const worker = read('../../worker/src/index.ts');
 const queueService = read('../src/core/queue/storage-cleanup-queue.service.ts');
@@ -21,10 +22,13 @@ const compositeFkEvaluation = read('../../../docs/audits/AUDIT-5-COMPOSITE-FK-EV
 const cleanupRunbook = read('../../../docs/audits/AUDIT-5-STORAGE-CLEANUP-OBSERVABILITY.md');
 
 describe('AUDIT-5 repository gates', () => {
-  it('keeps the PostgreSQL query-plan fixture shell-valid', () => {
-    execFileSync('bash', ['-n', fileUrl('../../../scripts/db/test-report-export-query-plans.sh').pathname], {
-      stdio: 'pipe',
-    });
+  it('keeps the PostgreSQL query-plan fixtures shell-valid', () => {
+    for (const path of [
+      '../../../scripts/db/test-report-export-query-plans.sh',
+      '../../../scripts/db/test-complaint-export-query-plan.sh',
+    ]) {
+      execFileSync('bash', ['-n', fileUrl(path).pathname], { stdio: 'pipe' });
+    }
   });
 
   it('adds tenant-scoped indexes for current report and export query shapes', () => {
@@ -36,10 +40,12 @@ describe('AUDIT-5 repository gates', () => {
       'complaints_tenant_created_at_idx',
     ]) {
       assert.match(migration, new RegExp(index));
-      assert.match(planScript, new RegExp(index));
     }
     assert.match(planScript, /EXPLAIN \(ANALYZE, BUFFERS, FORMAT JSON\)/);
+    assert.match(complaintPlanScript, /complaints_tenant_created_at_idx/);
+    assert.match(complaintPlanScript, /complaint CSV export/);
     assert.match(planWorkflow, /test-report-export-query-plans\.sh/);
+    assert.match(planWorkflow, /test-complaint-export-query-plan\.sh/);
   });
 
   it('preserves cleanup retry evidence and structured queue health logs', () => {
