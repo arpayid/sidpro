@@ -60,6 +60,26 @@ BEGIN
   BEGIN UPDATE users SET tenant_id = tb, updated_at = now_at WHERE id = ua; RAISE EXCEPTION 'user tenant move was accepted'; EXCEPTION WHEN SQLSTATE '23514' THEN NULL; END;
   BEGIN UPDATE roles SET tenant_id = tb, updated_at = now_at WHERE id = ra; RAISE EXCEPTION 'role tenant move was accepted'; EXCEPTION WHEN SQLSTATE '23514' THEN NULL; END;
   BEGIN UPDATE complaints SET tenant_id = tb, updated_at = now_at WHERE id = ca; RAISE EXCEPTION 'complaint tenant move was accepted'; EXCEPTION WHEN SQLSTATE '23514' THEN NULL; END;
+
+  DELETE FROM tenants WHERE id = ta;
+  IF EXISTS (SELECT 1 FROM notifications WHERE tenant_id = ta)
+    OR EXISTS (SELECT 1 FROM complaints WHERE tenant_id = ta)
+    OR EXISTS (SELECT 1 FROM complaint_responses WHERE complaint_id = ca)
+  THEN
+    RAISE EXCEPTION 'tenant delete did not cascade tenant-owned identity references';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1
+    FROM users u
+    JOIN user_roles ur ON ur.user_id = u.id
+    JOIN roles r ON r.id = ur.role_id
+    WHERE u.id = ua
+      AND r.id = ra
+      AND u.tenant_id IS NULL
+      AND r.tenant_id IS NULL
+  ) THEN
+    RAISE EXCEPTION 'tenant delete did not preserve valid globalized user-role scope';
+  END IF;
 END;
 $$;
 
