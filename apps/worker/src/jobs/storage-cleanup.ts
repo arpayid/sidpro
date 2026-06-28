@@ -51,6 +51,13 @@ export function parseStorageCleanupJob(data: unknown): StorageCleanupJob {
   if (target === 'prefix' && !job.path.endsWith('/')) {
     throw new Error('Storage cleanup prefix target must end with a slash');
   }
+  if (
+    target === 'prefix' &&
+    job.letterRequestId &&
+    job.path !== `${job.tenantId}/letters/${job.letterRequestId}/`
+  ) {
+    throw new Error('Letter storage cleanup prefix must match the letter request');
+  }
 
   return {
     type: STORAGE_CLEANUP_JOB_NAME,
