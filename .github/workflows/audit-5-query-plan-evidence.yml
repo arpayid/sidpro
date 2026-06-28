@@ -87,5 +87,17 @@ jobs:
 
       - name: Capture and verify report/export query plans
         run: |
-          bash scripts/db/test-report-export-query-plans.sh
-          bash scripts/db/test-complaint-export-query-plan.sh
+          set -o pipefail
+          {
+            bash scripts/db/test-report-export-query-plans.sh
+            bash scripts/db/test-complaint-export-query-plan.sh
+          } 2>&1 | tee audit-5-query-plan.log
+
+      - name: Upload query plan diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-5-query-plan-log
+          path: audit-5-query-plan.log
+          if-no-files-found: ignore
+          retention-days: 14
