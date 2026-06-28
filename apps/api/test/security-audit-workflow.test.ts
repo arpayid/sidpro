@@ -19,7 +19,7 @@ describe('security audit workflow', () => {
   });
 
   it('uses the supported Node 24 Gitleaks action against complete Git history', () => {
-    assert.match(workflow, /actions\/checkout@v6/);
+    assert.match(workflow, /actions\/checkout@v7/);
     assert.match(workflow, /fetch-depth: 0/);
     assert.match(workflow, /gitleaks\/gitleaks-action@v3/);
     assert.match(workflow, /GITLEAKS_ENABLE_COMMENTS: 'false'/);

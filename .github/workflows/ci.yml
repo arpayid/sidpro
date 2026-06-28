@@ -40,7 +40,7 @@ jobs:
       REDIS_URL: redis://localhost:6379
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: pnpm/action-setup@v6
         with:
@@ -228,7 +228,7 @@ jobs:
       STAGING_ADMIN_PASSWORD: CiLoginKey2026!Aa
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Write production smoke env
         run: |
