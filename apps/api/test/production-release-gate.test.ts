@@ -64,12 +64,16 @@ describe('production release gate', () => {
     assert.match(backup, /object_backup=/);
   });
 
-  it('restores the database into a disposable database before allowing migration', () => {
+  it('restores database and object archives into disposable targets before allowing migration', () => {
     assert.match(verifyBackup, /sha256sum --check/);
     assert.match(verifyBackup, /sidpro_restore_verify_/);
+    assert.match(verifyBackup, /sidpro-restore-verify-/);
     assert.match(verifyBackup, /CREATE DATABASE/);
     assert.match(verifyBackup, /DROP DATABASE IF EXISTS/);
     assert.match(verifyBackup, /_prisma_migrations/);
+    assert.match(verifyBackup, /Restoring object archive into a disposable bucket/);
+    assert.match(verifyBackup, /mc mb/);
+    assert.match(verifyBackup, /mc rb --force/);
   });
 
   it('blocks known migration hazards and verifies ledger consistency after deployment', () => {
