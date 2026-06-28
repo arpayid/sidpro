@@ -4,10 +4,11 @@ This repository uses GitHub Actions as the merge gate. Configure the branch rule
 
 1. `CI / validate`
 2. `CI / production-smoke`
-3. `Tenant Link Integrity / tenant-link-integration`
-4. `Security Audit / Security Gate`
+3. `Security Audit / Security Gate`
 
 `Security Audit / Security Gate` is an aggregate check. It fails when either the high-severity dependency audit or the Gitleaks committed-secret scan fails.
+
+`Tenant Link Integrity / tenant-link-integration` remains a conditional PostgreSQL integration workflow for schema, migration, tenant-guard script, and tenant-workflow changes. It must pass whenever GitHub starts it, but it is not a global required check because path-filtered workflows do not create a status check for unrelated pull requests.
 
 ## Recommended `main` rule settings
 
