@@ -42,7 +42,7 @@ resolve_psql() {
 PSQL="$(resolve_psql)"
 
 printf '%s\n' '[staging-post-deploy] Checking tenant-link integrity preflight...'
-preflight="$($PSQL "$DB_URL" -X -A -t -v ON_ERROR_STOP=1 -f scripts/db/verify-tenant-link-integrity.sql)"
+preflight="$("$PSQL" "$DB_URL" -X -A -t -v ON_ERROR_STOP=1 -f scripts/db/verify-tenant-link-integrity.sql)"
 if [ -n "${preflight//[[:space:]]/}" ]; then
   echo "[staging-post-deploy] ERROR: tenant-link integrity violations found; deployment validation stopped." >&2
   printf '%s\n' "$preflight" >&2
