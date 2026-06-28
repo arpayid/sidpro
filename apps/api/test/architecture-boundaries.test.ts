@@ -8,6 +8,15 @@ const repositoryRoot = fileURLToPath(new URL('../../../', import.meta.url));
 const apiSourceRoot = join(repositoryRoot, 'apps/api/src');
 const sourceExtensions = ['.ts', '.tsx', '.js', '.jsx'];
 const ignoredDirectories = new Set(['node_modules', 'dist', '.next', 'coverage', '.turbo']);
+const deployablePackageNames = new Set(['@sidpro/api', '@sidpro/web', '@sidpro/worker']);
+
+type PackageManifest = {
+  name?: string;
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+  peerDependencies?: Record<string, string>;
+  optionalDependencies?: Record<string, string>;
+};
 
 function walk(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -115,6 +124,31 @@ function collectAppAndPackageViolations(): string[] {
   return violations;
 }
 
+function collectManifestViolations(): string[] {
+  const violations: string[] = [];
+  const packageRoot = join(repositoryRoot, 'packages');
+  for (const entry of readdirSync(packageRoot, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const manifestPath = join(packageRoot, entry.name, 'package.json');
+    if (!existsSync(manifestPath)) continue;
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as PackageManifest;
+    const declaredDependencies = [
+      manifest.dependencies,
+      manifest.devDependencies,
+      manifest.peerDependencies,
+      manifest.optionalDependencies,
+    ];
+    for (const dependencies of declaredDependencies) {
+      for (const dependency of Object.keys(dependencies ?? {})) {
+        if (deployablePackageNames.has(dependency)) {
+          violations.push(`${manifest.name ?? manifestPath} declares forbidden application dependency ${dependency}`);
+        }
+      }
+    }
+  }
+  return violations;
+}
+
 describe('AUDIT-1 architecture boundaries', () => {
   it('keeps core independent from domain modules and domains independent from each other', () => {
     const violations = collectApiBoundaryViolations();
@@ -124,6 +158,11 @@ describe('AUDIT-1 architecture boundaries', () => {
   it('keeps applications and shared packages from importing each other through source paths', () => {
     const violations = collectAppAndPackageViolations();
     assert.deepEqual(violations, [], `Application/package boundary violations:\n${violations.join('\n')}`);
+  });
+
+  it('keeps shared package manifests independent from deployable applications', () => {
+    const violations = collectManifestViolations();
+    assert.deepEqual(violations, [], `Shared package manifest violations:\n${violations.join('\n')}`);
   });
 
   it('keeps every declared source scan root as a directory', () => {
