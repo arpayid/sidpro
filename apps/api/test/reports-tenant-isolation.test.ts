@@ -100,7 +100,10 @@ describe('report and export tenant isolation', () => {
         count: record(calls, 'budgetYear', 'count', 0),
         findUnique: record(calls, 'budgetYear', 'findUnique', { totalBudget: 0, items: [] }),
       },
-      auditLog: { findMany: record(calls, 'auditLog', 'findMany', []) },
+      auditLog: {
+        groupBy: record(calls, 'auditLog', 'groupBy', []),
+        findMany: record(calls, 'auditLog', 'findMany', []),
+      },
       civilEvent: { findMany: record(calls, 'civilEvent', 'findMany', []) },
       letterType: { findMany: record(calls, 'letterType', 'findMany', []) },
     };
@@ -153,7 +156,10 @@ describe('report and export tenant isolation', () => {
         count: record(calls, 'budgetYear', 'count', 0),
         findUnique: record(calls, 'budgetYear', 'findUnique', null),
       },
-      auditLog: { findMany: record(calls, 'auditLog', 'findMany', []) },
+      auditLog: {
+        groupBy: record(calls, 'auditLog', 'groupBy', []),
+        findMany: record(calls, 'auditLog', 'findMany', []),
+      },
       civilEvent: { findMany: record(calls, 'civilEvent', 'findMany', []) },
       letterType: { findMany: record(calls, 'letterType', 'findMany', []) },
     };
