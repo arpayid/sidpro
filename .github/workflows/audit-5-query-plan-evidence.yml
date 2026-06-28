@@ -7,7 +7,9 @@ on:
       - 'prisma/migrations/**'
       - 'apps/api/src/modules/reports/**'
       - 'apps/api/src/modules/population/**'
+      - 'apps/api/src/modules/complaints/**'
       - 'scripts/db/test-report-export-query-plans.sh'
+      - 'scripts/db/test-complaint-export-query-plan.sh'
       - '.github/workflows/audit-5-query-plan-evidence.yml'
   pull_request:
     branches: [main, develop]
@@ -15,7 +17,9 @@ on:
       - 'prisma/migrations/**'
       - 'apps/api/src/modules/reports/**'
       - 'apps/api/src/modules/population/**'
+      - 'apps/api/src/modules/complaints/**'
       - 'scripts/db/test-report-export-query-plans.sh'
+      - 'scripts/db/test-complaint-export-query-plan.sh'
       - '.github/workflows/audit-5-query-plan-evidence.yml'
   workflow_dispatch:
 
@@ -82,4 +86,6 @@ jobs:
           sudo apt-get install -y -qq postgresql-client-17
 
       - name: Capture and verify report/export query plans
-        run: bash scripts/db/test-report-export-query-plans.sh
+        run: |
+          bash scripts/db/test-report-export-query-plans.sh
+          bash scripts/db/test-complaint-export-query-plan.sh
