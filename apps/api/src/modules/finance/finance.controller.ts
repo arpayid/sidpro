@@ -57,7 +57,7 @@ export class FinanceController {
   createBudgetItem(
     @CurrentUser() user: JwtPayload,
     @Param('budgetYearId') budgetYearId: string,
-    @Body() body: { category: string; name: string; planned: number; realized?: number },
+    @Body() body: { category: string; name: string; planned: number },
     @Req() req: Request,
   ) {
     return this.financeService.createBudgetItem(user, budgetYearId, body, req.ip);
@@ -69,10 +69,46 @@ export class FinanceController {
   updateBudgetItem(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
-    @Body() body: { category?: string; name?: string; planned?: number; realized?: number },
+    @Body() body: { category?: string; name?: string; planned?: number },
     @Req() req: Request,
   ) {
     return this.financeService.updateBudgetItem(user, id, body, req.ip);
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Get('budget-items/:id/realizations')
+  @RequirePermissions('finance.read')
+  findBudgetRealizationEntries(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Query('page') page = '1',
+    @Query('limit') limit = '20',
+  ) {
+    return this.financeService.findBudgetRealizationEntries(
+      user,
+      id,
+      parseInt(page, 10),
+      parseInt(limit, 10),
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @Post('budget-items/:id/realizations')
+  @RequirePermissions('finance.manage')
+  createBudgetRealizationEntry(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Body()
+    body: {
+      type: 'realization' | 'reversal';
+      amount: number;
+      description?: string;
+      reference?: string;
+      occurredAt?: string;
+    },
+    @Req() req: Request,
+  ) {
+    return this.financeService.createBudgetRealizationEntry(user, id, body, req.ip);
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
