@@ -5,6 +5,7 @@ import type { JwtPayload } from '../src/common/decorators/current-user.decorator
 import { ReportsService } from '../src/modules/reports/reports.service.js';
 import { PopulationService } from '../src/modules/population/population.service.js';
 import { FamiliesService } from '../src/modules/families/families.service.js';
+import { ComplaintsService } from '../src/modules/complaints/complaints.service.js';
 
 interface PrismaCall {
   model: string;
@@ -26,6 +27,7 @@ const tenantUser: JwtPayload = {
     'audit.read',
     'population.export',
     'families.export',
+    'complaints.read',
   ],
 };
 
@@ -48,10 +50,8 @@ function createResponse(): Response {
   } as unknown as Response;
 }
 
-function assertEveryReadIsTenantScoped(calls: PrismaCall, tenantId: string): void;
-function assertEveryReadIsTenantScoped(calls: PrismaCall[], tenantId: string): void;
-function assertEveryReadIsTenantScoped(calls: PrismaCall | PrismaCall[], tenantId: string): void {
-  for (const call of Array.isArray(calls) ? calls : [calls]) {
+function assertEveryReadIsTenantScoped(calls: PrismaCall[], tenantId: string): void {
+  for (const call of calls) {
     const where = call.args.where as
       | { tenantId?: string; tenantId_year?: { tenantId?: string } }
       | undefined;
@@ -158,7 +158,7 @@ describe('report and export tenant isolation', () => {
       letterType: { findMany: record(calls, 'letterType', 'findMany', []) },
     };
     const service = new ReportsService(prisma as never, { log: async () => undefined } as never);
-    const globalUser = { ...tenantUser, tenantId: null };
+    const globalUser: JwtPayload = { ...tenantUser, tenantId: null };
 
     await assert.rejects(() => service.getDashboard(globalUser), /Tenant scope required/);
     await assert.rejects(
@@ -168,9 +168,10 @@ describe('report and export tenant isolation', () => {
     assert.equal(calls.length, 0, 'scope failure must happen before any database query');
   });
 
-  it('keeps resident and family spreadsheet exports within the authenticated tenant', async () => {
+  it('keeps resident, family, and complaint exports within the authenticated tenant', async () => {
     const populationCalls: PrismaCall[] = [];
     const familyCalls: PrismaCall[] = [];
+    const complaintCalls: PrismaCall[] = [];
     const auditEvents: Record<string, unknown>[] = [];
     const auditLogs = {
       log: async (event: Record<string, unknown>) => {
@@ -191,13 +192,23 @@ describe('report and export tenant isolation', () => {
       auditLogs as never,
       {} as never,
     );
+    const complaintsService = new ComplaintsService(
+      {
+        complaint: { findMany: record(complaintCalls, 'complaint', 'findMany', []) },
+      } as never,
+      auditLogs as never,
+      {} as never,
+      {} as never,
+    );
 
     await populationService.exportResidents(tenantUser, '127.0.0.1', createResponse());
     await familiesService.exportFamilies(tenantUser, '127.0.0.1', createResponse());
+    await complaintsService.exportCsv(tenantUser, '127.0.0.1', createResponse());
 
     assertEveryReadIsTenantScoped(populationCalls, tenantUser.tenantId!);
     assertEveryReadIsTenantScoped(familyCalls, tenantUser.tenantId!);
-    assert.equal(auditEvents.length, 2);
+    assertEveryReadIsTenantScoped(complaintCalls, tenantUser.tenantId!);
+    assert.equal(auditEvents.length, 3);
     assert.ok(auditEvents.every((event) => event.tenantId === tenantUser.tenantId));
     assert.ok(auditEvents.every((event) => event.action === 'export'));
   });
