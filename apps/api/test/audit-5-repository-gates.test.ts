@@ -31,9 +31,8 @@ describe('AUDIT-5 repository gates', () => {
     }
   });
 
-  it('adds tenant-scoped indexes for current report and export query shapes', () => {
+  it('keeps evidence for tenant-scoped report and export query shapes', () => {
     for (const index of [
-      'residents_tenant_active_full_name_idx',
       'civil_events_tenant_event_date_idx',
       'letter_requests_tenant_submitted_at_idx',
       'audit_logs_tenant_created_at_idx',
@@ -41,6 +40,8 @@ describe('AUDIT-5 repository gates', () => {
     ]) {
       assert.match(migration, new RegExp(index));
     }
+    assert.doesNotMatch(migration, /residents_tenant_active_full_name_idx/);
+    assert.match(planScript, /residents_tenant_id_nik_key/);
     assert.match(planScript, /EXPLAIN \(ANALYZE, BUFFERS, FORMAT JSON\)/);
     assert.match(complaintPlanScript, /complaints_tenant_created_at_idx/);
     assert.match(complaintPlanScript, /complaint CSV export/);
