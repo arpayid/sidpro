@@ -67,7 +67,7 @@ INSERT INTO "budget_realization_entries" (
 )
 SELECT
   'migration-opening-balance-' || bi."id",
-  by."tenant_id",
+  budget_year."tenant_id",
   bi."id",
   'migration_opening_balance',
   bi."realized",
@@ -76,7 +76,7 @@ SELECT
   CURRENT_TIMESTAMP,
   NULL
 FROM "budget_items" bi
-JOIN "budget_years" by ON by."id" = bi."budget_year_id"
+JOIN "budget_years" budget_year ON budget_year."id" = bi."budget_year_id"
 WHERE bi."realized" > 0;
 
 CREATE OR REPLACE FUNCTION prevent_budget_item_realized_override()
@@ -123,9 +123,9 @@ BEGIN
   SELECT bi."realized"
   INTO current_realized
   FROM "budget_items" bi
-  JOIN "budget_years" by ON by."id" = bi."budget_year_id"
+  JOIN "budget_years" budget_year ON budget_year."id" = bi."budget_year_id"
   WHERE bi."id" = NEW."budget_item_id"
-    AND by."tenant_id" = NEW."tenant_id"
+    AND budget_year."tenant_id" = NEW."tenant_id"
   FOR UPDATE OF bi;
 
   IF NOT FOUND THEN
