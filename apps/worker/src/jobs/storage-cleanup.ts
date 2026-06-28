@@ -1,0 +1,144 @@
+import { DeleteObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { PrismaClient } from '@prisma/client';
+import {
+  STORAGE_CLEANUP_JOB_NAME,
+  type StorageCleanupJob,
+} from '@sidpro/types';
+
+interface StorageCleanupAttempt {
+  attempt: number;
+  maxAttempts: number;
+}
+
+interface StorageCleanupProcessorDeps {
+  prisma: Pick<PrismaClient, 'auditLog'>;
+  storage: { deleteFile(path: string): Promise<void> };
+}
+
+interface StorageCleanupRuntime {
+  process(data: unknown, attempt: StorageCleanupAttempt): Promise<{ path: string }>;
+  close(): Promise<void>;
+}
+
+function safeErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : 'Unknown storage cleanup error';
+  return message.slice(0, 500);
+}
+
+export function parseStorageCleanupJob(data: unknown): StorageCleanupJob {
+  const job = data as Partial<StorageCleanupJob> | null;
+  if (!job || job.type !== STORAGE_CLEANUP_JOB_NAME) {
+    throw new Error('Invalid storage cleanup job type');
+  }
+  if (!job.tenantId || !job.fileId || !job.path) {
+    throw new Error('Storage cleanup job requires tenantId, fileId, and path');
+  }
+  if (!job.path.startsWith(`${job.tenantId}/`)) {
+    throw new Error('Storage cleanup path must remain within the job tenant prefix');
+  }
+
+  return {
+    type: STORAGE_CLEANUP_JOB_NAME,
+    tenantId: job.tenantId,
+    fileId: job.fileId,
+    path: job.path,
+    actorId: job.actorId ?? null,
+    ipAddress: job.ipAddress ?? null,
+  };
+}
+
+async function writeAudit(
+  deps: StorageCleanupProcessorDeps,
+  job: StorageCleanupJob,
+  action: string,
+  metadata: Record<string, unknown>,
+) {
+  await deps.prisma.auditLog.create({
+    data: {
+      tenantId: job.tenantId,
+      actorId: job.actorId ?? null,
+      action,
+      module: 'files',
+      entityType: 'file',
+      entityId: job.fileId,
+      metadata: { path: job.path, ...metadata },
+      ipAddress: job.ipAddress ?? null,
+    },
+  });
+}
+
+export async function processStorageCleanupJob(
+  deps: StorageCleanupProcessorDeps,
+  data: unknown,
+  context: StorageCleanupAttempt,
+): Promise<{ path: string }> {
+  const job = parseStorageCleanupJob(data);
+  const attempt = Math.max(1, context.attempt);
+  const maxAttempts = Math.max(1, context.maxAttempts);
+
+  try {
+    await deps.storage.deleteFile(job.path);
+    await writeAudit(deps, job, 'storage_cleanup_completed', { attempt, maxAttempts });
+    return { path: job.path };
+  } catch (error) {
+    const finalAttempt = attempt >= maxAttempts;
+    await writeAudit(
+      deps,
+      job,
+      finalAttempt ? 'storage_cleanup_failed' : 'storage_cleanup_retry',
+      {
+        attempt,
+        maxAttempts,
+        error: safeErrorMessage(error),
+      },
+    );
+    throw error;
+  }
+}
+
+function createStorageClientFromEnv() {
+  const endpoint = process.env.MINIO_ENDPOINT;
+  const port = process.env.MINIO_PORT ?? '9000';
+  const useSsl = process.env.MINIO_USE_SSL === 'true';
+  const accessKeyId = process.env.MINIO_ROOT_USER;
+  const secretAccessKey = process.env.MINIO_ROOT_PASSWORD;
+  const bucket = process.env.MINIO_BUCKET ?? 'sidpro-files';
+
+  const missing = [
+    ['DATABASE_URL', process.env.DATABASE_URL],
+    ['MINIO_ENDPOINT', endpoint],
+    ['MINIO_ROOT_USER', accessKeyId],
+    ['MINIO_ROOT_PASSWORD', secretAccessKey],
+  ]
+    .filter(([, value]) => !value)
+    .map(([name]) => name);
+  if (missing.length) {
+    throw new Error(`Storage cleanup worker requires: ${missing.join(', ')}`);
+  }
+
+  const client = new S3Client({
+    endpoint: `${useSsl ? 'https' : 'http'}://${endpoint}:${port}`,
+    region: 'us-east-1',
+    credentials: {
+      accessKeyId: accessKeyId!,
+      secretAccessKey: secretAccessKey!,
+    },
+    forcePathStyle: true,
+  });
+
+  return {
+    deleteFile: async (path: string) => {
+      await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: path }));
+    },
+  };
+}
+
+export function createStorageCleanupProcessor(): StorageCleanupRuntime {
+  const prisma = new PrismaClient();
+  const storage = createStorageClientFromEnv();
+
+  return {
+    process: (data, attempt) => processStorageCleanupJob({ prisma, storage }, data, attempt),
+    close: () => prisma.$disconnect(),
+  };
+}
