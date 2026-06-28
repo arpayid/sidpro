@@ -5,6 +5,7 @@ const codeSchema = z.string().trim().min(1).max(64).regex(/^[A-Za-z0-9._-]+$/);
 const shortTextSchema = z.string().trim().min(1).max(255);
 const longTextSchema = z.string().trim().min(1).max(5000);
 const moneySchema = z.coerce.number().nonnegative().finite();
+const positiveMoneySchema = z.coerce.number().positive().finite();
 const percentageSchema = z.coerce.number().int().min(0).max(100);
 const dateStringSchema = z.string().datetime().or(z.string().date());
 const optionalBooleanSchema = z.coerce.boolean().optional();
@@ -47,8 +48,15 @@ export const createDevelopmentProjectSchema = z.object({
 export const updateDevelopmentProjectSchema = nonEmptyUpdate(createDevelopmentProjectSchema);
 
 export const createBudgetYearSchema = z.object({ year: z.coerce.number().int().min(1900).max(2200), totalBudget: moneySchema, status: z.enum(['draft', 'published', 'closed']).optional() }).strict();
-export const createBudgetItemSchema = z.object({ category: shortTextSchema, name: shortTextSchema, planned: moneySchema, realized: moneySchema.optional() }).strict();
+export const createBudgetItemSchema = z.object({ category: shortTextSchema, name: shortTextSchema, planned: moneySchema }).strict();
 export const updateBudgetItemSchema = nonEmptyUpdate(createBudgetItemSchema);
+export const createBudgetRealizationEntrySchema = z.object({
+  type: z.enum(['realization', 'reversal']),
+  amount: positiveMoneySchema,
+  description: longTextSchema.optional(),
+  reference: shortTextSchema.optional(),
+  occurredAt: dateStringSchema.optional(),
+}).strict();
 export const createFinanceDocumentSchema = z.object({ title: shortTextSchema, type: shortTextSchema, year: z.coerce.number().int().min(1900).max(2200).optional(), fileId: uuidSchema.optional(), isPublic: optionalBooleanSchema }).strict();
 
 export const createSocialAidProgramSchema = z.object({ name: shortTextSchema, code: codeSchema, description: longTextSchema.optional(), startDate: dateStringSchema.optional(), endDate: dateStringSchema.optional(), status: z.enum(['active', 'inactive', 'closed']).optional() }).strict();

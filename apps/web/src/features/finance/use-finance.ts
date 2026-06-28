@@ -20,6 +20,17 @@ export interface BudgetYear {
   items: BudgetItem[];
 }
 
+export interface BudgetRealizationEntry {
+  id: string;
+  budgetItemId: string;
+  entryType: 'realization' | 'reversal' | 'migration_opening_balance';
+  amount: string | number;
+  description: string | null;
+  reference: string | null;
+  occurredAt: string;
+  createdAt: string;
+}
+
 export function useBudgetYears(params: { page?: number; limit?: number } = {}) {
   const { page = 1, limit = 20 } = params;
   return useQuery({
@@ -27,6 +38,23 @@ export function useBudgetYears(params: { page?: number; limit?: number } = {}) {
     queryFn: async () => {
       const res = await apiClient<BudgetYear[]>(
         `/finance/budget-years${buildQuery({ page, limit })}`,
+      );
+      return { data: res.data ?? [], meta: res.meta as PaginationMeta | undefined };
+    },
+  });
+}
+
+export function useBudgetRealizationEntries(
+  budgetItemId?: string,
+  params: { page?: number; limit?: number } = {},
+) {
+  const { page = 1, limit = 20 } = params;
+  return useQuery({
+    queryKey: ['finance', 'budget-realizations', budgetItemId, { page, limit }],
+    enabled: Boolean(budgetItemId),
+    queryFn: async () => {
+      const res = await apiClient<BudgetRealizationEntry[]>(
+        `/finance/budget-items/${budgetItemId}/realizations${buildQuery({ page, limit })}`,
       );
       return { data: res.data ?? [], meta: res.meta as PaginationMeta | undefined };
     },
@@ -53,7 +81,7 @@ export function useCreateBudgetItem() {
       body,
     }: {
       budgetYearId: string;
-      body: { category: string; name: string; planned: number; realized?: number };
+      body: { category: string; name: string; planned: number };
     }) => {
       const res = await apiClient<BudgetItem>(`/finance/budget-years/${budgetYearId}/items`, {
         method: 'POST',
@@ -63,5 +91,38 @@ export function useCreateBudgetItem() {
       return res.data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['finance', 'budget-years'] }),
+  });
+}
+
+export function useCreateBudgetRealizationEntry() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      budgetItemId,
+      body,
+    }: {
+      budgetItemId: string;
+      body: {
+        type: 'realization' | 'reversal';
+        amount: number;
+        description?: string;
+        reference?: string;
+        occurredAt?: string;
+      };
+    }) => {
+      const res = await apiClient<{
+        entry: BudgetRealizationEntry;
+        budgetItem: BudgetItem;
+      }>(`/finance/budget-items/${budgetItemId}/realizations`, {
+        method: 'POST',
+        body,
+      });
+      if (!res.data) throw new Error('Gagal mencatat realisasi anggaran');
+      return res.data;
+    },
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['finance', 'budget-years'] });
+      qc.invalidateQueries({ queryKey: ['finance', 'budget-realizations', variables.budgetItemId] });
+    },
   });
 }

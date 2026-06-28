@@ -11,6 +11,7 @@ on:
       - 'scripts/db/test-identity-tenant-link-guards.sh'
       - 'scripts/db/test-letter-tenant-link-guards.sh'
       - 'scripts/db/test-resident-family-detach.sh'
+      - 'scripts/db/test-budget-realization-ledger.sh'
       - 'scripts/db/verify-tenant-link-integrity.sql'
       - 'scripts/db/verify-identity-tenant-link-integrity.sql'
       - '.github/workflows/tenant-link-integrity.yml'
@@ -24,6 +25,7 @@ on:
       - 'scripts/db/test-identity-tenant-link-guards.sh'
       - 'scripts/db/test-letter-tenant-link-guards.sh'
       - 'scripts/db/test-resident-family-detach.sh'
+      - 'scripts/db/test-budget-realization-ledger.sh'
       - 'scripts/db/verify-tenant-link-integrity.sql'
       - 'scripts/db/verify-identity-tenant-link-integrity.sql'
       - '.github/workflows/tenant-link-integrity.yml'
@@ -97,3 +99,4 @@ jobs:
           bash scripts/db/test-identity-tenant-link-guards.sh
           bash scripts/db/test-letter-tenant-link-guards.sh
           bash scripts/db/test-resident-family-detach.sh
+          bash scripts/db/test-budget-realization-ledger.sh

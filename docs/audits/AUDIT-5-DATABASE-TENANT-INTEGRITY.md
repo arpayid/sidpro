@@ -1,6 +1,6 @@
 # AUDIT-5 — Database and Tenant Integrity
 
-**Status:** In progress — domain and identity tenant-link guards, BUMDes financial-history retention, and resident-family lifecycle cleanup are covered by PostgreSQL integration gates.
+**Status:** In progress — domain and identity tenant-link guards, BUMDes financial-history retention, resident-family lifecycle cleanup, and budget-realization ledger controls are covered by PostgreSQL integration gates.
 
 ## Confirmed Findings
 
@@ -22,6 +22,7 @@ The schema keeps `tenant_id` on most domain rows, but several relationships use 
 | P1 | `letter_outputs.letter_request_id` | A generated output can be linked to a request from another tenant. |
 | P1 | `bumdes_financial_records.unit_id` | A BUMDes financial record can be linked to another tenant's business unit. |
 | P1 | Deleting `bumdes_units` with financial history | A cascading foreign key can silently erase accounting records. |
+| P1 | Budget realization stored only as mutable `budget_items.realized` | Financial changes have no append-only transaction trail and can be silently replaced. |
 | P1 | `user_roles.user_id` ↔ `role_id` | A global user could receive a tenant role, or a user could receive a role owned by another tenant, escalating access. |
 | P1 | `notifications.user_id` | A notification row could target a user from another tenant. |
 | P1 | `complaints.reporter_id`, `assignee_id`, `complaint_responses.responder_id` | Complaint identity references could cross tenant boundaries despite normal API checks. |
@@ -46,7 +47,9 @@ Migration `20260628000600_enforce_letter_tenant_link_guards` protects letter req
 
 Migration `20260628000700_clean_soft_deleted_resident_links` intentionally reconciles historical records: it removes family-membership rows for already deleted residents, clears affected household heads, and clears their direct family link. Thereafter, trigger guards perform the same cleanup whenever `residents.deleted_at` transitions from `NULL` to a timestamp. Restoring a resident does not recreate a prior family assignment; re-assignment remains an explicit administrative action.
 
-Migrations `00200` through `00600` are non-destructive protections for future writes. Migration `00700` is an intentional, bounded data reconciliation and should be deployed only with a verified database backup.
+Migrations `20260628000800_add_budget_realization_ledger` through `20260628001000_normalize_budget_item_initial_realized` create an append-only realization ledger. Ledger inserts update `budget_items.realized` as a read cache; updates and deletes are rejected, reversals cannot exceed the current balance, cross-tenant author and item links are rejected, and parent tenant drift is blocked. Historical and compatible initial realized values become explicit opening-balance ledger entries.
+
+Migrations `00200` through `00600` are non-destructive protections for future writes. Migration `00700` is an intentional, bounded data reconciliation and should be deployed only with a verified database backup. Migration `00800` rejects negative historical realized values and copies positive historical balances into ledger opening entries, so it also requires a verified database backup.
 
 ## PostgreSQL Integration Gate
 
@@ -61,9 +64,10 @@ The gate covers every P1 trigger currently introduced by the AUDIT-5 migrations.
 - letter-output request links;
 - neighborhood unit, address, resident, family-member, civil-event, and BUMDes links;
 - the address RT/RW-to-dusun hierarchy invariant;
-- global-versus-tenant user-role scope, notification recipients, complaint reporter/assignee links, and complaint-response responders.
+- global-versus-tenant user-role scope, notification recipients, complaint reporter/assignee links, and complaint-response responders;
+- direct budget-realization cache writes, ledger mutations, over-reversals, cross-tenant ledger references, and parent-scope drift.
 
-A BUMDes unit deletion with financial records must fail with `SQLSTATE 23503`. The resident-family lifecycle test verifies a deleted resident loses direct family membership, household membership, and household-head status without affecting other active members or implicitly restoring stale links. This verifies runtime database behavior rather than only static migration text. Test fixtures are always rolled back.
+A BUMDes unit deletion with financial records must fail with `SQLSTATE 23503`. The resident-family lifecycle test verifies a deleted resident loses direct family membership, household membership, and household-head status without affecting other active members or implicitly restoring stale links. The budget ledger test verifies initial-value normalization and that budget items with ledger history cannot be deleted. This verifies runtime database behavior rather than only static migration text. Test fixtures are always rolled back.
 
 ## Preflight Before Staging or Production
 
@@ -76,7 +80,7 @@ psql "$DATABASE_URL" -f scripts/db/verify-identity-tenant-link-integrity.sql
 
 Each command must return zero rows. Any result must be reconciled before production go-live. `scripts/staging-post-deploy-validate.sh` runs both checks automatically.
 
-Before applying migration `20260628000700_clean_soft_deleted_resident_links`, create and verify a database backup. The migration intentionally reconciles obsolete household links for rows already marked deleted.
+Before applying migrations `20260628000700_clean_soft_deleted_resident_links` or `20260628000800_add_budget_realization_ledger`, create and verify a database backup. The former reconciles obsolete household links; the latter copies historical positive cache values into opening ledger entries and rejects negative values.
 
 ## Remaining AUDIT-5 Work
 
@@ -84,4 +88,3 @@ Before applying migration `20260628000700_clean_soft_deleted_resident_links`, cr
 2. Verify index plans with production-like `EXPLAIN (ANALYZE, BUFFERS)` evidence for high-volume tenant-scoped reports and exports.
 3. Verify deployment, observability, and retry handling for the durable storage-orphan cleanup worker.
 4. Reconcile any historical violations found by the tenant-link preflights before production go-live.
-5. Define an append-only financial ledger before treating `budget_items.realized` as an authoritative accounting value.

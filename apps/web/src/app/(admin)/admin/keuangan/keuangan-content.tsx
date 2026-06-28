@@ -9,10 +9,22 @@ import { DetailDrawer } from '@/components/enterprise/detail-drawer';
 import { ErrorState } from '@/components/enterprise/error-state';
 import { useAuth } from '@/hooks/use-auth';
 import {
+  type BudgetItem,
+  type BudgetRealizationEntry,
+  useBudgetRealizationEntries,
   useBudgetYears,
   useCreateBudgetItem,
+  useCreateBudgetRealizationEntry,
   useCreateBudgetYear,
 } from '@/features/finance/use-finance';
+
+type RealizationFormValues = {
+  type: 'realization' | 'reversal';
+  amount: number;
+  reference: string;
+  description: string;
+  occurredAt: string;
+};
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat('id-ID', {
@@ -22,18 +34,45 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
+function formatLedgerType(type: BudgetRealizationEntry['entryType']) {
+  if (type === 'reversal') return 'Pembatalan';
+  if (type === 'migration_opening_balance') return 'Saldo awal';
+  return 'Realisasi';
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat('id-ID', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(value));
+}
+
 export function KeuanganContent() {
   const { can } = useAuth();
   const [yearDrawerOpen, setYearDrawerOpen] = useState(false);
   const [itemDrawerOpen, setItemDrawerOpen] = useState(false);
+  const [realizationDrawerOpen, setRealizationDrawerOpen] = useState(false);
+  const [historyDrawerOpen, setHistoryDrawerOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<BudgetItem | null>(null);
 
   const { data, isLoading, error, refetch } = useBudgetYears();
+  const realizationEntries = useBudgetRealizationEntries(selectedItem?.id);
   const createYear = useCreateBudgetYear();
   const createItem = useCreateBudgetItem();
+  const createRealization = useCreateBudgetRealizationEntry();
 
   const yearForm = useForm({ defaultValues: { year: new Date().getFullYear(), totalBudget: 0 } });
   const itemForm = useForm({
-    defaultValues: { category: 'Belanja', name: '', planned: 0, realized: 0 },
+    defaultValues: { category: 'Belanja', name: '', planned: 0 },
+  });
+  const realizationForm = useForm<RealizationFormValues>({
+    defaultValues: {
+      type: 'realization',
+      amount: 0,
+      reference: '',
+      description: '',
+      occurredAt: '',
+    },
   });
 
   const budgetYears = data?.data ?? [];
@@ -64,7 +103,6 @@ export function KeuanganContent() {
     category: string;
     name: string;
     planned: number;
-    realized: number;
   }) {
     if (!currentYear) return;
     await createItem.mutateAsync({
@@ -75,12 +113,44 @@ export function KeuanganContent() {
     itemForm.reset();
   }
 
+  function openRealizationDrawer(item: BudgetItem) {
+    setSelectedItem(item);
+    realizationForm.reset({
+      type: 'realization',
+      amount: 0,
+      reference: '',
+      description: '',
+      occurredAt: '',
+    });
+    setRealizationDrawerOpen(true);
+  }
+
+  function openHistoryDrawer(item: BudgetItem) {
+    setSelectedItem(item);
+    setHistoryDrawerOpen(true);
+  }
+
+  async function onCreateRealization(values: RealizationFormValues) {
+    if (!selectedItem) return;
+    await createRealization.mutateAsync({
+      budgetItemId: selectedItem.id,
+      body: {
+        type: values.type,
+        amount: values.amount,
+        ...(values.reference.trim() ? { reference: values.reference.trim() } : {}),
+        ...(values.description.trim() ? { description: values.description.trim() } : {}),
+        ...(values.occurredAt ? { occurredAt: values.occurredAt } : {}),
+      },
+    });
+    setRealizationDrawerOpen(false);
+  }
+
   return (
     <div>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="page-title">Keuangan Desa</h1>
-          <p className="page-description">Transaksi dan realisasi anggaran desa.</p>
+          <p className="page-description">Realisasi dicatat sebagai transaksi ledger yang dapat diaudit.</p>
         </div>
         {canManage && (
           <div className="flex gap-2">
@@ -149,6 +219,30 @@ export function KeuanganContent() {
                 key: 'realized',
                 header: 'Realisasi',
                 cell: (row) => formatCurrency(Number(row.realized)),
+              },
+              {
+                key: 'actions',
+                header: 'Aksi',
+                cell: (row) => (
+                  <div className="flex flex-wrap gap-2">
+                    {canManage && (
+                      <Button
+                        variant="outline"
+                        className="h-8 px-2 text-xs"
+                        onClick={() => openRealizationDrawer(row)}
+                      >
+                        Catat
+                      </Button>
+                    )}
+                    <Button
+                      variant="outline"
+                      className="h-8 px-2 text-xs"
+                      onClick={() => openHistoryDrawer(row)}
+                    >
+                      Riwayat
+                    </Button>
+                  </div>
+                ),
               },
             ]}
             emptyMessage={
@@ -247,6 +341,132 @@ export function KeuanganContent() {
             />
           </div>
         </form>
+      </DetailDrawer>
+
+      <DetailDrawer
+        open={realizationDrawerOpen}
+        onClose={() => setRealizationDrawerOpen(false)}
+        title={`Catat Realisasi — ${selectedItem?.name ?? ''}`}
+        footer={
+          <div className="flex justify-end gap-2 border-t border-slate-200 p-4">
+            <Button variant="outline" onClick={() => setRealizationDrawerOpen(false)}>
+              Batal
+            </Button>
+            <Button
+              disabled={!canManage || !selectedItem || createRealization.isPending}
+              onClick={realizationForm.handleSubmit(onCreateRealization)}
+            >
+              Simpan Transaksi
+            </Button>
+          </div>
+        }
+      >
+        <form className="space-y-4 p-5" onSubmit={realizationForm.handleSubmit(onCreateRealization)}>
+          <div>
+            <label className="form-label" htmlFor="realizationType">
+              Jenis transaksi
+            </label>
+            <select
+              id="realizationType"
+              className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900"
+              disabled={!canManage}
+              {...realizationForm.register('type')}
+            >
+              <option value="realization">Realisasi</option>
+              <option value="reversal">Pembatalan / koreksi</option>
+            </select>
+          </div>
+          <div>
+            <label className="form-label" htmlFor="realizationAmount">
+              Nilai transaksi (Rp)
+            </label>
+            <Input
+              id="realizationAmount"
+              type="number"
+              min="1"
+              disabled={!canManage}
+              {...realizationForm.register('amount', { valueAsNumber: true })}
+            />
+          </div>
+          <div>
+            <label className="form-label" htmlFor="realizationReference">
+              Referensi bukti
+            </label>
+            <Input
+              id="realizationReference"
+              disabled={!canManage}
+              placeholder="Contoh: BKM-2026-001"
+              {...realizationForm.register('reference')}
+            />
+          </div>
+          <div>
+            <label className="form-label" htmlFor="realizationDate">
+              Tanggal transaksi
+            </label>
+            <Input
+              id="realizationDate"
+              type="date"
+              disabled={!canManage}
+              {...realizationForm.register('occurredAt')}
+            />
+          </div>
+          <div>
+            <label className="form-label" htmlFor="realizationDescription">
+              Keterangan
+            </label>
+            <Input
+              id="realizationDescription"
+              disabled={!canManage}
+              placeholder="Keterangan transaksi"
+              {...realizationForm.register('description')}
+            />
+          </div>
+        </form>
+      </DetailDrawer>
+
+      <DetailDrawer
+        open={historyDrawerOpen}
+        onClose={() => setHistoryDrawerOpen(false)}
+        title={`Riwayat Realisasi — ${selectedItem?.name ?? ''}`}
+      >
+        <div className="p-5">
+          {realizationEntries.isLoading ? (
+            <p className="text-sm text-slate-500">Memuat riwayat transaksi...</p>
+          ) : realizationEntries.error ? (
+            <ErrorState
+              message="Gagal memuat riwayat realisasi."
+              onRetry={() => realizationEntries.refetch()}
+            />
+          ) : (
+            <DataTable
+              data={realizationEntries.data?.data ?? []}
+              columns={[
+                {
+                  key: 'occurredAt',
+                  header: 'Tanggal',
+                  cell: (row) => formatDate(row.occurredAt),
+                },
+                {
+                  key: 'entryType',
+                  header: 'Jenis',
+                  cell: (row) => formatLedgerType(row.entryType),
+                },
+                {
+                  key: 'amount',
+                  header: 'Nilai',
+                  cell: (row) =>
+                    `${row.entryType === 'reversal' ? '−' : ''}${formatCurrency(Number(row.amount))}`,
+                },
+                {
+                  key: 'reference',
+                  header: 'Referensi',
+                  cell: (row) => row.reference ?? '—',
+                },
+              ]}
+              emptyMessage="Belum ada transaksi realisasi untuk pos ini."
+            />
+          )}
+        </div>
       </DetailDrawer>
     </div>
   );
