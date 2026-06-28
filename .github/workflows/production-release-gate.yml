@@ -1,0 +1,89 @@
+name: Production Release Gate
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'docker-compose.prod.yml'
+      - 'Dockerfile.prod'
+      - 'prisma/**'
+      - 'scripts/production/**'
+      - 'scripts/production-*.sh'
+      - 'scripts/verify-production-backup.sh'
+      - 'scripts/db/verify-*.sql'
+      - '.github/workflows/production-release-gate.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'docker-compose.prod.yml'
+      - 'Dockerfile.prod'
+      - 'prisma/**'
+      - 'scripts/production/**'
+      - 'scripts/production-*.sh'
+      - 'scripts/verify-production-backup.sh'
+      - 'scripts/db/verify-*.sql'
+      - '.github/workflows/production-release-gate.yml'
+  workflow_dispatch:
+
+jobs:
+  release-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Write isolated production environment
+        run: |
+          set -euo pipefail
+          db_password="$(openssl rand -hex 24)"
+          minio_password="$(openssl rand -hex 24)"
+          jwt_secret="$(openssl rand -hex 32)"
+          cat > .env <<EOF
+          NODE_ENV=production
+          APP_URL=http://localhost:8080
+          API_URL=http://localhost:8080
+          API_PORT=4000
+          API_HOST=0.0.0.0
+          POSTGRES_USER=sidpro_ci
+          POSTGRES_PASSWORD=$db_password
+          POSTGRES_DB=sidpro
+          DATABASE_URL=postgresql://sidpro_ci:$db_password@postgres:5432/sidpro?schema=public
+          REDIS_URL=redis://redis:6379
+          JWT_SECRET=$jwt_secret
+          CORS_ORIGIN=http://localhost:8080
+          MINIO_ENDPOINT=minio
+          MINIO_PORT=9000
+          MINIO_ROOT_USER=sidpro_ci
+          MINIO_ROOT_PASSWORD=$minio_password
+          MINIO_BUCKET=sidpro-files
+          MINIO_USE_SSL=false
+          NEXT_PUBLIC_API_URL=http://localhost:8080
+          NEXT_PUBLIC_TENANT_CODE=demo-desa
+          DEFAULT_TENANT_CODE=demo-desa
+          ENABLE_SWAGGER=false
+          NEXT_PUBLIC_ENABLE_DEMO_FALLBACK=false
+          ENABLE_PDF_WORKER=false
+          NGINX_HTTP_PORT=8080
+          EOF
+
+      - name: Run guarded production release on an empty database
+        env:
+          SIDPRO_ENV_FILE: ${{ github.workspace }}/.env
+          SIDPRO_BACKUP_DIR: ${{ runner.temp }}/sidpro-release-backups
+        run: |
+          set -euo pipefail
+          bash scripts/production-release.sh --env-file "$SIDPRO_ENV_FILE"
+
+      - name: Confirm release artifacts remain available
+        env:
+          SIDPRO_BACKUP_DIR: ${{ runner.temp }}/sidpro-release-backups
+        run: |
+          set -euo pipefail
+          test -n "$(find "$SIDPRO_BACKUP_DIR" -maxdepth 1 -name 'release_*.manifest' -print -quit)"
+          test -n "$(find "$SIDPRO_BACKUP_DIR" -maxdepth 1 -name 'db_*.sql.gz' -print -quit)"
+          test -n "$(find "$SIDPRO_BACKUP_DIR" -maxdepth 1 -name 'uploads_*.tar.gz' -print -quit)"
+
+      - name: Cleanup release stack
+        if: always()
+        run: docker compose -f docker-compose.prod.yml down -v --remove-orphans
