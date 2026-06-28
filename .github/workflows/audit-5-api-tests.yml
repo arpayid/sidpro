@@ -23,7 +23,7 @@ jobs:
           node-version: 20
           cache: pnpm
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --reporter=silent
       - name: Generate Prisma client
         run: pnpm prisma:generate
       - name: Run API tests
