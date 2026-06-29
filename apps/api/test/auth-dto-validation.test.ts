@@ -7,7 +7,6 @@ import {
   DisableTwoFactorDto,
   EnableTwoFactorDto,
   LoginDto,
-  RefreshTokenDto,
   VerifyTwoFactorLoginDto,
 } from '../src/core/auth/dto/auth.dto.js';
 
@@ -40,12 +39,6 @@ describe('auth DTO validation', () => {
     });
 
     assert.ok(errors.some((error) => error.property === 'password'));
-  });
-
-  it('rejects empty refresh token', async () => {
-    const errors = await validatePayload(RefreshTokenDto, { refreshToken: '' });
-
-    assert.ok(errors.some((error) => error.property === 'refreshToken'));
   });
 
   it('rejects empty 2FA login tokens', async () => {

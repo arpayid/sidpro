@@ -26,13 +26,11 @@ export function useAuth() {
 
   const logout = useCallback(async () => {
     try {
-      const refreshToken = localStorage.getItem('sidpro_refresh_token');
       await apiClient('/auth/logout', {
         method: 'POST',
-        body: { refreshToken },
       });
     } catch {
-      // ignore — still clear local session
+      // Always clear memory state even when the session cookie already expired.
     }
     clearAuthSession();
     queryClient.clear();

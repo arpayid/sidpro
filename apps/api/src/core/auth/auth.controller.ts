@@ -1,40 +1,97 @@
-import { Controller, Post, Get, Body, UseGuards, Req } from '@nestjs/common';
+import { Controller, Post, Get, Body, UseGuards, Req, Res } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
+import type { ApiResponse } from '@sidpro/types';
+import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { Public } from '../../common/decorators';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { Request } from 'express';
 import {
   CompleteTwoFactorEnrollmentDto,
   DisableTwoFactorDto,
   EnableTwoFactorDto,
   LoginDto,
-  LogoutDto,
-  RefreshTokenDto,
   SetupTwoFactorEnrollmentDto,
   VerifyTwoFactorLoginDto,
 } from './dto/auth.dto';
+import { successResponse } from '../../common/utils/response.util';
+import {
+  assertAllowedSessionOrigin,
+  clearRefreshSessionCookie,
+  readRefreshSessionCookie,
+  readRequestCookie,
+  REFRESH_SESSION_COOKIE,
+  setRefreshSessionCookie,
+} from './session-cookie.util';
+
+type SessionTransportPayload = {
+  accessToken: string;
+  refreshToken: string;
+  user?: unknown;
+};
+
+function isSessionTransportPayload(value: unknown): value is SessionTransportPayload {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'accessToken' in value &&
+    typeof value.accessToken === 'string' &&
+    'refreshToken' in value &&
+    typeof value.refreshToken === 'string'
+  );
+}
 
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
 
+  private sessionEnvironment() {
+    return {
+      nodeEnv: process.env.NODE_ENV,
+      corsOrigin: process.env.CORS_ORIGIN,
+      refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN,
+    };
+  }
+
+  private assertBrowserSessionOrigin(request: Request) {
+    assertAllowedSessionOrigin(request, this.sessionEnvironment());
+  }
+
+  private setSessionCookieAndStripRefreshToken(
+    response: Response,
+    result: ApiResponse<unknown>,
+  ): ApiResponse<unknown> {
+    if (!isSessionTransportPayload(result.data)) return result;
+
+    setRefreshSessionCookie(response, result.data.refreshToken, this.sessionEnvironment());
+    const { refreshToken: _refreshToken, ...publicPayload } = result.data;
+    return successResponse(publicPayload, result.message, result.meta);
+  }
+
   @Public()
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('login')
-  login(@Body() body: LoginDto, @Req() req: Request) {
-    return this.authService.login(body.email, body.password, req.ip);
+  async login(
+    @Body() body: LoginDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    this.assertBrowserSessionOrigin(req);
+    const result = await this.authService.login(body.email, body.password, req.ip);
+    return this.setSessionCookieAndStripRefreshToken(response, result);
   }
 
   @Public()
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Post('2fa/verify-login')
-  verifyTwoFactorLogin(
+  async verifyTwoFactorLogin(
     @Body() body: VerifyTwoFactorLoginDto,
     @Req() req: Request,
+    @Res({ passthrough: true }) response: Response,
   ) {
-    return this.authService.verifyTwoFactorLogin(body.twoFactorToken, body.token, req.ip);
+    this.assertBrowserSessionOrigin(req);
+    const result = await this.authService.verifyTwoFactorLogin(body.twoFactorToken, body.token, req.ip);
+    return this.setSessionCookieAndStripRefreshToken(response, result);
   }
 
   @Public()
@@ -47,11 +104,14 @@ export class AuthController {
   @Public()
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Post('2fa/enroll-login/complete')
-  completeEnrollLogin(
+  async completeEnrollLogin(
     @Body() body: CompleteTwoFactorEnrollmentDto,
     @Req() req: Request,
+    @Res({ passthrough: true }) response: Response,
   ) {
-    return this.authService.completeEnrollLogin(body.enrollmentToken, body.token, req.ip);
+    this.assertBrowserSessionOrigin(req);
+    const result = await this.authService.completeEnrollLogin(body.enrollmentToken, body.token, req.ip);
+    return this.setSessionCookieAndStripRefreshToken(response, result);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -83,18 +143,24 @@ export class AuthController {
   @Public()
   @Throttle({ default: { limit: 20, ttl: 60000 } })
   @Post('refresh')
-  refresh(@Body() body: RefreshTokenDto, @Req() req: Request) {
-    return this.authService.refresh(body.refreshToken, req.ip);
+  async refresh(@Req() req: Request, @Res({ passthrough: true }) response: Response) {
+    this.assertBrowserSessionOrigin(req);
+    const result = await this.authService.refresh(readRefreshSessionCookie(req), req.ip);
+    return this.setSessionCookieAndStripRefreshToken(response, result);
   }
 
   @UseGuards(JwtAuthGuard)
   @Post('logout')
-  logout(
+  async logout(
     @CurrentUser('sub') userId: string,
-    @Body() body: LogoutDto,
     @Req() req: Request,
+    @Res({ passthrough: true }) response: Response,
   ) {
-    return this.authService.logout(userId, body.refreshToken, req.ip);
+    this.assertBrowserSessionOrigin(req);
+    const refreshToken = readRequestCookie(req, REFRESH_SESSION_COOKIE) ?? undefined;
+    const result = await this.authService.logout(userId, refreshToken, req.ip);
+    clearRefreshSessionCookie(response, this.sessionEnvironment());
+    return result;
   }
 
   @UseGuards(JwtAuthGuard)

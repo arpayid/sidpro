@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Shield } from 'lucide-react';
 import { Button, Card, CardContent, CardHeader, CardTitle, Input } from '@sidpro/ui';
 import { setAuthSession } from '@/lib/auth';
-import { apiClient } from '@/lib/api-client';
+import { apiClient, syncAuthProfile } from '@/lib/api-client';
 import { sanitizeAdminCallback } from '@/lib/route-policy';
 import type { LoginResponse, LoginResult } from '@sidpro/types';
 import {
@@ -44,6 +44,16 @@ function LoginForm() {
   const [totpCode, setTotpCode] = useState('');
 
   useEffect(() => {
+    let active = true;
+    void syncAuthProfile().then((profile) => {
+      if (active && profile) router.replace(callbackUrl);
+    });
+    return () => {
+      active = false;
+    };
+  }, [callbackUrl, router]);
+
+  useEffect(() => {
     if (!enrollmentToken || enrollSetup || enrollSetupStarted.current) return;
     enrollSetupStarted.current = true;
     setupEnrollMutation
@@ -57,7 +67,7 @@ function LoginForm() {
   }, [enrollmentToken, enrollSetup]);
 
   async function completeLogin(data: LoginResponse) {
-    setAuthSession(data.accessToken, data.refreshToken, data.user);
+    setAuthSession(data.accessToken, data.user);
     router.push(callbackUrl);
   }
 
