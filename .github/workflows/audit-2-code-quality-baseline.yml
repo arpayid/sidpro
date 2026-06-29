@@ -91,7 +91,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: audit-2-lint-baseline
-          path: audit-2-artifacts/lint
+          path: |
+            audit-2-artifacts/lint
+            audit-2-artifacts/lint-summary.json
           if-no-files-found: ignore
           retention-days: 30
 
