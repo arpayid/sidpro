@@ -8,8 +8,8 @@
     "start": "next start --port 3000",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test test/app.test.ts",
-    "test:coverage": "node --experimental-test-coverage --import tsx --test test/app.test.ts",
+    "test": "node --import tsx --test test/*.test.ts",
+    "test:coverage": "node --experimental-test-coverage --import tsx --test test/*.test.ts",
     "clean": "rm -rf .next"
   },
   "dependencies": {
