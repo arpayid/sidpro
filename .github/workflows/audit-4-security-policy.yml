@@ -8,6 +8,7 @@ on:
       - 'apps/api/test/public-route-security-policy.test.ts'
       - 'apps/api/test/security-http-config.test.ts'
       - 'apps/api/test/session-cookie.test.ts'
+      - 'apps/api/test/auth-session-controller.test.ts'
       - 'apps/web/src/**'
       - 'apps/web/next.config.mjs'
       - 'apps/web/package.json'
@@ -27,6 +28,7 @@ on:
       - 'apps/api/test/public-route-security-policy.test.ts'
       - 'apps/api/test/security-http-config.test.ts'
       - 'apps/api/test/session-cookie.test.ts'
+      - 'apps/api/test/auth-session-controller.test.ts'
       - 'apps/web/src/**'
       - 'apps/web/next.config.mjs'
       - 'apps/web/package.json'
@@ -62,6 +64,6 @@ jobs:
       - name: Verify public route throttle policy
         run: pnpm audit:public-route-security
       - name: Verify API HTTP and session configuration policy
-        run: pnpm --filter @sidpro/api exec tsx --test test/security-http-config.test.ts test/session-cookie.test.ts
+        run: pnpm --filter @sidpro/api exec tsx --test test/security-http-config.test.ts test/session-cookie.test.ts test/auth-session-controller.test.ts
       - name: Verify web response header and session policy
         run: pnpm --filter @sidpro/web exec tsx --test test/security-headers.test.ts test/auth-session-boundary-policy.test.ts
