@@ -6,6 +6,10 @@ on:
       - codex/audit-2-dependency-remediation
     paths:
       - '.github/workflows/audit-2-dependency-resolution-preview.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/audit-2-dependency-resolution-preview.yml'
   workflow_dispatch:
 
 permissions:
@@ -30,7 +34,6 @@ jobs:
         run: |
           node <<'NODE'
           const fs = require('node:fs');
-          const paths = ['package.json', 'apps/api/package.json', 'apps/worker/package.json'];
           const read = (path) => JSON.parse(fs.readFileSync(path, 'utf8'));
           const write = (path, value) => fs.writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`);
 
