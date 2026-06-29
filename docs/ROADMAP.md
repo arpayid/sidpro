@@ -8,7 +8,7 @@ Dokumen ini adalah ringkasan sumber-kebenaran untuk status audit, pekerjaan hard
 
 - **Repository:** `arpayid/sidpro`
 - **Source revision reviewed for AUDIT-1:** PR #95 merge commit `df36623615148124b7e52972712496b1f9bb0786`.
-- **Source revision reviewed for AUDIT-2 baseline:** PR #97 merge commit `e64ecd935978f7265c788096929440ec624243c3`, plus the current AUDIT-2 governance and lint-baseline PR.
+- **Source revision reviewed for AUDIT-2 baseline:** PR #97 merge commit `e64ecd935978f7265c788096929440ec624243c3`, plus the current AUDIT-2 governance/lint baseline PR.
 - **Tanggal pembaruan bukti:** 29 Juni 2026.
 - **Catatan lingkungan:** belum ada bukti eksekusi pada staging atau production persisten di register ini. Bukti CI Docker/Compose bukan pengganti bukti staging atau production.
 
@@ -31,7 +31,7 @@ Tidak ada status `Closed` dalam baseline ini.
 | --- | --- | --- | --- | --- |
 | AUDIT-0 | Evidence baseline dan tata kelola audit | `In Progress` | Register dan kebijakan pembaruan diperkenalkan oleh dokumen ini. | [Master Register](audits/AUDIT_MASTER_REGISTER.md#audit-0--evidence-baseline-dan-tata-kelola) |
 | AUDIT-1 | Repository dan arsitektur | `Validation Pending` | Monorepo inventory, dependency graph, architecture decisions, source/manifest boundary gate, shared core addressing, dan dependency-map review pada source repository telah direkonsiliasi. Focused architecture workflow juga berjalan saat bukti AUDIT-1/roadmap berubah. | [AUDIT-1 Architecture](audits/AUDIT-1-REPOSITORY-ARCHITECTURE.md) |
-| AUDIT-2 | Dependency dan code quality | `In Progress` | Coverage artifact, lint-warning inventory, dependency exception registry with expiry, unignored audit inventory, dan versioning-policy evidence dijalankan oleh workflow AUDIT-2. Prisma manifest drift, exception metadata, coverage ratchet, dan maintainability scan masih terbuka. | [AUDIT-2 Dependency and Code Quality](audits/AUDIT-2-DEPENDENCY-CODE-QUALITY.md) |
+| AUDIT-2 | Dependency dan code quality | `In Progress` | Coverage artifact, lint-warning inventory, no-active-exception registry, unignored dependency-audit inventory, dan versioning-policy evidence dijalankan oleh workflow AUDIT-2. Tiga advisory moderate (#99), Prisma manifest drift, coverage ratchet, dan maintainability scan masih terbuka. | [AUDIT-2 Dependency and Code Quality](audits/AUDIT-2-DEPENDENCY-CODE-QUALITY.md) |
 | AUDIT-3 | API dan domain logic | `Evidence Partial` | Ada perbaikan/regression test terarah, tetapi belum ada inventaris dan closure audit seluruh API/domain. | [Master Register](audits/AUDIT_MASTER_REGISTER.md#audit-3--api-dan-domain-logic) |
 | AUDIT-4 | Security | `Evidence Partial` | Security Audit, dependency scan, secret scan, hardening refresh-token, dan guard permissions tercatat. Audit keamanan menyeluruh belum ditutup. | [Master Register](audits/AUDIT_MASTER_REGISTER.md#audit-4--security) |
 | AUDIT-5 | Database dan tenant integrity | `Validation Pending` | Tenant-link guards, finance ledger, CI query-plan evidence, and cleanup worker retry/health logs are implemented; validation against historical and persistent environments remains open. | [AUDIT-5 Database](audits/AUDIT-5-DATABASE-TENANT-INTEGRITY.md) |
@@ -43,7 +43,7 @@ Tidak ada status `Closed` dalam baseline ini.
 
 ## Prioritas Saat Ini
 
-1. **AUDIT-2 `In Progress`:** review pertama unignored dependency-audit dan lint-warning artifact; lengkapi metadata exception sebelum 29 Juli 2026, siapkan remediation Prisma dengan lockfile yang diregenerasi, lalu definisikan coverage/warning ratchet berbasis baseline.
+1. **AUDIT-2 `In Progress`:** selesaikan issue [#99](https://github.com/arpayid/sidpro/issues/99) untuk tiga advisory moderate melalui update dependency yang kompatibel dan lockfile yang diregenerasi. Siapkan pula alignment Prisma berbasis lockfile, konfirmasi baseline lint bebas warning, lalu definisikan coverage/warning ratchet berbasis baseline.
 2. **AUDIT-1 tetap `Validation Pending`:** saat persistent staging tersedia, validasi dan catat topology proses web/API/worker, health/readiness, konfigurasi runtime, dan contract queue/storage. Source-level dependency review sudah selesai; pekerjaan issue #94 tidak diulang.
 3. **AUDIT-5 tetap `Validation Pending`:** historical-data preflight, real query-plan evidence, object cleanup recovery drill, dan log alert membutuhkan environment persisten.
 4. **Lanjut AUDIT-3 dan AUDIT-4 setelah AUDIT-2 baseline stabil:** pekerjaan hardening terdahulu adalah evidence, bukan closure otomatis.
