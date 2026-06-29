@@ -1,6 +1,6 @@
 # AUDIT-2 — Dependency and Code Quality
 
-**Status:** `In Progress` — coverage baseline, dependency-exception governance, manifest-version policy, and lint-warning inventory controls are versioned. This audit is not closed: exception metadata must be reviewed, Prisma declaration drift needs a lockfile-aware remediation, coverage ratchets are not yet enforced, and duplication/dead-code/complexity analysis remains unassessed.
+**Status:** `In Progress` — coverage baseline, lint-warning inventory, dependency-exception governance, and manifest-version policy are versioned. This audit is not closed: three moderate transitive dependencies require remediation, Prisma declaration drift needs a lockfile-aware update, coverage ratchets are not yet enforced, and duplication/dead-code/complexity analysis remains unassessed.
 
 ## Scope
 
@@ -16,7 +16,7 @@ This audit does **not** claim production performance, runtime availability, prod
 
 ## Evidence Baseline — 29 June 2026
 
-**Repository revision reviewed:** `e64ecd935978f7265c788096929440ec624243c3` (PR #97 merge commit), plus the current source changes in this PR.
+**Repository revision reviewed:** `e64ecd935978f7265c788096929440ec624243c3` (PR #97 merge commit), plus the current source changes in PR #98.
 
 ### Existing controls
 
@@ -24,11 +24,11 @@ This audit does **not** claim production performance, runtime availability, prod
 | --- | --- | --- |
 | Locked installs | `pnpm-lock.yaml`, `pnpm install --frozen-lockfile` in CI | Reproducible dependency resolution is enforced in CI. |
 | Static quality | Root CI executes `pnpm lint` and `pnpm typecheck` before test/build. | Present; results are required CI evidence. |
-| Functional regression | Root CI executes `pnpm test`, then build, migration, seed, smoke, and production image/Compose checks. | Present; test execution is now accompanied by a coverage baseline artifact. |
-| Dependency vulnerability gate | CI and Security Audit execute `pnpm audit --audit-level=high`; Gitleaks runs separately. | Present; this is a vulnerability gate, not a complete dependency lifecycle review. |
+| Functional regression | Root CI executes `pnpm test`, then build, migration, seed, smoke, and production image/Compose checks. | Present; test execution is accompanied by a coverage baseline artifact. |
+| Dependency vulnerability gate | Security Audit fails on high-severity dependency vulnerabilities; unignored JSON inventory is retained separately by AUDIT-2. | Present; high/critical gating is not a complete lifecycle review. |
 | Package isolation | AUDIT-1 source/manifest boundary test protects application/package ownership. | Covered by AUDIT-1; retained as an upstream quality control. |
-| Dependency exception governance | Machine-readable exception register, expiry validation, and unignored audit inventory are executed in the AUDIT-2 workflow. | New in this PR; first inventory is required before exception metadata is considered complete. |
-| Lint warning inventory | The AUDIT-2 workflow runs ESLint JSON output for each app/shared workspace and retains totals by workspace/rule. | New in this PR; warning baseline is evidence, not an automatic zero-warning policy. |
+| Dependency exception governance | Machine-readable exception register, expiry validation, and unignored audit inventory are executed in the AUDIT-2 workflow. | Active; no exception is currently configured. |
+| Lint warning inventory | The AUDIT-2 workflow runs ESLint JSON output for each app/shared workspace and retains totals by workspace/rule. | Active; initial clean baseline is recorded below. |
 
 ## Findings
 
@@ -55,29 +55,39 @@ These numbers are an initial measurement, not a release-quality assertion or a w
 2. The package-run baselines may not be converted into a hard aggregate threshold until a second comparable baseline and a source-inclusion policy are recorded.
 3. A future threshold must be package-specific and ratchet from measured values; it must not reward superficial tests or hide untested critical workflows.
 
-### A2-P2 Partially Resolved in CI — Dependency exception governance was incomplete
+### A2-P2 Resolved in Source — Stale dependency-audit suppressions
 
-The root `pnpm.auditConfig.ignoreCves` contains explicit vulnerability suppressions. Previously, the repository did not record an owner, rationale, compensating control, review date, expiry, or removal condition for each entry.
+The root `pnpm.auditConfig.ignoreCves` previously contained four inherited suppression identifiers. The first unignored inventory found no matching current advisory for any of them, so retaining them would only obscure future audit changes.
 
-**Treatment:** [`AUDIT-2-DEPENDENCY-EXCEPTIONS.json`](AUDIT-2-DEPENDENCY-EXCEPTIONS.json) is validated against `package.json` in CI. Every active exception is temporary, owned by `arpayid`, reviewable by 29 July 2026, and expires on 29 September 2026 unless renewed with rationale. The AUDIT-2 workflow removes the suppression configuration only inside the ephemeral CI workspace, captures `pnpm audit --json`, and uploads a parsed cross-reference artifact. The committed manifest is restored before the job exits.
+**Treatment:** remove all four stale `ignoreCves` entries and clear the machine-readable exception register. The CI registry check remains active: any future suppression must have a matching owner, rationale, compensating controls, review date, expiry, and removal condition before it can pass the AUDIT-2 dependency-policy check.
 
-**Remaining work:** populate each record with the affected package/path, severity, available fixed version, and remediation disposition from the first unignored inventory. This register does not declare any advisory harmless or prove runtime reachability.
+### A2-P3 Open — Moderate transitive dependency advisories
 
-### A2-P3 Open — Prisma manifest declaration drift
+The unignored `pnpm audit --json` inventory found **three moderate** transitive advisories and no high/critical advisory:
+
+| Dependency path | Resolved vulnerable version | Advisory | Audit-indicated fix |
+| --- | ---: | --- | --- |
+| `apps/web → next → postcss` | `postcss@8.4.31` | `GHSA-qx2v-qp2m-jg93` / `CVE-2026-41305` | `postcss >= 8.5.10` |
+| `apps/api → exceljs → uuid` | `uuid@8.3.2` | `GHSA-w5hq-g745-h8pq` / `CVE-2026-41907` | `uuid >= 11.1.1` |
+| `apps/api → @nestjs/swagger → js-yaml` | `js-yaml@4.1.1` | `GHSA-h67p-54hq-rp68` / `CVE-2026-53550` | `js-yaml >= 4.2.0` |
+
+**Treatment:** tracked in issue [#99](https://github.com/arpayid/sidpro/issues/99). Remediation must determine compatible direct-parent updates or supported overrides, regenerate `pnpm-lock.yaml` with pnpm `10.18.3`, and pass normal CI/security/production-image gates. The inventory does not prove exploitability or deployed-runtime reachability.
+
+### A2-P4 Open — Prisma manifest declaration drift
 
 The lockfile consistently resolves Prisma client/CLI `6.19.3`, while several direct workspace declarations retain `^6.8.2`. This does not currently break locked CI installs, but it weakens the relationship between the reviewed runtime graph and manifest intent.
 
 **Treatment:** [`AUDIT-2-DEPENDENCY-VERSIONING-POLICY.md`](AUDIT-2-DEPENDENCY-VERSIONING-POLICY.md) documents the required lockfile-aware update path. `pnpm audit:dependency-policy` reports the current declaration set and validates exception-register linkage. It deliberately does not fail solely on this recorded drift; exact alignment must be performed only in a PR that regenerates `pnpm-lock.yaml` with pnpm `10.18.3` and passes Prisma/build/production-image validation.
 
-### A2-P4 Partially Resolved in CI — Typed-debt and console policy were not measured
+### A2-P5 Resolved in Source — Lint warning inventory was not measured
 
-The shared ESLint policy configures `@typescript-eslint/no-explicit-any` as a warning and disables `no-console` globally. That may be appropriate for structured worker/operational logging, but the repository previously had no retained warning count or workspace/rule inventory.
+The shared ESLint policy configures `@typescript-eslint/no-explicit-any` as a warning and disables `no-console` globally. Previously the repository had no retained warning count or workspace/rule inventory.
 
-**Treatment:** the AUDIT-2 workflow now emits ESLint JSON output for API, web, worker, types, validators, UI, and config workspaces, then retains a normalized summary artifact. The baseline reports warnings; it does not convert existing warnings into errors without a reviewed remediation plan.
+**Treatment:** the AUDIT-2 workflow now emits ESLint JSON output for API, web, worker, types, validators, UI, and config workspaces, then retains a normalized summary artifact. The first inventory scanned **348 files**, returned **0 errors** and **1 warning** (`@typescript-eslint/no-unused-vars` in the refresh-token test mock). The unused mock parameter is renamed `_args` in this PR, so the next baseline is expected to be warning-free.
 
-**Remaining work:** review the first warning inventory, distinguish operational logging from application/UI logging, classify `any` usage by risk, and decide which warnings can be ratcheted by package.
+This is not a mandate to make every future warning an error. Operational logging and type escapes still require risk-based classification before a package-specific ratchet is enabled.
 
-### A2-P5 Not Yet Assessed — Duplication, dead code, and complexity hotspots
+### A2-P6 Not Yet Assessed — Duplication, dead code, and complexity hotspots
 
 The repository has lint/type/build/test controls, but no repeatable scan or documented review for duplicated implementations, unused exports, cyclomatic/cognitive complexity, or code ownership hotspots.
 
@@ -95,9 +105,9 @@ The AUDIT-2 workflow runs on relevant pull requests, main/develop pushes, a week
 
 ## Required Next Steps
 
-1. Review the first dependency-exception inventory and complete affected package/path, severity, fixed-version, and disposition fields before 29 July 2026.
-2. Prepare a lockfile-aware Prisma manifest-alignment PR using pnpm `10.18.3`; do not hand-edit resolved lockfile entries.
-3. Review the first lint-warning inventory; classify `any`, logging, and unused-variable warnings and propose a package-specific ratchet.
+1. Resolve issue [#99](https://github.com/arpayid/sidpro/issues/99) through compatible direct-parent updates or a reviewed supported override; regenerate the lockfile rather than hand-editing it.
+2. Prepare a lockfile-aware Prisma manifest-alignment PR using pnpm `10.18.3`.
+3. Confirm the next lint baseline is warning-free, then classify logging/type-escape policy before adding a warning ratchet.
 4. Record a second comparable coverage run and select critical-path coverage expectations before enabling any threshold.
 5. Evaluate duplication/dead-code/complexity scanning with a documented triage workflow and false-positive policy.
 
@@ -105,12 +115,13 @@ The AUDIT-2 workflow runs on relevant pull requests, main/develop pushes, a week
 
 AUDIT-2 may move to `Validation Pending` only when:
 
-1. dependency inventory and exception register are versioned with complete metadata and no expired temporary entry;
-2. coverage baseline and risk-based test expectations are recorded;
-3. lint/type/build/test quality gates and their warning/threshold policies are documented;
-4. Prisma or other runtime-critical manifest drift is remediated with a lockfile-aware validation record;
-5. duplication/dead-code/complexity assessment is completed or explicitly scoped with owners and follow-up findings;
-6. unresolved dependency risks have owners, expiry/review dates, and release impact recorded.
+1. dependency inventory and exception register are versioned with no stale/expired exception;
+2. current dependency findings have owners and remediation status;
+3. coverage baseline and risk-based test expectations are recorded;
+4. lint/type/build/test quality gates and their warning/threshold policies are documented;
+5. Prisma or other runtime-critical manifest drift is remediated with a lockfile-aware validation record;
+6. duplication/dead-code/complexity assessment is completed or explicitly scoped with owners and follow-up findings;
+7. unresolved dependency risks have owners, expiry/review dates, and release impact recorded.
 
 AUDIT-2 may move to `Closed` only when the above evidence is reconciled with current CI results and no known in-scope remediation remains.
 
