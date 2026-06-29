@@ -16,6 +16,7 @@ on:
       - 'docs/audits/AUDIT-2-*.md'
       - 'docs/audits/AUDIT-2-*.json'
       - 'docs/audits/AUDIT_MASTER_REGISTER.md'
+      - 'docs/audits/AUDIT_CLI_HANDOFF.*'
       - 'docs/ROADMAP.md'
   pull_request:
     branches: [main, develop]
@@ -32,6 +33,7 @@ on:
       - 'docs/audits/AUDIT-2-*.md'
       - 'docs/audits/AUDIT-2-*.json'
       - 'docs/audits/AUDIT_MASTER_REGISTER.md'
+      - 'docs/audits/AUDIT_CLI_HANDOFF.*'
       - 'docs/ROADMAP.md'
   schedule:
     - cron: '47 4 * * 1'
@@ -70,6 +72,35 @@ jobs:
           if-no-files-found: ignore
           retention-days: 30
 
+  critical-path-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.18.3
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile --reporter=silent
+      - name: Generate Prisma client
+        run: pnpm prisma:generate
+      - name: Run critical-path regression suite
+        run: |
+          set -o pipefail
+          pnpm audit:critical-path 2>&1 | tee audit-2-critical-path.log
+      - name: Upload critical-path evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-2-critical-path-log
+          path: audit-2-critical-path.log
+          if-no-files-found: ignore
+          retention-days: 30
+
   lint-warning-baseline:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -94,6 +125,22 @@ jobs:
           path: |
             audit-2-artifacts/lint
             audit-2-artifacts/lint-summary.json
+          if-no-files-found: ignore
+          retention-days: 30
+
+  maintainability-baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Capture source maintainability baseline
+        run: node scripts/audit-2-maintainability-baseline.mjs
+      - name: Upload maintainability baseline
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-2-maintainability-baseline
+          path: audit-2-artifacts/maintainability
           if-no-files-found: ignore
           retention-days: 30
 
