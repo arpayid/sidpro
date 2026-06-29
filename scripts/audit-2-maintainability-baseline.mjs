@@ -82,6 +82,13 @@ function sum(files, key) {
   return files.reduce((total, file) => total + file[key], 0);
 }
 
+function filesWithSignal(files, key) {
+  return files
+    .filter((file) => file[key] > 0)
+    .map((file) => ({ path: file.path, count: file[key] }))
+    .sort((left, right) => right.count - left.count || left.path.localeCompare(right.path));
+}
+
 function buildDuplicateGroups(files) {
   const groups = new Map();
   for (const file of files) {
@@ -106,6 +113,15 @@ function markdownTable(rows) {
   ].join('\n');
 }
 
+function signalTable(rows, label) {
+  if (!rows.length) return '_None observed._';
+  return [
+    `| File | ${label} |`,
+    '| --- | ---: |',
+    ...rows.map((file) => `| \`${file.path}\` | ${file.count} |`),
+  ].join('\n');
+}
+
 const sourceFiles = sourceRoots.flatMap((root) => walk(resolve(repositoryRoot, root))).sort();
 const files = sourceFiles.map(analyzeFile);
 const largestFiles = [...files]
@@ -118,9 +134,17 @@ const controlFlowHotspots = [...files]
       right.controlFlowSignals - left.controlFlowSignals || right.codeLines - left.codeLines || left.path.localeCompare(right.path),
   );
 const duplicateGroups = buildDuplicateGroups(files);
+const signalFiles = {
+  explicitAny: filesWithSignal(files, 'explicitAny'),
+  tsSuppressions: filesWithSignal(files, 'tsSuppressions'),
+  eslintSuppressions: filesWithSignal(files, 'eslintSuppressions'),
+  debuggerStatements: filesWithSignal(files, 'debuggerStatements'),
+  consoleCalls: filesWithSignal(files, 'consoleCalls'),
+  todoMarkers: filesWithSignal(files, 'todoMarkers'),
+};
 
 const summary = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   generatedAt: new Date().toISOString(),
   scope: {
     sourceRoots,
@@ -146,12 +170,13 @@ const summary = {
   },
   largeFiles: largestFiles,
   controlFlowHotspots,
+  signalFiles,
   exactDuplicateGroups: duplicateGroups,
   notes: [
     'This is an inventory baseline, not a release-blocking complexity, duplicate-code, or typed-debt threshold.',
     'controlFlowSignals is a lightweight lexical indicator; it is not cyclomatic or cognitive complexity.',
     'exactDuplicateGroups compares full file content hashes only; it intentionally does not claim semantic duplication.',
-    'explicitAny and suppression counts require manual classification before policy changes.',
+    'Signal inventories show file counts, not source-line attribution; manual classification remains required before policy changes.',
   ],
 };
 
@@ -170,7 +195,15 @@ writeFileSync(
     markdownTable(largestFiles) +
     `\n\n## Heuristic Control-Flow Hotspots (>= ${hotspotSignalThreshold} signals)\n\n` +
     markdownTable(controlFlowHotspots) +
-    `\n\n## Exact Duplicate File Groups\n\n` +
+    `\n\n## Files With Console Calls\n\n` +
+    signalTable(signalFiles.consoleCalls, 'Console calls') +
+    `\n\n## Files With Explicit Typed-Debt or Suppression Signals\n\n` +
+    `### Explicit \`any\`\n\n${signalTable(signalFiles.explicitAny, 'Occurrences')}\n\n` +
+    `### TypeScript suppressions\n\n${signalTable(signalFiles.tsSuppressions, 'Occurrences')}\n\n` +
+    `### ESLint suppressions\n\n${signalTable(signalFiles.eslintSuppressions, 'Occurrences')}\n\n` +
+    `### Debugger statements\n\n${signalTable(signalFiles.debuggerStatements, 'Occurrences')}\n\n` +
+    `### TODO/FIXME/HACK/XXX markers\n\n${signalTable(signalFiles.todoMarkers, 'Occurrences')}\n\n` +
+    `## Exact Duplicate File Groups\n\n` +
     (duplicateGroups.length
       ? duplicateGroups.map((group) => `- ${group.paths.map((path) => `\`${path}\``).join(', ')}`).join('\n')
       : '_None observed._') +
