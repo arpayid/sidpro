@@ -1,6 +1,6 @@
 # AUDIT-2 — Dependency Versioning Policy
 
-**Status:** `Baseline active; Prisma alignment remediation pending`.
+**Status:** `Active — runtime-critical Prisma declarations are aligned in the PR #100 source candidate`.
 
 This policy reduces manifest/lockfile drift without claiming that exact versions alone make dependencies secure or production-ready.
 
@@ -16,23 +16,36 @@ This policy reduces manifest/lockfile drift without claiming that exact versions
 | Dependency class | Manifest policy | Validation requirement |
 | --- | --- | --- |
 | Package manager | Exact `packageManager` version | CI installs with the declared pnpm version. |
-| Prisma runtime group | `prisma` and every direct `@prisma/client` declaration should use one declared version policy and resolve to one tested runtime version | Prisma generate, API/worker build, migration, production-image build, and production smoke must pass. |
-| Security overrides | Each `pnpm.overrides` entry must have a documented reason and removal condition | Security Audit plus AUDIT-2 exception/decision documentation. |
-| Application runtime dependencies | Semver range is permitted only when a package's compatibility policy is known and CI validates the resolved lockfile graph | Lint/type/test/build and affected production-image/smoke gates. |
+| Prisma runtime group | `prisma` and every direct `@prisma/client` declaration use one exact, tested version | Prisma generate, API/worker build, migration, production-image build, and production smoke must pass. |
+| Security overrides | Each `pnpm.overrides` entry has a documented rationale and removal/review condition | Security Audit, unignored dependency audit, and affected regression validation. |
+| Application runtime dependencies | Semver range is permitted only when a package compatibility policy is known and CI validates the resolved lockfile graph | Lint/type/test/build and affected production-image/smoke gates. |
 | Shared package dependencies | Must not introduce application dependencies or violate AUDIT-1 boundary rules | AUDIT-1 Architecture Boundaries and package build/typecheck. |
-| Tooling/development dependencies | Range is permitted unless a reproducibility or compatibility issue requires pinning | Locked install and relevant lint/type/test/build gates. |
+| Tooling/development dependencies | Range is permitted unless reproducibility or compatibility requires pinning | Locked install and relevant lint/type/test/build gates. |
 
-## Prisma Alignment Baseline
+## Prisma Alignment Record
 
-The repository currently resolves Prisma client/CLI `6.19.3` in `pnpm-lock.yaml`, while several direct workspace declarations retain the broad range `^6.8.2`. Locked CI installs are reproducible today, but the declarations do not yet express the reviewed resolved baseline consistently.
+PR #100 applies the previously required lockfile-aware remediation:
 
-This is an AUDIT-2 finding, not an accepted silent exception:
+| Declaration | Required source value |
+| --- | --- |
+| Root `dependencies.@prisma/client` | `6.19.3` |
+| Root `devDependencies.prisma` | `6.19.3` |
+| API `dependencies.@prisma/client` | `6.19.3` |
+| Worker `dependencies.@prisma/client` | `6.19.3` |
+| Root `devDependencies.@prisma/client` | Removed; it duplicated the runtime declaration. |
 
-- **Current state:** consistent `6.19.3` resolution in the lockfile; broad Prisma specifiers remain in root/API/worker manifests.
-- **Required remediation:** regenerate `pnpm-lock.yaml` with pnpm `10.18.3` in the same PR that aligns the manifest specifiers, then validate Prisma generation, API/worker build, migrations, production images, and production smoke.
-- **Why it is not changed in this PR:** an exact-specifier edit without a lockfile regeneration would make `pnpm install --frozen-lockfile` fail. This repository task has no trusted checkout capable of generating and reviewing the lockfile update.
+The same PR regenerated `pnpm-lock.yaml` through pnpm `10.18.3`, verified a frozen lockfile installation in an isolated Actions workspace, and requires final CI before merge. No resolved lockfile entry was edited by hand.
 
-`pnpm audit:dependency-policy` publishes the observed declaration set and validates the exception-register linkage. It intentionally reports, but does not fail on, the recorded Prisma declaration drift until a lockfile-aware remediation PR is prepared.
+## Security Override Register
+
+| Override | Reason | Removal condition |
+| --- | --- | --- |
+| `multer >=2.2.0` | Existing repository security floor. | Remove or replace only when the dependency graph no longer requires it and an unignored audit remains clean. |
+| `postcss 8.5.10` | Fixes the #99 Next.js transitive PostCSS advisory. | Remove after a reviewed upstream parent update resolves at least this fixed version and all CI gates pass. |
+| `uuid 11.1.1` | Fixes the #99 ExcelJS transitive UUID advisory. | Remove after a reviewed upstream parent update resolves at least this fixed version and report/export regression gates pass. |
+| `js-yaml 4.2.0` | Fixes the #99 Nest Swagger transitive js-yaml advisory. | Remove after a reviewed upstream parent update resolves at least this fixed version and API/build gates pass. |
+
+The `pnpm audit:dependency-policy` command validates configured suppression identifiers against the exception register and reports Prisma declarations. The standard Security Audit and AUDIT-2 unignored inventory remain the source of vulnerability evidence.
 
 ## Change Procedure
 
