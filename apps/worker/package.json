@@ -25,7 +25,7 @@
     "@sidpro/config": "workspace:*",
     "@types/node": "^22.15.30",
     "@types/nodemailer": "^6.4.17",
-    "eslint": "^9.28.0",
+    "eslint": "^10.6.0",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3",
     "@types/pdfkit": "^0.17.6",
