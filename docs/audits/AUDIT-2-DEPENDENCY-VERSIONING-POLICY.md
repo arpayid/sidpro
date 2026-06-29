@@ -1,6 +1,6 @@
 # AUDIT-2 — Dependency Versioning Policy
 
-**Status:** `Active for runtime-critical dependency groups`.
+**Status:** `Baseline active; Prisma alignment remediation pending`.
 
 This policy reduces manifest/lockfile drift without claiming that exact versions alone make dependencies secure or production-ready.
 
@@ -16,7 +16,7 @@ This policy reduces manifest/lockfile drift without claiming that exact versions
 | Dependency class | Manifest policy | Validation requirement |
 | --- | --- | --- |
 | Package manager | Exact `packageManager` version | CI installs with the declared pnpm version. |
-| Prisma runtime group | `prisma` and every direct `@prisma/client` declaration use the same exact version | Prisma generate, API/worker build, migration, production-image build, and production smoke must pass. |
+| Prisma runtime group | `prisma` and every direct `@prisma/client` declaration should use one declared version policy and resolve to one tested runtime version | Prisma generate, API/worker build, migration, production-image build, and production smoke must pass. |
 | Security overrides | Each `pnpm.overrides` entry must have a documented reason and removal condition | Security Audit plus AUDIT-2 exception/decision documentation. |
 | Application runtime dependencies | Semver range is permitted only when a package's compatibility policy is known and CI validates the resolved lockfile graph | Lint/type/test/build and affected production-image/smoke gates. |
 | Shared package dependencies | Must not introduce application dependencies or violate AUDIT-1 boundary rules | AUDIT-1 Architecture Boundaries and package build/typecheck. |
@@ -24,15 +24,15 @@ This policy reduces manifest/lockfile drift without claiming that exact versions
 
 ## Prisma Alignment Baseline
 
-SIDPRO uses Prisma in root scripts plus API and worker runtime paths. The direct declarations for `prisma` and `@prisma/client` are therefore treated as one runtime-critical group.
+The repository currently resolves Prisma client/CLI `6.19.3` in `pnpm-lock.yaml`, while several direct workspace declarations retain the broad range `^6.8.2`. Locked CI installs are reproducible today, but the declarations do not yet express the reviewed resolved baseline consistently.
 
-Current enforced baseline:
+This is an AUDIT-2 finding, not an accepted silent exception:
 
-- `prisma`: `6.19.3` at the root;
-- `@prisma/client`: `6.19.3` at the root, API, and worker;
-- no other direct workspace declaration may introduce a divergent `prisma` or `@prisma/client` version.
+- **Current state:** consistent `6.19.3` resolution in the lockfile; broad Prisma specifiers remain in root/API/worker manifests.
+- **Required remediation:** regenerate `pnpm-lock.yaml` with pnpm `10.18.3` in the same PR that aligns the manifest specifiers, then validate Prisma generation, API/worker build, migrations, production images, and production smoke.
+- **Why it is not changed in this PR:** an exact-specifier edit without a lockfile regeneration would make `pnpm install --frozen-lockfile` fail. This repository task has no trusted checkout capable of generating and reviewing the lockfile update.
 
-The `pnpm audit:dependency-policy` command checks these declarations and verifies that the documented exception registry matches the configured `ignoreCves` list. The AUDIT-2 workflow runs the check on every relevant pull request, main/develop push, scheduled review, and manual dispatch.
+`pnpm audit:dependency-policy` publishes the observed declaration set and validates the exception-register linkage. It intentionally reports, but does not fail on, the recorded Prisma declaration drift until a lockfile-aware remediation PR is prepared.
 
 ## Change Procedure
 
