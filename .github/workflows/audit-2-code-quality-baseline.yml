@@ -65,7 +65,7 @@ jobs:
           pnpm test:coverage 2>&1 | tee audit-2-test-coverage.log
       - name: Upload coverage baseline log
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: audit-2-test-coverage-log
           path: audit-2-test-coverage.log
@@ -94,7 +94,7 @@ jobs:
           pnpm audit:critical-path 2>&1 | tee audit-2-critical-path.log
       - name: Upload critical-path evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: audit-2-critical-path-log
           path: audit-2-critical-path.log
@@ -119,7 +119,7 @@ jobs:
         run: pnpm audit:lint-baseline
       - name: Upload lint baseline
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: audit-2-lint-baseline
           path: |
@@ -137,7 +137,7 @@ jobs:
         run: node scripts/audit-2-maintainability-baseline.mjs
       - name: Upload maintainability baseline
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: audit-2-maintainability-baseline
           path: audit-2-artifacts/maintainability
@@ -189,7 +189,7 @@ jobs:
             audit-2-artifacts/dependency-exceptions/dependency-exception-inventory.json
       - name: Upload dependency exception inventory
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: audit-2-dependency-exception-inventory
           path: audit-2-artifacts/dependency-exceptions
