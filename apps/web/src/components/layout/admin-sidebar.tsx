@@ -85,7 +85,7 @@ export function AdminSidebar({
     <>
       <div className="flex h-14 items-center gap-2 border-b border-slate-200 px-3">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-emerald-600">
-          <Shield className="h-4 w-4 text-white" />
+          <Shield className="h-4 w-4 text-white" aria-hidden="true" />
         </div>
         {!collapsed && (
           <div className="min-w-0 flex-1">
@@ -100,7 +100,7 @@ export function AdminSidebar({
             className="ml-auto inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 lg:hidden"
             aria-label="Tutup menu"
           >
-            <X className="h-4 w-4" />
+            <X className="h-4 w-4" aria-hidden="true" />
           </button>
         )}
         {onToggleCollapse && !onMobileClose && (
@@ -108,14 +108,14 @@ export function AdminSidebar({
             type="button"
             onClick={onToggleCollapse}
             className="hidden h-8 w-8 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 lg:inline-flex"
-            aria-label="Ciutkan sidebar"
+            aria-label={collapsed ? 'Perluas sidebar' : 'Ciutkan sidebar'}
           >
-            {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+            {collapsed ? <ChevronRight className="h-4 w-4" aria-hidden="true" /> : <ChevronLeft className="h-4 w-4" aria-hidden="true" />}
           </button>
         )}
       </div>
 
-      <nav className="flex-1 space-y-0.5 overflow-y-auto p-2">
+      <nav className="flex-1 space-y-0.5 overflow-y-auto p-2" aria-label="Navigasi administrasi">
         {items.map((item) => {
           const Icon = iconMap[item.icon];
           const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -126,6 +126,7 @@ export function AdminSidebar({
               href={item.href}
               onClick={onMobileClose}
               title={collapsed ? item.label : undefined}
+              aria-current={active ? 'page' : undefined}
               className={cn(
                 'flex items-center gap-3 rounded-md px-2.5 py-2 text-sm font-medium transition-colors',
                 active
@@ -134,7 +135,7 @@ export function AdminSidebar({
                 collapsed && 'justify-center px-2',
               )}
             >
-              <Icon className={cn('h-4 w-4 shrink-0', active && 'text-emerald-600')} />
+              <Icon className={cn('h-4 w-4 shrink-0', active && 'text-emerald-600')} aria-hidden="true" />
               {!collapsed && <span className="truncate">{item.label}</span>}
             </Link>
           );
@@ -150,19 +151,20 @@ export function AdminSidebar({
           'hidden shrink-0 flex-col border-r border-slate-200 bg-white lg:flex',
           collapsed ? 'w-[4.5rem]' : 'w-64',
         )}
+        aria-label="Sidebar administrasi"
       >
         {content}
       </aside>
 
       {mobileOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
+        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Menu administrasi">
           <button
             type="button"
             className="absolute inset-0 bg-slate-900/40"
             onClick={onMobileClose}
-            aria-label="Tutup overlay"
+            aria-label="Tutup overlay menu"
           />
-          <aside className="relative flex h-full w-64 flex-col bg-white shadow-xl">
+          <aside className="relative flex h-full w-64 flex-col bg-white shadow-xl" aria-label="Sidebar administrasi mobile">
             {content}
           </aside>
         </div>
