@@ -8,10 +8,13 @@ Dokumen ini mengatur kapan dan bagaimana roadmap serta register audit SIDPRO har
 | --- | --- |
 | [`docs/ROADMAP.md`](../ROADMAP.md) | Ringkasan status, prioritas, dan blocker audit. |
 | [`docs/audits/AUDIT_MASTER_REGISTER.md`](AUDIT_MASTER_REGISTER.md) | Status audit, bukti, batas klaim, dan kriteria closure. |
+| [`docs/audits/AUDIT_CHANGELOG.md`](AUDIT_CHANGELOG.md) | Riwayat append-only untuk perubahan material, evidence, dan next action. |
+| [`docs/audits/AUDIT_CLI_HANDOFF.json`](AUDIT_CLI_HANDOFF.json) | Queue machine-readable untuk AI provider/operator. |
+| [`docs/audits/AI_PROVIDER_HANDOFF_PROTOCOL.md`](AI_PROVIDER_HANDOFF_PROTOCOL.md) | Kontrak koordinasi lintas provider dan state machine pekerjaan. |
 | `docs/audits/AUDIT-*.md` | Detail temuan, scope, implementasi, dan validasi audit tertentu. |
 | Pull request dan workflow CI | Bukti implementasi dan validasi. |
 
-Bila terdapat perbedaan, detail audit dan bukti PR/CI harus diperiksa terlebih dahulu. `ROADMAP.md` adalah ringkasan, bukan pengganti bukti teknis.
+Bila terdapat perbedaan, detail audit dan bukti PR/CI harus diperiksa terlebih dahulu. `ROADMAP.md` adalah ringkasan, bukan pengganti bukti teknis. Git history adalah sumber canonical untuk revision; provider/agent chat bukan sumber kebenaran.
 
 ## Kapan Pembaruan Wajib Dilakukan
 
@@ -22,9 +25,10 @@ Dokumentasi roadmap wajib diperbarui dalam pull request yang sama bila perubahan
 3. menambah bukti validasi, workflow CI, migration guard, test, runbook, atau observability;
 4. menemukan risiko baru, regresi, blocker, atau batasan yang relevan;
 5. mengubah scope audit, prioritas, atau syarat closure;
-6. mencatat hasil staging/production/restore drill yang sebelumnya belum ada.
+6. mencatat hasil staging/production/restore drill yang sebelumnya belum ada;
+7. memindahkan pekerjaan antara `REPO_CI_READY`, `VPS_REQUIRED`, atau `HUMAN_UAT_REQUIRED`.
 
-Bila pull request tidak berdampak pada roadmap, PR tetap harus menyatakan alasan `No roadmap impact`.
+Bila pull request tidak berdampak pada roadmap, PR tetap harus menyatakan alasan `No roadmap impact` dan mencatat `Change Trace` minimal.
 
 ## Format Wajib di Pull Request
 
@@ -33,48 +37,29 @@ Setiap PR harus memiliki bagian berikut:
 ```md
 ## Roadmap Impact
 
-- Audit: AUDIT-<nomor>, atau `None`
-- Temuan / area: <ID temuan atau deskripsi singkat>
-- Status sebelum: <status dari register>
-- Status sesudah: <status dari register>
-- Bukti validasi: <test, workflow, migration, atau command>
-- Dokumen diperbarui: <path dokumen, atau `None`>
-- No roadmap impact: <alasan, bila Audit = None>
-```
+- Audit: `AUDIT-<number>` atau `None`
+- Finding / area:
+- Status before:
+- Status after:
+- Validation evidence:
+- Documentation updated:
+- No roadmap impact: `N/A` atau alasan singkat
 
-Contoh PR yang menyelesaikan sebagian pekerjaan AUDIT-5:
+## Change Trace
 
-```md
-## Roadmap Impact
-
-- Audit: AUDIT-5
-- Temuan / area: Performance evidence untuk finance report export
-- Status sebelum: In Progress
-- Status sesudah: In Progress
-- Bukti validasi: `EXPLAIN (ANALYZE, BUFFERS)` fixture + CI database test
-- Dokumen diperbarui: `docs/ROADMAP.md`, `docs/audits/AUDIT-5-...md`
-- No roadmap impact: N/A
-```
-
-Contoh PR dependency rutin tanpa perubahan status audit:
-
-```md
-## Roadmap Impact
-
-- Audit: None
-- Temuan / area: None
-- Status sebelum: N/A
-- Status sesudah: N/A
-- Bukti validasi: CI dan Security Audit
-- Dokumen diperbarui: None
-- No roadmap impact: Pembaruan dependency rutin tidak mengubah temuan, scope, status, atau bukti audit.
+- Trace ID:
+- Execution mode: `REPO_DOCS` | `REPO_CI_READY` | `VPS_REQUIRED` | `HUMAN_UAT_REQUIRED`
+- Baseline commit / deployment:
+- Remaining action or closure evidence:
+- Provider / operator provenance: optional
+- Secrets / PII recorded: `None`
 ```
 
 ## Prosedur Pembaruan
 
-### 1. Tentukan audit yang terdampak
+### 1. Tentukan audit dan Trace ID
 
-Gunakan scope dalam `AUDIT_MASTER_REGISTER.md`. Satu PR dapat memengaruhi lebih dari satu audit, misalnya release gate dapat berdampak pada AUDIT-7 dan AUDIT-8.
+Gunakan scope dalam `AUDIT_MASTER_REGISTER.md`. Satu PR dapat memengaruhi lebih dari satu audit, misalnya release gate dapat berdampak pada AUDIT-7 dan AUDIT-8. Gunakan Trace ID stabil yang dapat dipakai provider berikutnya.
 
 ### 2. Perbarui dokumen audit detail
 
@@ -87,15 +72,19 @@ Jika audit memiliki dokumen khusus, perbarui bagian berikut sesuai kebutuhan:
 - pekerjaan tersisa;
 - deployment/staging/production evidence.
 
-Jangan menghapus finding lama hanya karena sudah diperbaiki. Ubah statusnya menjadi `Resolved`, `Mitigated`, atau `Accepted`, lalu tautkan bukti.
+Jangan menghapus finding lama hanya karena sudah diperbaiki. Ubah statusnya menjadi `Resolved in Source`, `Mitigated`, atau `Accepted`, lalu tautkan bukti.
 
-### 3. Perbarui Master Register
+### 3. Tambahkan entry pada Audit Change Ledger
 
-Perbarui status, bukti, batas klaim, atau kriteria closure pada entry audit terkait ketika perubahan bersifat material.
+Untuk setiap perubahan material, tambah entry di `AUDIT_CHANGELOG.md` dengan status before/after, scope, evidence, next action, execution mode, dan konfirmasi tidak ada secret/PII. Jangan menghapus entry lama; gunakan entry koreksi baru bila ada informasi yang berubah.
 
-### 4. Perbarui Roadmap Ringkas
+### 4. Perbarui Master Register dan Handoff
 
-Perbarui `docs/ROADMAP.md` jika salah satu hal berikut berubah:
+Perbarui status, bukti, batas klaim, kriteria closure, marker, execution mode, atau next action pada `AUDIT_MASTER_REGISTER.md` dan `AUDIT_CLI_HANDOFF.*` bila perubahan bersifat material.
+
+### 5. Perbarui Roadmap Ringkas
+
+Perbarui `docs/ROADMAP.md` bila salah satu hal berikut berubah:
 
 - status audit;
 - urutan prioritas;
@@ -103,7 +92,7 @@ Perbarui `docs/ROADMAP.md` jika salah satu hal berikut berubah:
 - klaim readiness;
 - rujukan dokumen baru.
 
-### 5. Isi Roadmap Impact pada PR
+### 6. Isi Roadmap Impact dan Change Trace pada PR
 
 Bagian ini wajib diisi meskipun jawabannya `None`. Reviewer harus dapat membedakan perubahan tanpa dampak roadmap dari perubahan yang lupa dicatat.
 
@@ -113,21 +102,17 @@ Bagian ini wajib diisi meskipun jawabannya `None`. Reviewer harus dapat membedak
 - `In Progress` tidak berarti semua temuan sudah diketahui; temuan baru harus dicatat saat ditemukan.
 - `Blocked by Environment` harus menyebut environment/data/akses yang hilang dan bukti yang tertunda.
 - `Validation Pending` hanya boleh digunakan bila implementasi sudah ada tetapi evidence yang disyaratkan belum tersedia.
+- `Resolved in Source` tidak mengklaim staging/production validation.
 - `Closed` harus menyebut dokumen closure, bukti validasi, dan tanggal/commit closure.
 
-## Batasan Automation Saat Ini
+## Automation dan Batasannya
 
-Pada baseline policy ini, pengisian Roadmap Impact difasilitasi oleh template PR dan dicek saat review. Belum ada workflow CI yang memverifikasi ketepatan isi status atau memastikan semua perubahan teknis harus menyentuh file roadmap.
-
-Automation semacam itu dapat ditambahkan kemudian, tetapi tidak boleh memaksa update roadmap untuk perubahan yang benar-benar tidak berdampak. Kualitas isi tetap memerlukan review manusia.
-
-## Review Checklist
-
-Reviewer perubahan yang relevan dengan audit harus memeriksa:
+PR documentation gate memeriksa keberadaan heading `Roadmap Impact` dan `Change Trace`. Gate ini mencegah handoff kosong, tetapi tidak dapat membuktikan ketepatan semantik status atau kualitas evidence. Reviewer tetap harus memeriksa:
 
 - audit yang dipilih sesuai scope;
 - status sebelum/sesudah tidak bertentangan dengan register;
 - bukti validasi benar-benar ada;
-- dokumen detail dan roadmap ringkas konsisten;
+- dokumen detail, roadmap, handoff, dan ledger konsisten;
 - klaim `Closed` memenuhi kriteria closure;
-- blocker atau environment limitation tidak disembunyikan.
+- blocker atau environment limitation tidak disembunyikan;
+- provider tidak memasukkan secret atau PII.
