@@ -13,9 +13,13 @@ export function createEmailAdapter(): EmailAdapter {
   }
 
   if (process.env.NODE_ENV === 'production') {
-    throw new Error(
-      'SMTP_HOST is required in production unless EMAIL_TRANSPORT=disabled is explicitly configured.',
+    console.error(
+      JSON.stringify({
+        event: 'email_delivery_disabled',
+        reason: 'smtp_host_missing',
+      }),
     );
+    return createDisabledEmailAdapter();
   }
 
   return createConsoleEmailAdapter();
