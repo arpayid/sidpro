@@ -1,0 +1,39 @@
+name: AUDIT-6 Staging Probe
+
+on:
+  workflow_dispatch:
+    inputs:
+      staging_web_url:
+        description: 'Required base URL for the persistent staging web application (for example https://staging.example.id)'
+        required: true
+        type: string
+      staging_api_url:
+        description: 'Optional base URL for the persistent staging API; health is checked when supplied'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  non-destructive-network-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      STAGING_WEB_URL: ${{ inputs.staging_web_url }}
+      STAGING_API_URL: ${{ inputs.staging_api_url }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+      - name: Probe public, login, and unauthenticated admin endpoints
+        run: node scripts/audit-6-staging-smoke.mjs
+      - name: Upload sanitized staging probe evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-6-staging-probe
+          path: audit-6-artifacts/staging-probe/result.json
+          if-no-files-found: ignore
+          retention-days: 30
