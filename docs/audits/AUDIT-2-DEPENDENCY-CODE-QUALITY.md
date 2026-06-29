@@ -56,7 +56,9 @@ The lint baseline captures per-workspace ESLint JSON. It records 0 errors and 0 
 
 ### A2-P6 Resolved as Baseline — Maintainability had no repeatable evidence
 
-`audit-2-maintainability-baseline.mjs` now captures a reproducible inventory and writes JSON/Markdown artifacts. It intentionally reports rather than fails on size, lexical control-flow signals, exact duplicate files, typed debt, suppressions, console usage, and TODO markers. The triage/rachet prerequisites are documented in [Maintainability Policy](AUDIT-2-MAINTAINABILITY-POLICY.md).
+`audit-2-maintainability-baseline.mjs` now captures a reproducible inventory and writes JSON/Markdown artifacts. Its first artifact scanned **292 source files / 28,307 code lines** and found **0 explicit `any`, 0 TypeScript/ESLint suppressions, 0 debugger statements, 0 TODO/FIXME markers, and 0 exact duplicate-file groups**. It recorded 22 console calls for classification and identified letters/auth/complaints/tenant/population services plus several admin pages as review candidates; issue #107 owns that triage.
+
+The baseline intentionally reports rather than fails on size, lexical control-flow signals, exact duplicate files, typed debt, suppressions, console usage, and TODO markers. The triage/rachet prerequisites are documented in [Maintainability Policy](AUDIT-2-MAINTAINABILITY-POLICY.md).
 
 **Limit:** lexical control-flow signals are not cognitive/cyclomatic complexity, and exact-file hashes are not semantic duplicate detection. A third-party scanner will not become a required gate until its false-positive process and ownership model are accepted.
 
@@ -75,9 +77,9 @@ The AUDIT-2 workflow runs on relevant PRs/pushes, weekly, and manually. It retai
 
 ## Validation Pending
 
-1. Confirm this PR's expanded workflow passes on the final head and inspect the first maintainability artifact for owned follow-up work.
+1. Confirm this PR's expanded workflow passes on the final head.
 2. Review at least one further coverage and maintainability trend before proposing a ratchet.
-3. Classify any new `any`, suppression, console, large-file, or lexical-hotspot changes using the documented triage process.
+3. Triage issue #107 and classify any new `any`, suppression, console, large-file, or lexical-hotspot changes using the documented policy.
 4. Continue source evidence reconciliation when dependencies or runtime-critical workflows change.
 
 ## Closure Criteria
