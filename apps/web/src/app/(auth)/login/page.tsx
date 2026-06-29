@@ -57,7 +57,7 @@ function LoginForm() {
   }, [enrollmentToken, enrollSetup]);
 
   async function completeLogin(data: LoginResponse) {
-    setAuthSession(data.accessToken, data.refreshToken, data.user);
+    setAuthSession(data.accessToken, data.user);
     router.push(callbackUrl);
   }
 
