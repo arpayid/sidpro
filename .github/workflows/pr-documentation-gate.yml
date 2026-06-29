@@ -16,7 +16,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Require completed roadmap impact and change trace
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const body = context.payload.pull_request.body || '';
