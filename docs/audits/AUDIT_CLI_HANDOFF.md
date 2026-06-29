@@ -34,7 +34,7 @@ Setiap audit yang belum `Closed` memiliki marker dengan format berikut:
 | `[[AI-CLI|AUDIT-0|IN_PROGRESS|REPO_DOCS]]` | P3 | Jaga konsistensi register, roadmap, marker, dan bukti audit. |
 | `[[AI-CLI|AUDIT-1|VALIDATION_PENDING|VPS_REQUIRED]]` | P1 | Validasi topology web/API/worker, health, queue, storage, dan config pada staging persisten. |
 | `[[AI-CLI|AUDIT-2|IN_PROGRESS|REPO_CI_READY]]` | P1 | Coverage baseline kedua, critical-path expectation, dan assessment maintainability. |
-| `[[AI-CLI|AUDIT-3|IN_PROGRESS|REPO_CI_READY]]` | P1 | Selesaikan #102: bounded pagination, negative test, lalu exception register authorization serta compatibility/idempotency contract. |
+| `[[AI-CLI|AUDIT-3|VALIDATION_PENDING|VPS_REQUIRED]]` | P1 | Jalankan authorization-negative, cross-tenant, retry/concurrency, public-route abuse, dan reverse-proxy rate-limit validation pada staging. |
 | `[[AI-CLI|AUDIT-4|EVIDENCE_PARTIAL|REPO_CI_READY]]` | P2 | Threat model dan inventory public endpoint/security controls. |
 | `[[AI-CLI|AUDIT-5|VALIDATION_PENDING|VPS_REQUIRED]]` | P1 | Query plan nyata, preflight historis, cross-tenant negative test, dan recovery drill. |
 | `[[AI-CLI|AUDIT-6|NOT_FORMALLY_ASSESSED|REPO_CI_READY]]` | P2 | Inventory dan audit frontend/responsiveness/accessibility. |
@@ -47,18 +47,18 @@ Setiap audit yang belum `Closed` memiliki marker dengan format berikut:
 
 ### Dapat dikerjakan sekarang tanpa VPS
 
-1. `[[AI-CLI|AUDIT-3|IN_PROGRESS|REPO_CI_READY]]` — selesaikan issue #102 sebelum mengubah status AUDIT-3.
-2. `[[AI-CLI|AUDIT-2|IN_PROGRESS|REPO_CI_READY]]` — coverage kedua serta maintainability assessment.
-3. `[[AI-CLI|AUDIT-4|EVIDENCE_PARTIAL|REPO_CI_READY]]` — threat model sesudah API inventory stabil.
-4. `[[AI-CLI|AUDIT-6|NOT_FORMALLY_ASSESSED|REPO_CI_READY]]` — inventory frontend.
+1. `[[AI-CLI|AUDIT-2|IN_PROGRESS|REPO_CI_READY]]` — coverage kedua dan assessment maintainability.
+2. `[[AI-CLI|AUDIT-4|EVIDENCE_PARTIAL|REPO_CI_READY]]` — threat model memanfaatkan inventory API AUDIT-3.
+3. `[[AI-CLI|AUDIT-6|NOT_FORMALLY_ASSESSED|REPO_CI_READY]]` — inventory frontend.
 
 ### Dikerjakan segera setelah VPS/staging tersedia
 
 1. `[[AI-CLI|AUDIT-1|VALIDATION_PENDING|VPS_REQUIRED]]`
-2. `[[AI-CLI|AUDIT-5|VALIDATION_PENDING|VPS_REQUIRED]]`
-3. `[[AI-CLI|AUDIT-7|EVIDENCE_PARTIAL|VPS_REQUIRED]]`
-4. `[[AI-CLI|AUDIT-8|EVIDENCE_PARTIAL|VPS_REQUIRED]]`
-5. `[[AI-CLI|AUDIT-9|NOT_FORMALLY_ASSESSED|VPS_REQUIRED]]`
+2. `[[AI-CLI|AUDIT-3|VALIDATION_PENDING|VPS_REQUIRED]]`
+3. `[[AI-CLI|AUDIT-5|VALIDATION_PENDING|VPS_REQUIRED]]`
+4. `[[AI-CLI|AUDIT-7|EVIDENCE_PARTIAL|VPS_REQUIRED]]`
+5. `[[AI-CLI|AUDIT-8|EVIDENCE_PARTIAL|VPS_REQUIRED]]`
+6. `[[AI-CLI|AUDIT-9|NOT_FORMALLY_ASSESSED|VPS_REQUIRED]]`
 
 ## VPS Preflight Minimum
 
