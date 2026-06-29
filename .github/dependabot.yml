@@ -11,13 +11,9 @@ updates:
         update-types:
           - patch
     ignore:
-      # UUID v12+ is ESM-only; the API and ExcelJS report/export path remain CommonJS.
-      # A future major upgrade requires an explicit compatibility migration and regression evidence.
       - dependency-name: uuid
         update-types:
           - version-update:semver-major
-      # Runtime and tooling major upgrades are handled as planned compatibility work,
-      # not as unattended Dependabot merges.
       - dependency-name: prisma
         update-types:
           - version-update:semver-major
@@ -28,6 +24,12 @@ updates:
         update-types:
           - version-update:semver-major
       - dependency-name: lucide-react
+        update-types:
+          - version-update:semver-major
+      - dependency-name: zod
+        update-types:
+          - version-update:semver-major
+      - dependency-name: typescript
         update-types:
           - version-update:semver-major
 
@@ -42,7 +44,6 @@ updates:
         update-types:
           - patch
     ignore:
-      # Major workflow action upgrades can change action runtimes or script APIs.
       - dependency-name: actions/upload-artifact
         update-types:
           - version-update:semver-major
