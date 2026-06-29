@@ -9,6 +9,8 @@ const requiredSecurityHeaders = {
   'x-permitted-cross-domain-policies': 'none',
 };
 
+const evidenceHeaderNames = ['content-type', ...Object.keys(requiredSecurityHeaders)];
+
 function normalizeBaseUrl(value, name) {
   if (!value) throw new Error(`${name} is required.`);
   let url;
@@ -19,6 +21,9 @@ function normalizeBaseUrl(value, name) {
   }
   if (url.protocol !== 'https:' && url.protocol !== 'http:') {
     throw new Error(`${name} must use http or https.`);
+  }
+  if (url.username || url.password) {
+    throw new Error(`${name} must not include URL credentials.`);
   }
   url.pathname = url.pathname.replace(/\/$/, '');
   url.search = '';
@@ -32,6 +37,10 @@ function endpoint(base, path) {
 
 function headersOf(response) {
   return Object.fromEntries([...response.headers.entries()].sort(([left], [right]) => left.localeCompare(right)));
+}
+
+function evidenceHeadersOf(headers) {
+  return Object.fromEntries(evidenceHeaderNames.map((name) => [name, headers[name] ?? null]));
 }
 
 function assertion(name, condition, detail) {
@@ -118,7 +127,7 @@ async function main() {
   }
 
   const evidence = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     generatedAt: new Date().toISOString(),
     mode: 'non-destructive-network-probe',
     webBase: webBase.toString(),
@@ -128,12 +137,13 @@ async function main() {
       url: result.url,
       status: result.status,
       durationMs: result.durationMs,
-      headers: result.headers,
+      headers: evidenceHeadersOf(result.headers),
       assertions,
     })),
     limits: [
       'This probe does not authenticate, submit forms, upload files, or perform browser/assistive-technology validation.',
       'A passing probe does not close AUDIT-6 or replace issue #108 staging evidence.',
+      'Only content-type and the audited security-header allowlist are recorded. Cookies, authorization material, and all other response headers are excluded.',
       'No credentials, cookies, access tokens, or refresh tokens are recorded by this script.',
     ],
   };
