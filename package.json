@@ -13,7 +13,7 @@
     "audit:architecture": "tsx --test apps/api/test/architecture-boundaries.test.ts",
     "audit:api-route-access": "tsx --test apps/api/test/api-route-access-policy.test.ts",
     "audit:public-route-security": "tsx --test apps/api/test/public-route-security-policy.test.ts",
-    "audit:critical-path": "pnpm --filter @sidpro/api exec tsx --test test/auth-refresh-token.test.ts test/tenants-authorization.test.ts test/budget-realization-ledger.test.ts test/reports-tenant-isolation.test.ts test/letters-validation.test.ts test/pagination-query-validation.middleware.test.ts test/api-route-access-policy.test.ts test/public-route-security-policy.test.ts && pnpm --filter @sidpro/worker exec tsx --test test/storage-cleanup.test.ts",
+    "audit:critical-path": "pnpm --filter @sidpro/types build && pnpm --filter @sidpro/validators build && pnpm --filter @sidpro/ui build && pnpm --filter @sidpro/api exec tsx --test test/auth-refresh-token.test.ts test/tenants-authorization.test.ts test/budget-realization-ledger.test.ts test/reports-tenant-isolation.test.ts test/letters-validation.test.ts test/pagination-query-validation.middleware.test.ts test/api-route-access-policy.test.ts test/public-route-security-policy.test.ts && pnpm --filter @sidpro/worker exec tsx --test test/storage-cleanup.test.ts",
     "audit:dependency-policy": "node scripts/audit-2-dependency-policy.mjs && node scripts/audit-2-dependency-exceptions.mjs verify",
     "audit:lint-baseline": "node scripts/audit-2-lint-baseline.mjs",
     "audit:maintainability-baseline": "node scripts/audit-2-maintainability-baseline.mjs",
