@@ -30,7 +30,7 @@ This PR upgrades the reporter to schema version 2 so the artifact exposes **per-
 | API bootstrap (`apps/api/src/main.ts`) | Structured runtime bootstrap logging | Accepted. The message includes only the bind port; no secret/token data. |
 | Worker queue lifecycle (`apps/worker/src/index.ts`) | Structured operational logging | Accepted. Queue health/failure events are required for runtime observability; JSON events and bounded error messages are retained. |
 | Admin error boundary (`apps/web/src/app/(admin)/error.tsx`) | Sanitized browser diagnostic | Accepted for now. It logs only the Next digest, not raw error detail. Browser telemetry integration should replace direct console reporting when observability is introduced. |
-| Console email adapter (`apps/worker/src/email/console.adapter.ts`) | Development-only expected output | **Remediated in this PR:** factory now rejects the console transport in production when `SMTP_HOST` is absent, preventing email body output to production logs. |
+| Console email adapter (`apps/worker/src/email/console.adapter.ts`) | Development-only expected output | **Remediated in this PR:** console transport is not selected in production. Without SMTP, the worker switches to a no-delivery adapter and emits only a sanitized `email_delivery_disabled` event; recipient, subject, and body are never logged. Explicit `EMAIL_TRANSPORT=disabled` is supported for controlled smoke/maintenance environments. |
 | Scripts outside the source baseline | Expected CLI output | Out of the maintainability source-root scope; retain only as operational script output and review separately when script policies are introduced. |
 
 ## Signals With No Current Source Findings
