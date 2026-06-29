@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "registryOwner": "arpayid",
+  "policy": {
+    "reviewCadence": "weekly scheduled audit plus review before expiry",
+    "maxTemporaryExceptionDays": 90,
+    "verificationMode": "unignored pnpm audit JSON is retained as a CI artifact"
+  },
+  "exceptions": []
+}

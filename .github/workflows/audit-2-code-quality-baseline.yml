@@ -7,12 +7,14 @@ on:
       - 'apps/**'
       - 'packages/**'
       - 'prisma/**'
+      - 'scripts/audit-2-*.mjs'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - 'turbo.json'
       - '.github/workflows/audit-2-code-quality-baseline.yml'
       - 'docs/audits/AUDIT-2-*.md'
+      - 'docs/audits/AUDIT-2-*.json'
       - 'docs/audits/AUDIT_MASTER_REGISTER.md'
       - 'docs/ROADMAP.md'
   pull_request:
@@ -21,15 +23,22 @@ on:
       - 'apps/**'
       - 'packages/**'
       - 'prisma/**'
+      - 'scripts/audit-2-*.mjs'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - 'turbo.json'
       - '.github/workflows/audit-2-code-quality-baseline.yml'
       - 'docs/audits/AUDIT-2-*.md'
+      - 'docs/audits/AUDIT-2-*.json'
       - 'docs/audits/AUDIT_MASTER_REGISTER.md'
       - 'docs/ROADMAP.md'
+  schedule:
+    - cron: '47 4 * * 1'
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   test-coverage-baseline:
@@ -58,5 +67,84 @@ jobs:
         with:
           name: audit-2-test-coverage-log
           path: audit-2-test-coverage.log
+          if-no-files-found: ignore
+          retention-days: 30
+
+  lint-warning-baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.18.3
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile --reporter=silent
+      - name: Capture lint warning inventory
+        run: pnpm audit:lint-baseline
+      - name: Upload lint baseline
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-2-lint-baseline
+          path: |
+            audit-2-artifacts/lint
+            audit-2-artifacts/lint-summary.json
+          if-no-files-found: ignore
+          retention-days: 30
+
+  dependency-exception-inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.18.3
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Install locked dependencies without lifecycle scripts
+        run: pnpm install --frozen-lockfile --ignore-scripts --reporter=silent
+      - name: Validate dependency policy and exception registry
+        run: pnpm audit:dependency-policy
+      - name: Export unignored dependency audit
+        run: |
+          set -euo pipefail
+          mkdir -p audit-2-artifacts/dependency-exceptions
+          cp package.json .audit-2-package.json
+          trap 'mv .audit-2-package.json package.json' EXIT
+          node <<'NODE'
+          const fs = require('node:fs');
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          if (pkg.pnpm) {
+            delete pkg.pnpm.auditConfig;
+          }
+          fs.writeFileSync('package.json', `${JSON.stringify(pkg, null, 2)}\n`);
+          NODE
+          set +e
+          pnpm audit --json \
+            > audit-2-artifacts/dependency-exceptions/unignored-pnpm-audit.json \
+            2> audit-2-artifacts/dependency-exceptions/unignored-pnpm-audit.stderr.log
+          audit_exit_code=$?
+          set -e
+          printf 'pnpm audit exit code without configured suppressions: %s\n' "$audit_exit_code" \
+            > audit-2-artifacts/dependency-exceptions/unignored-pnpm-audit.status.txt
+      - name: Cross-reference exception inventory
+        run: |
+          node scripts/audit-2-dependency-exceptions.mjs inventory \
+            audit-2-artifacts/dependency-exceptions/unignored-pnpm-audit.json \
+            audit-2-artifacts/dependency-exceptions/dependency-exception-inventory.json
+      - name: Upload dependency exception inventory
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-2-dependency-exception-inventory
+          path: audit-2-artifacts/dependency-exceptions
           if-no-files-found: ignore
           retention-days: 30
