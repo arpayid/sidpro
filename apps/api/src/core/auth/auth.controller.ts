@@ -49,6 +49,7 @@ export class AuthController {
     return {
       nodeEnv: process.env.NODE_ENV,
       corsOrigin: process.env.CORS_ORIGIN,
+      refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN,
     };
   }
 
