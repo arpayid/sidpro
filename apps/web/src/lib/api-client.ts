@@ -1,9 +1,7 @@
-import type { ApiResponse } from '@sidpro/types';
-import type { AuthUser } from '@sidpro/types';
+import type { ApiResponse, AuthUser, RefreshSessionResponse } from '@sidpro/types';
 import { API_PREFIX, buildApiUrl, getApiOrigin } from './api-url';
 import {
   getAccessToken,
-  getRefreshToken,
   setAuthSession,
   clearAuthSession,
   getStoredUser,
@@ -39,6 +37,7 @@ let refreshPromise: Promise<string | null> | null = null;
 
 async function fetchAuthProfile(accessToken: string): Promise<AuthUser | null> {
   const res = await fetch(buildApiUrl('/auth/me'), {
+    credentials: 'include',
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   if (!res.ok) return null;
@@ -56,24 +55,24 @@ function profileClaimsChanged(previous: AuthUser | null, next: AuthUser): boolea
 }
 
 export async function syncAuthProfile(): Promise<AuthUser | null> {
-  const accessToken = getAccessToken();
-  const refreshToken = getRefreshToken();
-  if (!accessToken || !refreshToken) return null;
+  let accessToken = getAccessToken();
+  if (!accessToken) {
+    accessToken = await refreshAccessToken();
+    if (!accessToken) return null;
+  }
 
   let profile = await fetchAuthProfile(accessToken);
   if (!profile) {
-    const newToken = await refreshAccessToken();
-    if (!newToken) return null;
+    const refreshedAccessToken = await refreshAccessToken();
+    if (!refreshedAccessToken) return null;
     return getStoredUser();
   }
 
   const stored = getStoredUser();
   if (profileClaimsChanged(stored, profile)) {
-    const newToken = await refreshAccessToken();
-    if (newToken) {
-      profile = (await fetchAuthProfile(newToken)) ?? profile;
-      updateStoredUser(profile);
-      return profile;
+    const refreshedAccessToken = await refreshAccessToken();
+    if (refreshedAccessToken) {
+      profile = (await fetchAuthProfile(refreshedAccessToken)) ?? profile;
     }
   }
 
@@ -85,28 +84,21 @@ async function refreshAccessToken(): Promise<string | null> {
   if (refreshPromise) return refreshPromise;
 
   refreshPromise = (async () => {
-    const refreshToken = getRefreshToken();
-    if (!refreshToken) return null;
-
     try {
       const res = await fetch(buildApiUrl('/auth/refresh'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken }),
+        credentials: 'include',
       });
 
       if (!res.ok) return null;
 
-      const body = (await res.json()) as ApiResponse<{
-        accessToken: string;
-        refreshToken: string;
-      }>;
+      const body = (await res.json()) as ApiResponse<RefreshSessionResponse>;
+      if (!body.data?.accessToken) return null;
 
-      const user = getStoredUser();
-      if (!body.data || !user) return null;
+      const profile = await fetchAuthProfile(body.data.accessToken);
+      if (!profile) return null;
 
-      const profile = (await fetchAuthProfile(body.data.accessToken)) ?? user;
-      setAuthSession(body.data.accessToken, body.data.refreshToken, profile);
+      setAuthSession(body.data.accessToken, profile);
       return body.data.accessToken;
     } catch {
       return null;
@@ -121,8 +113,8 @@ async function refreshAccessToken(): Promise<string | null> {
 function handleUnauthorized() {
   clearAuthSession();
   if (typeof window !== 'undefined') {
-    const callback = window.location.pathname;
-    const login = callback.startsWith('/admin')
+    const callback = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    const login = window.location.pathname.startsWith('/admin')
       ? `/login?callbackUrl=${encodeURIComponent(callback)}`
       : '/login';
     window.location.href = login;
@@ -184,6 +176,7 @@ export async function apiClient<T>(
     (accessToken) =>
       fetch(buildApiUrl(path), {
         ...rest,
+        credentials: rest.credentials ?? 'include',
         headers: mergeHeaders(headers, {
           'Content-Type': shouldSetJsonContentType ? 'application/json' : undefined,
           Authorization: accessToken ? `Bearer ${accessToken}` : undefined,
@@ -218,6 +211,7 @@ export async function apiUpload<T>(
       fetch(buildApiUrl(path), {
         ...rest,
         method: 'POST',
+        credentials: rest.credentials ?? 'include',
         headers: mergeHeaders(headers, {
           Authorization: accessToken ? `Bearer ${accessToken}` : undefined,
         }),
@@ -240,6 +234,7 @@ export async function downloadBinary(path: string, filename: string): Promise<vo
   const response = await requestWithAuthRetry(
     (accessToken) =>
       fetch(buildApiUrl(path), {
+        credentials: 'include',
         headers: mergeHeaders(undefined, {
           Authorization: accessToken ? `Bearer ${accessToken}` : undefined,
         }),
@@ -262,10 +257,10 @@ export async function downloadBinary(path: string, filename: string): Promise<vo
 }
 
 export function buildQuery(params: Record<string, string | number | undefined>): string {
-  const q = new URLSearchParams();
+  const query = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
-    if (value !== undefined && value !== '') q.set(key, String(value));
+    if (value !== undefined && value !== '') query.set(key, String(value));
   }
-  const s = q.toString();
-  return s ? `?${s}` : '';
+  const serialized = query.toString();
+  return serialized ? `?${serialized}` : '';
 }
