@@ -2,13 +2,14 @@
 
 Dokumen ini adalah ringkasan sumber-kebenaran untuk status audit, pekerjaan hardening, dan kesiapan rilis SIDPRO.
 
-> **Prinsip utama:** tidak ada audit yang boleh diberi status `Closed` hanya karena ada satu atau beberapa pull request yang relevan. Status `Closed` memerlukan scope yang terdokumentasi, temuan yang direkonsiliasi, bukti validasi, dan tidak adanya pekerjaan tersisa yang diketahui dalam scope audit tersebut.
+> **Prinsip utama:** tidak ada audit yang boleh diberi status `Closed` hanya karena ada satu atau beberapa pull request yang relevan. Status `Closed` memerlukan scope yang terdokumentasi, temuan yang direkonsiliasi, bukti validasi, dan tidak adanya pekerjaan tersisa yang diketahui dalam scope tersebut.
 
 ## Snapshot Saat Ini
 
 - **Repository:** `arpayid/sidpro`
 - **Source revision reviewed for AUDIT-1:** PR #95 merge commit `df36623615148124b7e52972712496b1f9bb0786`.
-- **AUDIT-2 baseline revisions:** PR #97 merge commit `e64ecd935978f7265c788096929440ec624243c3`, PR #98 merge commit `cf2bba2d5874ef085103d60159bbcdee5844cf91`, and the lockfile-aware remediation candidate in PR #100.
+- **AUDIT-2 baseline revisions:** PR #97 merge commit `e64ecd935978f7265c788096929440ec624243c3`, PR #98 merge commit `cf2bba2d5874ef085103d60159bbcdee5844cf91`, dan PR #100 merge commit `5c8b9ea008b350dfa98433efcb8532e765688cd2` untuk remediation dependency serta Prisma alignment.
+- **AI CLI handoff queue:** semua audit yang belum `Closed` diberi marker dan next action di [AUDIT CLI Handoff](audits/AUDIT_CLI_HANDOFF.md) serta manifest [JSON](audits/AUDIT_CLI_HANDOFF.json).
 - **Tanggal pembaruan bukti:** 29 Juni 2026.
 - **Catatan lingkungan:** belum ada bukti eksekusi pada staging atau production persisten di register ini. Bukti CI Docker/Compose bukan pengganti bukti staging atau production.
 
@@ -29,9 +30,9 @@ Tidak ada status `Closed` dalam baseline ini.
 
 | Audit | Fokus Program | Status Tercatat | Bukti yang Tercatat | Rujukan Detail |
 | --- | --- | --- | --- | --- |
-| AUDIT-0 | Evidence baseline dan tata kelola audit | `In Progress` | Register dan kebijakan pembaruan diperkenalkan oleh dokumen ini. | [Master Register](audits/AUDIT_MASTER_REGISTER.md#audit-0--evidence-baseline-dan-tata-kelola) |
+| AUDIT-0 | Evidence baseline dan tata kelola audit | `In Progress` | Register, kebijakan pembaruan, dan AI CLI handoff marker diperkenalkan oleh dokumentasi audit. | [Master Register](audits/AUDIT_MASTER_REGISTER.md#audit-0--evidence-baseline-dan-tata-kelola) |
 | AUDIT-1 | Repository dan arsitektur | `Validation Pending` | Monorepo inventory, dependency graph, architecture decisions, source/manifest boundary gate, shared core addressing, dan dependency-map review pada source repository telah direkonsiliasi. Focused architecture workflow juga berjalan saat bukti AUDIT-1/roadmap berubah. | [AUDIT-1 Architecture](audits/AUDIT-1-REPOSITORY-ARCHITECTURE.md) |
-| AUDIT-2 | Dependency dan code quality | `In Progress` | Coverage artifact, clean lint baseline, no-active-exception registry, unignored dependency-audit inventory, runtime-critical version policy, and PR #100 lockfile-aware remediation candidate are recorded. The candidate removes three moderate transitive advisory paths and Prisma declaration drift, subject to final required CI gates. Coverage ratchet and maintainability assessment remain open. | [AUDIT-2 Dependency and Code Quality](audits/AUDIT-2-DEPENDENCY-CODE-QUALITY.md) |
+| AUDIT-2 | Dependency dan code quality | `In Progress` | Coverage artifact, clean lint baseline, no-active-exception registry, unignored dependency-audit inventory, runtime-critical version policy, dan PR #100 dependency/Prisma remediation telah tervalidasi CI. Coverage ratchet dan maintainability assessment masih terbuka. | [AUDIT-2 Dependency and Code Quality](audits/AUDIT-2-DEPENDENCY-CODE-QUALITY.md) |
 | AUDIT-3 | API dan domain logic | `Evidence Partial` | Ada perbaikan/regression test terarah, tetapi belum ada inventaris dan closure audit seluruh API/domain. | [Master Register](audits/AUDIT_MASTER_REGISTER.md#audit-3--api-dan-domain-logic) |
 | AUDIT-4 | Security | `Evidence Partial` | Security Audit, dependency scan, secret scan, hardening refresh-token, dan guard permissions tercatat. Audit keamanan menyeluruh belum ditutup. | [Master Register](audits/AUDIT_MASTER_REGISTER.md#audit-4--security) |
 | AUDIT-5 | Database dan tenant integrity | `Validation Pending` | Tenant-link guards, finance ledger, CI query-plan evidence, and cleanup worker retry/health logs are implemented; validation against historical and persistent environments remains open. | [AUDIT-5 Database](audits/AUDIT-5-DATABASE-TENANT-INTEGRITY.md) |
@@ -43,12 +44,12 @@ Tidak ada status `Closed` dalam baseline ini.
 
 ## Prioritas Saat Ini
 
-1. **PR #100 / AUDIT-2:** merge hanya bila CI, Security Audit, AUDIT-1 Architecture Boundaries, dan AUDIT-2 baseline lulus pada commit final. Setelah merge, tutup issue #99 dan simpan hasil gate sebagai bukti remediation dependency dan Prisma alignment.
+1. **AUDIT-3 `REPO_CI_READY`:** mulai inventory controller/endpoint dan audit high-risk API/domain workflow: auth, tenant scope, permissions, input validation, finance, resident lifecycle, reports/export, serta error semantics.
 2. **AUDIT-2 tetap `In Progress`:** catat baseline coverage kedua, tentukan critical-path expectation, lalu bentuk coverage/warning ratchet berbasis data. Mulai assessment duplication/dead-code/complexity dengan false-positive dan triage policy yang jelas.
-3. **AUDIT-1 tetap `Validation Pending`:** saat persistent staging tersedia, validasi dan catat topology proses web/API/worker, health/readiness, konfigurasi runtime, dan contract queue/storage. Source-level dependency review sudah selesai; pekerjaan issue #94 tidak diulang.
-4. **AUDIT-5 tetap `Validation Pending`:** historical-data preflight, real query-plan evidence, object cleanup recovery drill, dan log alert membutuhkan environment persisten.
-5. **Lanjut AUDIT-3 dan AUDIT-4 setelah AUDIT-2 baseline stabil:** pekerjaan hardening terdahulu adalah evidence, bukan closure otomatis.
-6. **Buka AUDIT-9 setelah scope workload disepakati:** query-plan fixture tidak menggantikan benchmark, latency target, export memory profile, atau capacity planning.
+3. **AUDIT-4 `REPO_CI_READY`:** setelah AUDIT-3 inventory terbentuk, lakukan threat model dan public-endpoint inventory agar authorization, rate limit, upload, secrets, serta secure configuration dapat direkonsiliasi secara sistematis.
+4. **AUDIT-1 dan AUDIT-5 `VPS_REQUIRED`:** saat persistent staging tersedia, validasi topology proses, health/readiness, queue/storage, preflight historical data, query plan nyata, cross-tenant negative test, dan recovery drill.
+5. **AUDIT-7 dan AUDIT-8 `VPS_REQUIRED`:** dokumentasikan deployment/rollback/observability dan jalankan restore drill PostgreSQL/MinIO pada environment non-production persisten.
+6. **AUDIT-9 dan AUDIT-10:** tunggu workload/UAT criteria serta environment staging yang memadai; jangan gantikan dengan CI semata.
 
 ## Aturan Pembaruan Roadmap
 
@@ -56,10 +57,14 @@ Setiap pull request harus menyatakan dampak roadmap dengan format yang dijelaska
 
 PR yang tidak mengubah status atau bukti roadmap tetap wajib menyatakan `No roadmap impact` beserta alasan singkat di bagian **Roadmap Impact**.
 
+Setiap audit yang belum `Closed` harus mempertahankan marker, execution mode, dan next action pada [AUDIT CLI Handoff](audits/AUDIT_CLI_HANDOFF.md). Perubahan marker harus memperbarui manifest JSON dan dokumen audit/roadmap yang relevan dalam PR yang sama.
+
 ## Dokumen Terkait
 
 - [Audit Master Register](audits/AUDIT_MASTER_REGISTER.md)
 - [Roadmap Update Policy](audits/ROADMAP_UPDATE_POLICY.md)
+- [AUDIT CLI Handoff](audits/AUDIT_CLI_HANDOFF.md)
+- [AUDIT CLI Handoff Manifest](audits/AUDIT_CLI_HANDOFF.json)
 - [AUDIT-1 — Repository and Architecture](audits/AUDIT-1-REPOSITORY-ARCHITECTURE.md)
 - [AUDIT-1 — Dependency Graph](audits/AUDIT-1-DEPENDENCY-GRAPH.md)
 - [AUDIT-2 — Dependency and Code Quality](audits/AUDIT-2-DEPENDENCY-CODE-QUALITY.md)

@@ -1,0 +1,139 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-06-29",
+  "sourceRevision": "5c8b9ea008b350dfa98433efcb8532e765688cd2",
+  "instructions": {
+    "purpose": "Machine-readable execution queue for AI CLI and VPS-assisted audit work.",
+    "markerFormat": "[[AI-CLI|<AUDIT-ID>|<STATUS>|<EXECUTION-MODE>]]",
+    "safetyRules": [
+      "Read the referenced audit document and ROADMAP before changing source or infrastructure.",
+      "Do not mark an audit Closed based only on static analysis or CI unless its closure criteria explicitly allow it.",
+      "Do not claim staging or production validation without versioned evidence from a persistent environment.",
+      "For VPS_REQUIRED work, verify target host, environment variables, backup state, and rollback path before running destructive commands.",
+      "Update this manifest, the audit document, AUDIT_MASTER_REGISTER.md, and ROADMAP.md in the same PR when a marker, status, or next action changes."
+    ]
+  },
+  "audits": [
+    {
+      "id": "AUDIT-0",
+      "status": "IN_PROGRESS",
+      "marker": "[[AI-CLI|AUDIT-0|IN_PROGRESS|REPO_DOCS]]",
+      "priority": "P3",
+      "executionMode": "REPO_DOCS",
+      "requiresVps": false,
+      "requiresHumanDecision": false,
+      "nextAction": "Keep audit evidence, roadmap status, handoff markers, and closure criteria reconciled in every audit-related PR.",
+      "entrypoint": "docs/audits/AUDIT_MASTER_REGISTER.md"
+    },
+    {
+      "id": "AUDIT-1",
+      "status": "VALIDATION_PENDING",
+      "marker": "[[AI-CLI|AUDIT-1|VALIDATION_PENDING|VPS_REQUIRED]]",
+      "priority": "P1",
+      "executionMode": "VPS_REQUIRED",
+      "requiresVps": true,
+      "requiresHumanDecision": false,
+      "nextAction": "On persistent staging, validate web/API/worker topology, health/readiness, queue/storage contracts, and runtime configuration; commit evidence before considering closure.",
+      "entrypoint": "docs/audits/AUDIT-1-REPOSITORY-ARCHITECTURE.md"
+    },
+    {
+      "id": "AUDIT-2",
+      "status": "IN_PROGRESS",
+      "marker": "[[AI-CLI|AUDIT-2|IN_PROGRESS|REPO_CI_READY]]",
+      "priority": "P1",
+      "executionMode": "REPO_CI_READY",
+      "requiresVps": false,
+      "requiresHumanDecision": false,
+      "nextAction": "Record a comparable second coverage baseline, define critical-path coverage expectations, and assess duplication/dead-code/complexity with an explicit false-positive and triage policy.",
+      "entrypoint": "docs/audits/AUDIT-2-DEPENDENCY-CODE-QUALITY.md"
+    },
+    {
+      "id": "AUDIT-3",
+      "status": "EVIDENCE_PARTIAL",
+      "marker": "[[AI-CLI|AUDIT-3|EVIDENCE_PARTIAL|REPO_CI_READY]]",
+      "priority": "P1",
+      "executionMode": "REPO_CI_READY",
+      "requiresVps": false,
+      "requiresHumanDecision": false,
+      "nextAction": "Create the controller/endpoint inventory and assess authentication, permissions, tenant scope, validation, error mapping, idempotency, and regression coverage for high-risk workflows.",
+      "entrypoint": "docs/audits/AUDIT_MASTER_REGISTER.md#audit-3--api-dan-domain-logic"
+    },
+    {
+      "id": "AUDIT-4",
+      "status": "EVIDENCE_PARTIAL",
+      "marker": "[[AI-CLI|AUDIT-4|EVIDENCE_PARTIAL|REPO_CI_READY]]",
+      "priority": "P2",
+      "executionMode": "REPO_CI_READY",
+      "requiresVps": false,
+      "requiresHumanDecision": false,
+      "nextAction": "Create an application threat model and public-endpoint inventory, then reconcile auth, authorization, rate limit, upload, secret, and configuration controls with tests and deployment requirements.",
+      "entrypoint": "docs/audits/AUDIT_MASTER_REGISTER.md#audit-4--security"
+    },
+    {
+      "id": "AUDIT-5",
+      "status": "VALIDATION_PENDING",
+      "marker": "[[AI-CLI|AUDIT-5|VALIDATION_PENDING|VPS_REQUIRED]]",
+      "priority": "P1",
+      "executionMode": "VPS_REQUIRED",
+      "requiresVps": true,
+      "requiresHumanDecision": false,
+      "nextAction": "Use persistent staging to run historical-data preflight, real query-plan capture, cross-tenant negative tests, storage-cleanup recovery drill, and alert/log verification.",
+      "entrypoint": "docs/audits/AUDIT-5-DATABASE-TENANT-INTEGRITY.md"
+    },
+    {
+      "id": "AUDIT-6",
+      "status": "NOT_FORMALLY_ASSESSED",
+      "marker": "[[AI-CLI|AUDIT-6|NOT_FORMALLY_ASSESSED|REPO_CI_READY]]",
+      "priority": "P2",
+      "executionMode": "REPO_CI_READY",
+      "requiresVps": false,
+      "requiresHumanDecision": false,
+      "nextAction": "Create frontend inventory and audit route protection, tenant-state rendering, form validation, error/loading/empty states, accessibility, and responsive behavior.",
+      "entrypoint": "docs/audits/AUDIT_MASTER_REGISTER.md#audit-6--frontend"
+    },
+    {
+      "id": "AUDIT-7",
+      "status": "EVIDENCE_PARTIAL",
+      "marker": "[[AI-CLI|AUDIT-7|EVIDENCE_PARTIAL|VPS_REQUIRED]]",
+      "priority": "P1",
+      "executionMode": "VPS_REQUIRED",
+      "requiresVps": true,
+      "requiresHumanDecision": false,
+      "nextAction": "Document and exercise persistent-environment deployment, rollback, service supervision, observability, secrets, and release evidence.",
+      "entrypoint": "docs/audits/AUDIT_MASTER_REGISTER.md#audit-7--devops-dan-delivery"
+    },
+    {
+      "id": "AUDIT-8",
+      "status": "EVIDENCE_PARTIAL",
+      "marker": "[[AI-CLI|AUDIT-8|EVIDENCE_PARTIAL|VPS_REQUIRED]]",
+      "priority": "P1",
+      "executionMode": "VPS_REQUIRED",
+      "requiresVps": true,
+      "requiresHumanDecision": false,
+      "nextAction": "Run and preserve a restore drill for PostgreSQL and object storage on a persistent non-production environment, including RPO/RTO observations.",
+      "entrypoint": "docs/audits/AUDIT_MASTER_REGISTER.md#audit-8--backup-dan-recovery"
+    },
+    {
+      "id": "AUDIT-9",
+      "status": "NOT_FORMALLY_ASSESSED",
+      "marker": "[[AI-CLI|AUDIT-9|NOT_FORMALLY_ASSESSED|VPS_REQUIRED]]",
+      "priority": "P2",
+      "executionMode": "VPS_REQUIRED",
+      "requiresVps": true,
+      "requiresHumanDecision": true,
+      "nextAction": "Agree workload, latency, concurrency, and data-volume targets; then benchmark API, reports/exports, worker queues, and capacity on staging infrastructure.",
+      "entrypoint": "docs/audits/AUDIT_MASTER_REGISTER.md#audit-9--performance-dan-scale"
+    },
+    {
+      "id": "AUDIT-10",
+      "status": "EVIDENCE_PARTIAL",
+      "marker": "[[AI-CLI|AUDIT-10|EVIDENCE_PARTIAL|HUMAN_UAT_REQUIRED]]",
+      "priority": "P2",
+      "executionMode": "HUMAN_UAT_REQUIRED",
+      "requiresVps": true,
+      "requiresHumanDecision": true,
+      "nextAction": "Prepare UAT roles, acceptance scenarios, migration/cutover checklist, operator training evidence, and sign-off record in a staging-like environment.",
+      "entrypoint": "docs/audits/AUDIT_MASTER_REGISTER.md#audit-10--uat-dan-commercial-readiness"
+    }
+  ]
+}
