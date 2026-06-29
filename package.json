@@ -11,6 +11,8 @@
     "test": "turbo run test",
     "test:coverage": "pnpm --filter @sidpro/types build && pnpm --filter @sidpro/validators build && pnpm --filter @sidpro/ui build && pnpm --filter @sidpro/api test:coverage && pnpm --filter @sidpro/web test:coverage && pnpm --filter @sidpro/worker test:coverage && pnpm --filter @sidpro/validators test:coverage",
     "audit:architecture": "tsx --test apps/api/test/architecture-boundaries.test.ts",
+    "audit:dependency-policy": "node scripts/audit-2-dependency-policy.mjs && node scripts/audit-2-dependency-exceptions.mjs verify",
+    "audit:lint-baseline": "node scripts/audit-2-lint-baseline.mjs",
     "clean": "turbo run clean && rm -rf node_modules",
     "prisma:validate": "prisma validate --schema=prisma/schema.prisma",
     "prisma:generate": "prisma generate --schema=prisma/schema.prisma",
@@ -21,12 +23,11 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\""
   },
   "devDependencies": {
-    "@prisma/client": "^6.8.2",
     "@sidpro/config": "workspace:*",
     "@types/bcrypt": "^5.0.2",
     "bcrypt": "^6.0.0",
     "prettier": "^3.5.3",
-    "prisma": "^6.8.2",
+    "prisma": "6.19.3",
     "tsx": "^4.19.4",
     "turbo": "^2.5.4",
     "typescript": "^5.8.3"
