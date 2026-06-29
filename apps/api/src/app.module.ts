@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
@@ -31,6 +31,7 @@ import { AssistantModule } from './modules/assistant/assistant.module';
 import { PublicModule } from './modules/public/public.module';
 import { HealthModule } from './health/health.module';
 import { StorageModule } from './core/storage/storage.module';
+import { PaginationQueryValidationMiddleware } from './common/middleware/pagination-query-validation.middleware';
 import { validateEnv } from './config/env.validation';
 
 @Module({
@@ -71,4 +72,8 @@ import { validateEnv } from './config/env.validation';
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(PaginationQueryValidationMiddleware).forRoutes('*');
+  }
+}
