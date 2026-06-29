@@ -33,7 +33,7 @@ Setiap audit yang belum `Closed` memiliki marker:
 | `[[AI-CLI|AUDIT-1|VALIDATION_PENDING|VPS_REQUIRED]]` | P1 | Topology web/API/worker, health, queue, storage, config. |
 | `[[AI-CLI|AUDIT-2|IN_PROGRESS|REPO_CI_READY]]` | P1 | Coverage kedua, critical-path expectation, maintainability. |
 | `[[AI-CLI|AUDIT-3|VALIDATION_PENDING|VPS_REQUIRED]]` | P1 | Authorization, tenant, retry/concurrency, abuse, proxy rate-limit. |
-| `[[AI-CLI|AUDIT-4|VALIDATION_PENDING|VPS_REQUIRED]]` | P1 | Ingress CORS/TLS/header, Swagger, public-route abuse, upload, secret/log validation. |
+| `[[AI-CLI|AUDIT-4|IN_PROGRESS|REPO_CI_READY]]` | P1 | Pilih dan implementasikan HttpOnly session boundary pada #105; kemudian validasi ingress security di staging. |
 | `[[AI-CLI|AUDIT-5|VALIDATION_PENDING|VPS_REQUIRED]]` | P1 | Query plan, historical preflight, cross-tenant, recovery drill. |
 | `[[AI-CLI|AUDIT-6|NOT_FORMALLY_ASSESSED|REPO_CI_READY]]` | P2 | Frontend route/state/accessibility/responsive audit. |
 | `[[AI-CLI|AUDIT-7|EVIDENCE_PARTIAL|VPS_REQUIRED]]` | P1 | Deploy, rollback, supervision, secrets, observability. |
@@ -45,14 +45,15 @@ Setiap audit yang belum `Closed` memiliki marker:
 
 ### Dapat dikerjakan sekarang tanpa VPS
 
-1. `[[AI-CLI|AUDIT-2|IN_PROGRESS|REPO_CI_READY]]` — coverage dan maintainability.
-2. `[[AI-CLI|AUDIT-6|NOT_FORMALLY_ASSESSED|REPO_CI_READY]]` — inventory dan audit frontend.
+1. `[[AI-CLI|AUDIT-4|IN_PROGRESS|REPO_CI_READY]]` — resolve architecture decision issue #105.
+2. `[[AI-CLI|AUDIT-2|IN_PROGRESS|REPO_CI_READY]]` — coverage dan maintainability.
+3. `[[AI-CLI|AUDIT-6|NOT_FORMALLY_ASSESSED|REPO_CI_READY]]` — inventory dan audit frontend.
 
 ### Dikerjakan setelah VPS/staging tersedia
 
 1. `[[AI-CLI|AUDIT-1|VALIDATION_PENDING|VPS_REQUIRED]]`
 2. `[[AI-CLI|AUDIT-3|VALIDATION_PENDING|VPS_REQUIRED]]`
-3. `[[AI-CLI|AUDIT-4|VALIDATION_PENDING|VPS_REQUIRED]]`
+3. `[[AI-CLI|AUDIT-4|IN_PROGRESS|REPO_CI_READY]]` setelah #105 siap diuji.
 4. `[[AI-CLI|AUDIT-5|VALIDATION_PENDING|VPS_REQUIRED]]`
 5. `[[AI-CLI|AUDIT-7|EVIDENCE_PARTIAL|VPS_REQUIRED]]`
 6. `[[AI-CLI|AUDIT-8|EVIDENCE_PARTIAL|VPS_REQUIRED]]`
