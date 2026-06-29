@@ -1,8 +1,8 @@
 # AUDIT-3 — API dan Domain Logic
 
-**Marker:** `[[AI-CLI|AUDIT-3|IN_PROGRESS|REPO_CI_READY]]`
+**Marker:** `[[AI-CLI|AUDIT-3|VALIDATION_PENDING|VPS_REQUIRED]]`
 
-**Status:** `In Progress` — inventory source API, controller-access regression gate, dan bounded pagination validation sudah ditambahkan. Audit belum `Closed`: contract per-endpoint belum seluruhnya dimodelkan, service-level authorization exception belum diregister, dan validasi integration pada environment persisten belum ada.
+**Status:** `Validation Pending` — source-level API/domain audit telah direkonsiliasi: controller inventory, access posture, bounded pagination, authorization exceptions, compatibility/idempotency policy, dan targeted high-risk regression evidence telah didokumentasikan. Closure masih memerlukan persistent staging validation untuk authorization, tenant isolation, concurrency/retry, public-route abuse controls, dan reverse-proxy behavior.
 
 ## Scope
 
@@ -18,19 +18,19 @@ Audit ini tidak mengklaim latency, production routing/proxy trust, deployed iden
 
 ## Evidence Boundary — 29 June 2026
 
-**Source revision reviewed:** `540b15bc161f96007c578a3a5edfa88fc2b4f632` (PR #101 merge commit), plus the AUDIT-3 source changes in this PR.
+**Repository revision before this audit:** `540b15bc161f96007c578a3a5edfa88fc2b4f632` (PR #101 merge commit). The source-level controls described below are introduced or reconciled in the current AUDIT-3 PR and require final CI before merge.
 
 ### Baseline controls observed
 
 | Control | Evidence | Assessment |
 | --- | --- | --- |
-| API prefix and request validation | `main.ts` configures `/api/v1`, global `ValidationPipe`, `whitelist`, `forbidNonWhitelisted`, and transformed payloads. | Baseline framework validation is active. |
-| Global abuse control | `AppModule` registers a default throttler of 100 requests per 60 seconds. | Baseline only; public route-specific policy still needs separate security review. |
-| Explicit auth guard | `JwtAuthGuard` honors `@Public()` and otherwise requires the Passport JWT strategy. | Controllers must opt in because the JWT guard is not registered globally. |
-| Permission guard | `PermissionsGuard` supports any-of and all-of permission decorators. | Guard returns true without permission metadata; route/service conventions are therefore security-critical. |
-| Domain validation | High-risk services use `parseWithZod` schemas for users, tenants, CMS, finance, letters, population/family, assets, territories, social assistance, civil events, BUMDes, files, and settings. | Strong but not yet exhaustively mapped per endpoint. |
-| Global pagination boundary | `PaginationQueryValidationMiddleware` validates any supplied `page`/`limit` against shared bounded schema without changing absent controller defaults. | Remediation for A3-P2, pending final CI. |
-| Tenant enforcement | High-risk services resolve `user.tenantId`, query tenant-scoped records, and return not-found/forbidden outcomes on cross-tenant access. | Confirmed in reviewed CMS, finance, tenant, report/export, and letter workflows; AUDIT-5 remains source of database/runtime tenant-integrity closure. |
+| API prefix and request validation | `main.ts` configures `/api/v1`, global `ValidationPipe`, `whitelist`, `forbidNonWhitelisted`, and transformed payloads. | Framework validation baseline is active. |
+| Global abuse control | `AppModule` registers a default throttler of 100 requests per 60 seconds. | Baseline only; public route-specific policy needs persistent-environment security review. |
+| Explicit auth guard | `JwtAuthGuard` honors `@Public()` and otherwise requires the Passport JWT strategy. | Controllers must opt in because the JWT guard is not global. |
+| Permission guard | `PermissionsGuard` supports any-of and all-of permission decorators. | Route/service conventions remain security-critical when permission metadata is absent. |
+| Domain validation | High-risk services use `parseWithZod` schemas for users, tenants, CMS, finance, letters, population/family, assets, territories, social assistance, civil events, BUMDes, files, and settings. | Strong source evidence; dynamic workflow validation remains pending. |
+| Global pagination boundary | `PaginationQueryValidationMiddleware` validates supplied `page`/`limit` through the shared bounded schema without changing absent controller defaults. | Remediated source-level query gap. |
+| Tenant enforcement | Reviewed services resolve `user.tenantId`, scope reads/mutations, and return not-found/forbidden outcomes for disallowed target records. | Confirmed in CMS, finance, tenant, report/export, and letter workflows; AUDIT-5 owns database/runtime tenant-integrity closure. |
 
 ## Controller Inventory
 
@@ -46,90 +46,74 @@ The repository contains **26** `*.controller.ts` files under `apps/api/src`. The
 
 ### Public route inventory
 
-The public source surface is intentionally limited to health, authentication/refresh/2FA enrollment flows, public map/FAQ/assistant prompts, public CMS/village/development/finance transparency reads, letter QR/track workflows, and complaint public flows. Public route behavior is not inferred merely from a controller name: reviewed routes use `@Public()` explicitly.
+The public source surface is intentionally limited to health, authentication/refresh/2FA enrollment flows, public map/FAQ/assistant prompts, public CMS/village/development/finance transparency reads, letter QR/track workflows, and complaint public flows. Reviewed public routes use `@Public()` explicitly.
 
-## Workflow Review
+## High-Risk Workflow Evidence
 
-### Authentication and authorization
+| Workflow | Source controls | Regression evidence / boundary |
+| --- | --- | --- |
+| Authentication and refresh | Explicit public/login boundaries, JWT-protected account actions, throttled login/refresh, hashed refresh rotation/replay handling. | Existing auth refresh-token tests; AUDIT-4 retains abuse, proxy-IP, and runtime configuration validation. |
+| Tenant management/provisioning | JWT controller, service authorization, tenant hierarchy checks, Zod provisioning schema, transaction, audit log. | `tenants-authorization.test.ts`; exception contract in `AUDIT-3-AUTHORIZATION-EXCEPTIONS.md`. |
+| CMS mutations | JWT/permissions, tenant ownership lookup, Zod schemas, audit events. | CMS service source review; controller guard posture gate. |
+| Finance ledger | JWT/permissions, tenant-owned lookup, Zod validation, transaction, append-only ledger/domain guard, audit events. | Finance ledger and AUDIT-5 tests/evidence; staging concurrency remains pending. |
+| Reports/export | JWT/permissions, `RequireAllPermissions` for exports, query schema for finance/audit reports, tenant-scoped services. | Existing report/export tenant-isolation and query-plan evidence; AUDIT-5 owns persistent data validation. |
+| Letters/public tracking | JWT/permissions for administration, public QR/track throttles, Zod validation before public lookup, PDF storage compensation. | `letters-validation.test.ts` for malformed QR/tracking and tenant-sensitive request lookup. |
 
-- `AuthController` uses explicit `@Public()` only for login, refresh, and two-factor login/enrollment steps; self-service 2FA, logout, and `me` use `JwtAuthGuard`.
-- Role, user, permission, report/export, finance, CMS, population, family, and letter administration routes use `JwtAuthGuard`, `PermissionsGuard`, and relevant permission decorators.
-- Tenant administration includes service-level checks (`assertAccess` / `assertProvisionAccess`) because some decisions depend on superadmin role, settings permission, and tenant hierarchy. These are valid domain checks but are less discoverable than declarative route permissions; the exceptions are recorded below.
-- Reports/export uses `RequireAllPermissions` for export plus domain-specific report authority.
-
-### Validation and error semantics
-
-- `main.ts` rejects unknown DTO fields where class DTO metadata exists.
-- Domain services use Zod parsing for business payloads and normalize validation errors with `parseWithZod`.
-- UUID and report query parameters are validated in reviewed core/report controllers.
-- Public letter tracking and QR verification have regression tests that reject malformed inputs before database access.
-- Supplied `page` or `limit` query parameters are now validated globally through `paginationParameterSchema` (`page >= 1`, `1 <= limit <= 100`) before controllers execute. The middleware normalizes accepted values to decimal strings while leaving missing values untouched, so existing controller defaults remain intact.
-
-### Tenant scope and audit trail
-
-- CMS and finance mutations derive tenant scope from the JWT payload and re-check target records before update/delete.
-- Tenant provisioning resolves hierarchy in the service and logs the provisioning actor and parent tenant.
-- Letter requests validate tenant-bound lookups and public tracking input before tenant lookup.
-- Finance ledger workflow uses validation, tenant-owned lookup, database transaction logic, and audit events; deeper database invariants remain covered by AUDIT-5.
-
-## Findings
+## Findings and Treatment
 
 ### A3-P1 Resolved in CI — Controller access posture had no regression gate
 
-JWT is not a global Nest guard. A controller or route added without `@Public()` or `JwtAuthGuard` could therefore accidentally introduce unauthenticated access if it escaped review.
+JWT is not a global Nest guard. A controller added without `@Public()` or `JwtAuthGuard` could introduce unauthenticated access if it escaped review.
 
-**Treatment:** this PR adds `apps/api/test/api-route-access-policy.test.ts`. The test scans all 26 API controllers and requires every controller to contain an explicit JWT or public-access marker. It deliberately fixes the audited count: a new controller cannot be silently added without updating the AUDIT-3 inventory.
+**Treatment:** `apps/api/test/api-route-access-policy.test.ts` scans all 26 controllers and requires each to declare a JWT or public-access marker. The count is intentional: controller additions/removals require inventory review.
 
-**Limit:** the gate verifies controller-level posture and inventory; it does not replace route-by-route human review, permission semantics, or integration authorization tests.
+**Limit:** this is a controller-level policy gate, not a substitute for route-by-route permission semantics or dynamic authorization tests.
 
-### A3-P2 Remediation applied — Inconsistent raw pagination parsing
+### A3-P2 Resolved in Source — Inconsistent raw pagination parsing
 
-The source review found 13 controllers directly calling `parseInt(page, 10)` / `parseInt(limit, 10)` instead of shared bounded validation. The shared validator package now exposes `paginationParameterSchema`, and `PaginationQueryValidationMiddleware` runs for every HTTP route only when `page` or `limit` is supplied.
+Source review identified 13 controllers using direct `parseInt(page, 10)` / `parseInt(limit, 10)`. `paginationParameterSchema` and `PaginationQueryValidationMiddleware` now validate only supplied pagination parameters globally.
 
-**Behavior:** missing query values are left unchanged, preserving endpoint-specific defaults. Supplied values must be integers with `page >= 1` and `1 <= limit <= 100`; accepted values are normalized, while invalid values raise the standard `VALIDATION_ERROR` response before controller/service execution.
+**Behavior:** absent values are unchanged, preserving each endpoint's existing defaults. Supplied values must be integers with `page >= 1` and `1 <= limit <= 100`; accepted values are canonicalized and invalid values return the standard `VALIDATION_ERROR` envelope before controller/service execution.
 
-**Regression evidence:** `pagination-query-validation.middleware.test.ts` rejects zero, negative, non-numeric, and `limit=101` queries. Issue #102 may be closed only after final required gates pass for this PR.
+**Regression evidence:** `pagination-query-validation.middleware.test.ts` rejects zero, negative, non-numeric, and `limit=101` inputs while confirming absent defaults pass through unchanged.
 
-### A3-P3 Evidence Partial — Authorization is partly service-enforced rather than declarative
+### A3-P3 Resolved in Source — Service-level authorization contracts were undocumented
 
-Tenant provision/list/create/update/delete routes rely on `TenantsService.assertAccess` or `assertProvisionAccess` for superadmin/settings/provision authority. This is a valid defense in depth, and source review found the relevant checks before mutation. However, the permission contract is not consistently visible at the route decorator layer.
+Some tenant routes intentionally use `TenantsService.assertAccess` or `assertProvisionAccess` to express OR-based authority across system role, settings authority, delegated provisioning permission, and tenant hierarchy.
 
-**Treatment:** retain service enforcement; document it as a service-level authorization exception. A future policy gate must either require declarative permission metadata or require an explicit exception annotation with a dedicated regression test.
+**Treatment:** `AUDIT-3-AUTHORIZATION-EXCEPTIONS.md` records route set, authority, rationale, enforcement, test, and review condition. `tenants-authorization.test.ts` rejects an ordinary operator and accepts authorized settings/superadmin/delegated-provision actors.
 
-### A3-P4 Evidence Partial — API compatibility and idempotency policy is not yet formalized
+### A3-P4 Resolved in Policy — API compatibility and idempotency expectations were implicit
 
-Critical invariants have targeted tests (refresh replay, finance ledger, letter transitions, report/export tenant scope), but the repository lacks an API-wide compatibility/versioning policy and a consistent idempotency contract for externally retryable POST operations.
+The repository had targeted domain idempotency/replay controls but no API-wide rule for contract changes or retry behavior.
 
-**Treatment:** scope explicit idempotency keys and retry semantics by operation class during AUDIT-4/security and AUDIT-7/delivery planning; do not retroactively add generic idempotency without domain decisions.
+**Treatment:** `AUDIT-3-API-COMPATIBILITY-IDEMPOTENCY.md` defines `/api/v1` compatibility rules, mandatory change records, and operation-specific retry/idempotency decisions. It explicitly prohibits a generic idempotency middleware until each domain defines tenant/actor binding, request hash, replay behavior, retention, concurrency, and audit semantics.
 
 ## Regression Evidence Added
 
 | Evidence | Purpose |
 | --- | --- |
-| `apps/api/test/api-route-access-policy.test.ts` | Keeps controller inventory explicit and rejects a controller without a JWT or `@Public()` access marker. |
-| `apps/api/test/pagination-query-validation.middleware.test.ts` | Verifies bounded global pagination query validation and unchanged absent-default behavior. |
+| `apps/api/test/api-route-access-policy.test.ts` | Keeps controller inventory explicit and rejects a controller without a JWT or `@Public()` marker. |
+| `apps/api/test/pagination-query-validation.middleware.test.ts` | Verifies bounded global pagination validation and unchanged absent-default behavior. |
+| `apps/api/test/tenants-authorization.test.ts` | Verifies documented service-level tenant management/provision authority. |
 | `PaginationQueryValidationMiddleware` | Rejects invalid supplied pagination parameters before controller/service execution. |
-| Root `audit:api-route-access` command | Runs the focused AUDIT-3 access-inventory policy. |
-| `AUDIT-3 API and Domain Logic` workflow | Runs the focused policy for API source, test, audit-doc, roadmap, and handoff changes. |
+| `AUDIT-3 API and Domain Logic` workflow | Runs the focused route-access policy for relevant API/evidence changes. |
 
-## Required Next Steps
+## Validation Pending Outside Repository
 
-1. Create a route-to-permission exception register for service-level authorization cases such as tenant provisioning/management.
-2. Define API compatibility/error-envelope policy and operation-specific idempotency expectations.
-3. Run high-risk integration scenarios on persistent staging when available: authorization negative cases, tenant isolation, concurrent finance/letter operations, public tracking abuse limits, and reverse-proxy client-IP/rate-limit behavior.
-4. Reconcile AUDIT-3 results with AUDIT-4 threat model and AUDIT-5 database tenant-integrity evidence.
+1. Run authorization-negative and cross-tenant tests against persistent staging with real JWT issuance, reverse proxy, and deployment configuration.
+2. Exercise concurrent/retry behavior for finance realizations, tenant provisioning, letter generation, public tracking, and refresh flows.
+3. Verify client IP/rate-limit identity, public endpoint payload limits, file/upload behavior, and error redaction through the deployed ingress.
+4. Reconcile runtime findings with AUDIT-4 threat model, AUDIT-5 tenant integrity, AUDIT-7 delivery, and AUDIT-9 workload evidence.
 
 ## Closure Criteria
 
-AUDIT-3 may move to `Validation Pending` only when:
+AUDIT-3 may move to `Closed` only when:
 
-1. controller/endpoint inventory, public-route inventory, and access posture are versioned and guarded in CI;
-2. all known raw pagination/query validation gaps are remediated or have owned, time-boxed risk decisions;
-3. authorization exceptions have a route/service contract and regression tests;
-4. high-risk domain workflows have validation and authorization negative tests;
-5. API compatibility/error semantics and idempotency decisions are documented.
-
-AUDIT-3 may move to `Closed` only when the above source evidence is reconciled with persistent staging validation of key workflows and no known in-scope remediation remains.
+1. the source controls above are reconciled with final CI evidence;
+2. persistent staging has recorded authorization, tenant isolation, retry/concurrency, public route abuse, and proxy behavior evidence;
+3. no known in-scope API/domain remediation remains, or each residual risk has approved disposition and review cadence;
+4. related AUDIT-4/AUDIT-5/AUDIT-7 evidence does not reveal a conflicting API/domain finding.
 
 ## Non-Claims
 
@@ -139,7 +123,8 @@ AUDIT-3 may move to `Closed` only when the above source evidence is reconciled w
 
 ## Related Documents
 
-- [AUDIT Master Register](AUDIT_MASTER_REGISTER.md)
+- [Service-Level Authorization Exceptions](AUDIT-3-AUTHORIZATION-EXCEPTIONS.md)
+- [API Compatibility and Idempotency Policy](AUDIT-3-API-COMPATIBILITY-IDEMPOTENCY.md)
 - [AUDIT CLI Handoff](AUDIT_CLI_HANDOFF.md)
 - [AUDIT-2 Dependency and Code Quality](AUDIT-2-DEPENDENCY-CODE-QUALITY.md)
 - [AUDIT-5 Database and Tenant Integrity](AUDIT-5-DATABASE-TENANT-INTEGRITY.md)
