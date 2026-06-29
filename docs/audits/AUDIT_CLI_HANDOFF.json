@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "updatedAt": "2026-06-29",
-  "sourceRevision": "5c8b9ea008b350dfa98433efcb8532e765688cd2",
+  "sourceRevision": "540b15bc161f96007c578a3a5edfa88fc2b4f632",
   "instructions": {
     "purpose": "Machine-readable execution queue for AI CLI and VPS-assisted audit work.",
     "markerFormat": "[[AI-CLI|<AUDIT-ID>|<STATUS>|<EXECUTION-MODE>]]",
@@ -49,14 +49,14 @@
     },
     {
       "id": "AUDIT-3",
-      "status": "EVIDENCE_PARTIAL",
-      "marker": "[[AI-CLI|AUDIT-3|EVIDENCE_PARTIAL|REPO_CI_READY]]",
+      "status": "IN_PROGRESS",
+      "marker": "[[AI-CLI|AUDIT-3|IN_PROGRESS|REPO_CI_READY]]",
       "priority": "P1",
       "executionMode": "REPO_CI_READY",
       "requiresVps": false,
       "requiresHumanDecision": false,
-      "nextAction": "Create the controller/endpoint inventory and assess authentication, permissions, tenant scope, validation, error mapping, idempotency, and regression coverage for high-risk workflows.",
-      "entrypoint": "docs/audits/AUDIT_MASTER_REGISTER.md#audit-3--api-dan-domain-logic"
+      "nextAction": "Resolve issue #102 by applying bounded pagination schemas and negative tests, then document service-level authorization exceptions and API compatibility/idempotency decisions.",
+      "entrypoint": "docs/audits/AUDIT-3-API-DOMAIN-LOGIC.md"
     },
     {
       "id": "AUDIT-4",
