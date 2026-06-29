@@ -2,7 +2,7 @@
 
 **Marker:** `[[AI-CLI|AUDIT-6|VALIDATION_PENDING|VPS_REQUIRED]]`
 
-**Status:** `Validation Pending` — source-level route inventory, callback policy, admin-shell accessibility baseline, and loading/error states are versioned. Browser, assistive-technology, responsive, and deployed-session validation remain required.
+**Status:** `Validation Pending` — source-level route inventory, callback policy, admin-shell accessibility baseline, loading/error states, and safe staging-probe evidence are versioned. Browser, assistive-technology, responsive, and deployed-session validation remain required.
 
 ## Scope
 
@@ -19,7 +19,8 @@ It does not claim WCAG conformance, device-browser coverage, successful screen-r
 | Admin shell | Skip link, focusable main landmark, labelled search and notification controls, semantic nav, active-page state, and mobile dialog semantics. | Source-level accessibility baseline. |
 | Route states | `(admin)/loading.tsx` and `(admin)/error.tsx` provide explicit, recoverable UI states. | Admin segment baseline present. |
 | Role navigation | Sidebar filters items by roles/permissions from auth state. | Presentation only; API guard/service enforcement remains canonical. |
-| Browser credentials | Current auth client stores bearer tokens in `localStorage`. | Cross-audit open security issue #105; not closed by this audit. |
+| Browser credentials | Access token/profile remain only in browser memory; refresh session uses an API-issued host-only `HttpOnly` cookie. | Source remediation merged by PR #115; deployed session behavior remains issue #112. |
+| Staging probe evidence | Artifact records only `content-type` plus audited security-header allowlist and rejects credentialed URLs. | Source/CI remediation merged by PR #118; does not replace browser validation. |
 
 ## Findings and Treatment
 
@@ -49,29 +50,40 @@ Sidebar filtering hides navigation items based on current role/permission claims
 
 **Required staging validation:** test every role navigation map, direct URL attempt, stale permission refresh, tenant switch, logout/login transition, and unauthorized response behavior through the deployed frontend/API boundary.
 
-### A6-P5 Cross-Audit Open — Browser-readable bearer tokens
+### A6-P5 Resolved in Source; Validation Pending — Browser-readable bearer tokens
 
-The frontend auth helper stores access and refresh credentials in browser storage and writes a JavaScript-readable route cookie. This is tracked in AUDIT-4 issue #105. It increases XSS impact and requires a deliberate HttpOnly session-boundary redesign.
+The frontend previously stored access and refresh credentials in browser storage and wrote a JavaScript-readable route cookie. PR #115 replaced that transport with in-memory access state and a rotating `HttpOnly` refresh session cookie; issue #105 is closed.
+
+**Remaining validation:** issue #112 must prove HTTPS cookie scope, origin/CSRF behavior, reverse-proxy/CDN behavior, browser persistence, token absence from storage/DOM/URLs/logs, and rollback behavior on persistent staging.
 
 ### A6-P6 Validation Pending — Responsive and assistive-technology evidence
 
 Source improvements do not prove keyboard focus order, focus trap behavior, screen-reader announcements, contrast, touch targets, 320px/768px/1440px layouts, zoom/reflow, or network/error behavior across real browsers.
+
+### A6-P7 Resolved in Source — Staging probe could persist sensitive headers
+
+PR #118 limits persisted probe evidence to `content-type` and an explicit security-header allowlist. The probe keeps full headers only in process memory for assertions, rejects credentialed URLs, and runs a self-test that proves `Set-Cookie`, authorization headers, and example secrets cannot reach `result.json`.
+
+**Limit:** this safe network probe does not authenticate, submit forms, upload files, or validate browser/accessibility behavior. It cannot close #108, #110, or #112.
 
 ## Required Persistent Staging Validation
 
 1. Test admin and public journeys using keyboard-only navigation, screen reader, zoom/reflow, and target mobile/desktop viewports.
 2. Verify role/permission/tenant navigation, direct URL denial, stale claims, expired session, logout, and callback behavior.
 3. Exercise loading, empty, error, retry, upload, report/export, and public tracking states on realistic latency and failure conditions.
-4. Validate no token/session data is exposed through the DOM, logs, storage, or redirect URLs; reconcile with issue #105.
-5. Record browser/version, viewport, role fixture, commit/deploy, result, sanitized evidence, and follow-up issue for each failed scenario.
+4. Validate no token/session data is exposed through the DOM, logs, storage, or redirect URLs; reconcile with issue #112.
+5. Run the sanitized AUDIT-6 probe and record its artifact together with human browser evidence; probe success alone is not a closure claim.
+6. Record browser/version, viewport, role fixture, commit/deploy, result, sanitized evidence, and follow-up issue for each failed scenario.
 
 ## Closure Criteria
 
-AUDIT-6 may move to `Closed` only when source policy remains green, issue #105 has an approved/implemented disposition, and persistent staging/browser evidence covers role journeys, responsive behavior, accessibility checks, and frontend error states without unowned in-scope findings.
+AUDIT-6 may move to `Closed` only when source policy remains green, issue #112 is closed with persistent staging evidence, and issue #108 covers role journeys, responsive behavior, accessibility checks, and frontend error states without unowned in-scope findings. Issue #110 should automate stable non-destructive paths but does not replace the human browser matrix.
 
 ## Related Documents
 
 - [AUDIT-6 Route and UI Inventory](AUDIT-6-ROUTE-UI-INVENTORY.md)
+- [AUDIT-6 Staging Validation Runbook](AUDIT-6-STAGING-VALIDATION-RUNBOOK.md)
 - [AUDIT-3 API and Domain Logic](AUDIT-3-API-DOMAIN-LOGIC.md)
 - [AUDIT-4 Security](AUDIT-4-SECURITY.md)
 - [AUDIT CLI Handoff](AUDIT_CLI_HANDOFF.md)
+- [Audit Change Ledger](AUDIT_CHANGELOG.md)
