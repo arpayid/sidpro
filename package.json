@@ -23,11 +23,12 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\""
   },
   "devDependencies": {
+    "@prisma/client": "^6.8.2",
     "@sidpro/config": "workspace:*",
     "@types/bcrypt": "^5.0.2",
     "bcrypt": "^6.0.0",
     "prettier": "^3.5.3",
-    "prisma": "6.19.3",
+    "prisma": "^6.8.2",
     "tsx": "^4.19.4",
     "turbo": "^2.5.4",
     "typescript": "^5.8.3"
