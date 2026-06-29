@@ -42,8 +42,14 @@ The same PR regenerated `pnpm-lock.yaml` through pnpm `10.18.3`, verified a froz
 | --- | --- | --- |
 | `multer >=2.2.0` | Existing repository security floor. | Remove or replace only when the dependency graph no longer requires it and an unignored audit remains clean. |
 | `postcss 8.5.10` | Fixes the #99 Next.js transitive PostCSS advisory. | Remove after a reviewed upstream parent update resolves at least this fixed version and all CI gates pass. |
-| `uuid 11.1.1` | Fixes the #99 ExcelJS transitive UUID advisory. | Remove after a reviewed upstream parent update resolves at least this fixed version and report/export regression gates pass. |
+| `uuid 11.1.1` | Fixes the #99 ExcelJS transitive UUID advisory while remaining compatible with the current CommonJS API and ExcelJS report/export path. | Remove or replace only after the upstream parent resolves a compatible fixed version, or after an explicit ESM compatibility migration passes report/export, API build, production-image, and smoke gates. |
 | `js-yaml 4.2.0` | Fixes the #99 Nest Swagger transitive js-yaml advisory. | Remove after a reviewed upstream parent update resolves at least this fixed version and API/build gates pass. |
+
+## UUID Major-Version Compatibility
+
+`uuid` v12 and later are ESM-only. SIDPRO's API is currently compiled as CommonJS, while `exceljs` consumes `uuid` in the report/export dependency path. Therefore the direct API declaration and `pnpm.overrides.uuid` are pinned to `11.1.1`, and Dependabot is configured to ignore `uuid` major-version PRs.
+
+This is not a vulnerability suppression and does not weaken the normal Security Audit. It is a compatibility guard. A future UUID major upgrade must be proposed as a dedicated migration with a module-system decision, upstream compatibility review, lockfile regeneration via declared pnpm, and report/export plus production-smoke evidence.
 
 The `pnpm audit:dependency-policy` command validates configured suppression identifiers against the exception register and reports Prisma declarations. The standard Security Audit and AUDIT-2 unignored inventory remain the source of vulnerability evidence.
 
