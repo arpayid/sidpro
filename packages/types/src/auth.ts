@@ -15,8 +15,11 @@ export interface LoginRequest {
 
 export interface LoginResponse {
   accessToken: string;
-  refreshToken: string;
   user: AuthUser;
+}
+
+export interface RefreshSessionResponse {
+  accessToken: string;
 }
 
 export interface TwoFactorChallengeResponse {
@@ -42,8 +45,4 @@ export interface TwoFactorVerifyLoginRequest {
 export interface TwoFactorSetupResponse {
   secret: string;
   otpauthUrl: string;
-}
-
-export interface RefreshTokenRequest {
-  refreshToken: string;
 }
