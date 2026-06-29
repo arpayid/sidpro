@@ -63,24 +63,21 @@ Klaim audit harus ditautkan ke dokumen scope/temuan, PR merged dengan validasi, 
 
 ## AUDIT-4 — Security
 
-**Status:** `Validation Pending`
+**Status:** `In Progress`
 
 **Scope:** authentication, authorization, session lifecycle, secrets/configuration, public endpoints, rate limiting, uploads, response headers, dependency/secret scans, and dynamic testing.
 
-**Repository-level completion in current PR:**
+**Repository-level evidence in current PR:**
 
 1. Threat model and public endpoint inventory are versioned.
-2. Credentialed CORS normalizes only valid HTTP/HTTPS origins, rejects wildcard origins, and requires production configuration.
-3. API response-header baseline prevents MIME sniffing, framing, referrer leakage, unnecessary browser permissions, and cross-domain policy exposure.
+2. Credentialed CORS accepts only valid HTTP/HTTPS origins, rejects wildcard origins, and requires production configuration.
+3. API and web response-header baselines reduce MIME sniffing, framing, referrer leakage, unnecessary browser permissions, and cross-domain policy exposure.
 4. Public mutations must declare route-specific throttles; focused AUDIT-4 CI enforces this source policy.
 5. Existing file flows retain MIME/size/magic-byte, tenant scope, signed URL, checksum, audit-log, and cleanup controls.
 
-**Validation pending outside repository:**
+**Open source-level remediation:** issue #105. Browser code currently keeps bearer credentials in `localStorage` and uses a JavaScript-readable cookie for middleware routing. This cannot be made `HttpOnly` without an explicit session-boundary redesign. Response headers do not close that risk.
 
-1. Test client IP/rate-limit identity, CORS/TLS/headers, Swagger exposure, and proxy trust at ingress.
-2. Run auth replay/brute-force, public complaint/assistant/letter abuse, and cross-tenant IDOR negative scenarios.
-3. Test upload body limits, malicious corpus, bucket policy, signed URL routing, and runtime log/secret redaction.
-4. Reconcile with AUDIT-3, AUDIT-5, AUDIT-7, and AUDIT-8 staging evidence.
+**Remaining after #105:** persistent staging validation of CORS/TLS/headers, Swagger, proxy trust/client IP, auth abuse, public route abuse, cross-tenant IDOR, upload body/malicious corpus, object-store policy, signed URLs, secret/log redaction, and incident/audit forwarding.
 
 **Non-claim:** source/CI does not prove WAF, proxy, TLS, secret rotation, malware scanning, bucket ACL, or production incident response.
 
