@@ -13,10 +13,10 @@ Klaim audit harus ditautkan ke dokumen scope/temuan, PR merged dengan validasi, 
 | [Architecture](../ARCHITECTURE.md) | Modular monolith, batas modul, dan aturan desain. |
 | [AUDIT-1 Repository and Architecture](AUDIT-1-REPOSITORY-ARCHITECTURE.md) | Inventory, graph, ADR, exception, dan runtime boundary. |
 | [AUDIT-2 Dependency and Code Quality](AUDIT-2-DEPENDENCY-CODE-QUALITY.md) | Coverage/lint/dependency and maintainability controls. |
+| [AUDIT-2 Critical-Path Expectations](AUDIT-2-CRITICAL-PATH-TEST-EXPECTATIONS.md) | Named regression suite and coverage interpretation. |
+| [AUDIT-2 Maintainability Policy](AUDIT-2-MAINTAINABILITY-POLICY.md) | Baseline signals and false-positive triage. |
 | [AUDIT-3 API and Domain Logic](AUDIT-3-API-DOMAIN-LOGIC.md) | Controller inventory, access posture, pagination, domain evidence. |
 | [AUDIT-4 Security](AUDIT-4-SECURITY.md) | Security findings, treatment, and staging validation requirements. |
-| [AUDIT-4 Threat Model](AUDIT-4-THREAT-MODEL.md) | Assets, trust boundaries, threats, and explicit non-decisions. |
-| [AUDIT-4 Public Endpoint Inventory](AUDIT-4-PUBLIC-ENDPOINT-INVENTORY.md) | Explicit public route classes and abuse-control policy. |
 | [AUDIT-5 Database and Tenant Integrity](AUDIT-5-DATABASE-TENANT-INTEGRITY.md) | Tenant/database, query plan, storage cleanup, environment validation. |
 | [Security Audit](../SECURITY_AUDIT.md) | Dependency audit, Gitleaks, and security automation. |
 | [AI CLI Handoff](AUDIT_CLI_HANDOFF.md) | Machine-readable queue and execution modes. |
@@ -43,11 +43,17 @@ Klaim audit harus ditautkan ke dokumen scope/temuan, PR merged dengan validasi, 
 
 ## AUDIT-2 — Dependency dan Code Quality
 
-**Status:** `In Progress`
+**Status:** `Validation Pending`
 
-**Source evidence:** PR #97 coverage artifacts; PR #98 exception/lint governance; PR #100 dependency remediation, Prisma alignment, and pnpm-generated lockfile.
+**Repository-level completion in current PR:**
 
-**Remaining:** comparable coverage baseline, critical-path threshold/ratchet decision, and duplication/dead-code/complexity assessment with false-positive/triage policy.
+1. PR #97/98/100 provide coverage artifacts, dependency exception governance, lint inventory, dependency remediation, and Prisma/lockfile alignment.
+2. A second package-level coverage baseline is recorded; its interpretation accounts for Node test-source denominator changes.
+3. `audit:critical-path` runs named auth, tenant, finance, report/export, letter, API boundary, public-route, and worker storage tests independently of aggregate coverage.
+4. `audit:maintainability-baseline` creates 30-day CI artifacts for source size, lexical control-flow signals, typed debt, suppressions, debug/logging markers, TODOs, and exact duplicate file groups.
+5. Triage policy prohibits mechanical thresholds until trends, exclusions, owners, and false-positive process are reviewed.
+
+**Validation pending:** inspect the first maintainability artifact and one further trend; classify new indicators; reconcile final CI for this PR. Coverage/maintainability gates must remain evidence-driven rather than cosmetic.
 
 ---
 
@@ -65,21 +71,11 @@ Klaim audit harus ditautkan ke dokumen scope/temuan, PR merged dengan validasi, 
 
 **Status:** `In Progress`
 
-**Scope:** authentication, authorization, session lifecycle, secrets/configuration, public endpoints, rate limiting, uploads, response headers, dependency/secret scans, and dynamic testing.
+**Source evidence:** threat model/public endpoint inventory, strict credentialed CORS, API/web response headers, public mutation throttle policy, upload controls, and current Security Audit.
 
-**Repository-level evidence in current PR:**
+**Open source-level remediation:** issue #105; browser-readable bearer credential storage requires an explicit `HttpOnly` session-boundary redesign. Response headers do not close that risk.
 
-1. Threat model and public endpoint inventory are versioned.
-2. Credentialed CORS accepts only valid HTTP/HTTPS origins, rejects wildcard origins, and requires production configuration.
-3. API and web response-header baselines reduce MIME sniffing, framing, referrer leakage, unnecessary browser permissions, and cross-domain policy exposure.
-4. Public mutations must declare route-specific throttles; focused AUDIT-4 CI enforces this source policy.
-5. Existing file flows retain MIME/size/magic-byte, tenant scope, signed URL, checksum, audit-log, and cleanup controls.
-
-**Open source-level remediation:** issue #105. Browser code currently keeps bearer credentials in `localStorage` and uses a JavaScript-readable cookie for middleware routing. This cannot be made `HttpOnly` without an explicit session-boundary redesign. Response headers do not close that risk.
-
-**Remaining after #105:** persistent staging validation of CORS/TLS/headers, Swagger, proxy trust/client IP, auth abuse, public route abuse, cross-tenant IDOR, upload body/malicious corpus, object-store policy, signed URLs, secret/log redaction, and incident/audit forwarding.
-
-**Non-claim:** source/CI does not prove WAF, proxy, TLS, secret rotation, malware scanning, bucket ACL, or production incident response.
+**Remaining after #105:** staging validation of CORS/TLS/headers, Swagger, proxy/client IP, auth/public-route abuse, IDOR, upload/object-store behavior, secret/log redaction, and incident/audit forwarding.
 
 ---
 
