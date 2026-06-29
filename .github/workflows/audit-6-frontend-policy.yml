@@ -1,0 +1,43 @@
+name: AUDIT-6 Frontend Policy
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'apps/web/**'
+      - '.github/workflows/audit-6-frontend-policy.yml'
+      - 'docs/audits/AUDIT-6-*.md'
+      - 'docs/audits/AUDIT_MASTER_REGISTER.md'
+      - 'docs/audits/AUDIT_CLI_HANDOFF.*'
+      - 'docs/ROADMAP.md'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'apps/web/**'
+      - '.github/workflows/audit-6-frontend-policy.yml'
+      - 'docs/audits/AUDIT-6-*.md'
+      - 'docs/audits/AUDIT_MASTER_REGISTER.md'
+      - 'docs/audits/AUDIT_CLI_HANDOFF.*'
+      - 'docs/ROADMAP.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  frontend-policy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.18.3
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts --reporter=silent
+      - name: Verify frontend route and shell policy
+        run: pnpm --filter @sidpro/web exec tsx --test test/route-policy.test.ts test/admin-shell-accessibility-policy.test.ts
