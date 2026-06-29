@@ -1,3 +1,5 @@
+import { parseCredentialedCorsOrigins } from './cors.config';
+
 const DEFAULT_DEVELOPMENT_VALUES: Record<string, string> = {
   JWT_SECRET: 'change-me',
   JWT_ACCESS_EXPIRES_IN: '15m',
@@ -61,6 +63,8 @@ function assertProductionEnv(config: Record<string, unknown>) {
 
     throw new Error(`Invalid production environment configuration (${details}).`);
   }
+
+  parseCredentialedCorsOrigins(config.CORS_ORIGIN as string, 'production');
 }
 
 export function validateEnv(config: Record<string, unknown>) {

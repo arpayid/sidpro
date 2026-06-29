@@ -2,14 +2,20 @@ import { NestFactory } from '@nestjs/core';
 import { BadRequestException, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { parseCredentialedCorsOrigins } from './config/cors.config';
+import { applyApiSecurityHeaders } from './config/security-http.config';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   app.setGlobalPrefix('api/v1');
   app.enableCors({
-    origin: process.env.CORS_ORIGIN?.split(',') ?? ['http://localhost:3000'],
+    origin: parseCredentialedCorsOrigins(process.env.CORS_ORIGIN, process.env.NODE_ENV),
     credentials: true,
+  });
+  app.use((_request: unknown, response: { setHeader(name: string, value: string): void }, next: () => void) => {
+    applyApiSecurityHeaders(response);
+    next();
   });
 
   app.useGlobalPipes(
