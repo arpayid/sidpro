@@ -1,7 +1,6 @@
-import { IsEmail, IsOptional, IsString, Length, MinLength } from 'class-validator';
+import { IsEmail, IsString, Length, MinLength } from 'class-validator';
 
 const TOTP_TOKEN_LENGTH = 6;
-const REFRESH_TOKEN_LENGTH = 128;
 const JWT_MIN_LENGTH = 20;
 
 export class LoginDto {
@@ -11,19 +10,6 @@ export class LoginDto {
   @IsString()
   @MinLength(1)
   password!: string;
-}
-
-export class RefreshTokenDto {
-  @IsString()
-  @Length(REFRESH_TOKEN_LENGTH, REFRESH_TOKEN_LENGTH)
-  refreshToken!: string;
-}
-
-export class LogoutDto {
-  @IsOptional()
-  @IsString()
-  @Length(REFRESH_TOKEN_LENGTH, REFRESH_TOKEN_LENGTH)
-  refreshToken?: string;
 }
 
 export class VerifyTwoFactorLoginDto {
