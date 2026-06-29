@@ -25,16 +25,40 @@
   },
   "reconciliation": [
     {
+      "traceId": "AUDIT-1-ARCHITECTURE-HISTORY",
+      "state": "VALIDATION_PENDING",
+      "evidence": "PR #93 architecture boundary baseline; PR #95 core addressing; PR #96 dependency-map reconciliation",
+      "nextAction": "Persistent staging topology, health, queue/storage, and runtime configuration validation"
+    },
+    {
+      "traceId": "AUDIT-2-QUALITY-HISTORY",
+      "state": "VALIDATION_PENDING",
+      "evidence": "PR #97 baseline; #98 governance; #100 dependency remediation; #106 critical-path and maintainability; #116 triage",
+      "nextAction": "Review schema-v2 maintainability artifact and one further trend; #111 remains non-blocking"
+    },
+    {
+      "traceId": "AUDIT-3-API-DOMAIN-HISTORY",
+      "state": "VALIDATION_PENDING",
+      "evidence": "PR #103 source-level controller, access, pagination, authorization, and compatibility controls",
+      "nextAction": "Persistent staging authorization-negative, tenant, retry/concurrency, public abuse, and proxy validation"
+    },
+    {
+      "traceId": "AUDIT-4-PUBLIC-SECURITY-CONTROLS",
+      "state": "VALIDATION_PENDING",
+      "evidence": "PR #104 threat model, strict credentialed CORS, response headers, and public-mutation throttle policy",
+      "nextAction": "Issue #112 validates ingress, session, CORS/CSRF, rate-limit, storage/log redaction, upload/storage, and rollback"
+    },
+    {
       "traceId": "AUDIT-4-SESSION-BOUNDARY",
       "state": "VALIDATION_PENDING",
       "evidence": "PR #115 merge 474901eb92e8094b2f1b51bd7c0f4068c728d8a0",
       "nextAction": "Issue #112 persistent staging session/security validation"
     },
     {
-      "traceId": "AUDIT-2-MAINTAINABILITY-TRIAGE",
+      "traceId": "AUDIT-5-TENANT-INTEGRITY-HISTORY",
       "state": "VALIDATION_PENDING",
-      "evidence": "PR #116 merge ee9d13e41bdd6a2f0623ad5c58808b120eca2e9a; issue #107 closed",
-      "nextAction": "Review schema-v2 maintainability artifact and one further trend; #111 remains non-blocking"
+      "evidence": "PR #71/#74/#75/#81 guards and PostgreSQL gate; #82/#83 report/export; #85/#87 history lifecycle; #92 query-plan and observability",
+      "nextAction": "Historical preflight, representative-data query capture, worker alerts, recovery drill, and staging migration-lock validation"
     },
     {
       "traceId": "AUDIT-6-STAGING-EVIDENCE",
@@ -45,11 +69,11 @@
   ],
   "audits": [
     {"id":"AUDIT-0","status":"IN_PROGRESS","marker":"[[AI-CLI|AUDIT-0|IN_PROGRESS|REPO_DOCS]]","priority":"P3","executionMode":"REPO_DOCS","requiresVps":false,"requiresHumanDecision":false,"nextAction":"Keep audit evidence, roadmap status, handoff markers, change ledger, and provider handoff records reconciled in every material audit-related PR.","entrypoint":"docs/audits/AUDIT_MASTER_REGISTER.md"},
-    {"id":"AUDIT-1","status":"VALIDATION_PENDING","marker":"[[AI-CLI|AUDIT-1|VALIDATION_PENDING|VPS_REQUIRED]]","priority":"P1","executionMode":"VPS_REQUIRED","requiresVps":true,"requiresHumanDecision":false,"nextAction":"On persistent staging, validate web/API/worker topology, health/readiness, queue/storage contracts, and runtime configuration; version evidence before considering closure.","entrypoint":"docs/audits/AUDIT-1-REPOSITORY-ARCHITECTURE.md"},
-    {"id":"AUDIT-2","status":"VALIDATION_PENDING","marker":"[[AI-CLI|AUDIT-2|VALIDATION_PENDING|REPO_CI_READY]]","priority":"P2","executionMode":"REPO_CI_READY","requiresVps":false,"requiresHumanDecision":false,"nextAction":"Issue #107 is closed by PR #116. Inspect the schema-v2 maintainability artifact and one further trend before proposing a package-specific ratchet; #111 is optional scoped refactor work.","entrypoint":"docs/audits/AUDIT-2-DEPENDENCY-CODE-QUALITY.md"},
-    {"id":"AUDIT-3","status":"VALIDATION_PENDING","marker":"[[AI-CLI|AUDIT-3|VALIDATION_PENDING|VPS_REQUIRED]]","priority":"P1","executionMode":"VPS_REQUIRED","requiresVps":true,"requiresHumanDecision":false,"nextAction":"On persistent staging, record authorization-negative, cross-tenant, retry/concurrency, public-route abuse, and reverse-proxy client-IP/rate-limit validation for the versioned AUDIT-3 source controls.","entrypoint":"docs/audits/AUDIT-3-API-DOMAIN-LOGIC.md"},
-    {"id":"AUDIT-4","status":"VALIDATION_PENDING","marker":"[[AI-CLI|AUDIT-4|VALIDATION_PENDING|VPS_REQUIRED]]","priority":"P1","executionMode":"VPS_REQUIRED","requiresVps":true,"requiresHumanDecision":false,"nextAction":"PR #115 resolved issue #105 in source. Execute issue #112 on persistent staging: HTTPS cookie/session, origin/CORS/CSRF, ingress/TLS/headers, rate-limit identity, storage/log redaction, upload/storage, and rollback validation.","entrypoint":"docs/audits/AUDIT-4-SECURITY.md"},
-    {"id":"AUDIT-5","status":"VALIDATION_PENDING","marker":"[[AI-CLI|AUDIT-5|VALIDATION_PENDING|VPS_REQUIRED]]","priority":"P1","executionMode":"VPS_REQUIRED","requiresVps":true,"requiresHumanDecision":false,"nextAction":"Use persistent staging to run historical-data preflight, real query-plan capture, cross-tenant negative tests, storage-cleanup recovery drill, and alert/log verification.","entrypoint":"docs/audits/AUDIT-5-DATABASE-TENANT-INTEGRITY.md"},
+    {"id":"AUDIT-1","status":"VALIDATION_PENDING","marker":"[[AI-CLI|AUDIT-1|VALIDATION_PENDING|VPS_REQUIRED]]","priority":"P1","executionMode":"VPS_REQUIRED","requiresVps":true,"requiresHumanDecision":false,"nextAction":"PR #93/#95/#96 are documented in the ledger. On persistent staging, validate web/API/worker topology, health/readiness, queue/storage contracts, and runtime configuration; version evidence before considering closure.","entrypoint":"docs/audits/AUDIT-1-REPOSITORY-ARCHITECTURE.md"},
+    {"id":"AUDIT-2","status":"VALIDATION_PENDING","marker":"[[AI-CLI|AUDIT-2|VALIDATION_PENDING|REPO_CI_READY]]","priority":"P2","executionMode":"REPO_CI_READY","requiresVps":false,"requiresHumanDecision":false,"nextAction":"PR #97/#98/#100/#106/#116 are documented in the ledger; issue #107 is closed. Inspect the schema-v2 maintainability artifact and one further trend before proposing a package-specific ratchet; #111 is optional scoped refactor work.","entrypoint":"docs/audits/AUDIT-2-DEPENDENCY-CODE-QUALITY.md"},
+    {"id":"AUDIT-3","status":"VALIDATION_PENDING","marker":"[[AI-CLI|AUDIT-3|VALIDATION_PENDING|VPS_REQUIRED]]","priority":"P1","executionMode":"VPS_REQUIRED","requiresVps":true,"requiresHumanDecision":false,"nextAction":"PR #103 is documented in the ledger. On persistent staging, record authorization-negative, cross-tenant, retry/concurrency, public-route abuse, and reverse-proxy client-IP/rate-limit validation for the versioned AUDIT-3 source controls.","entrypoint":"docs/audits/AUDIT-3-API-DOMAIN-LOGIC.md"},
+    {"id":"AUDIT-4","status":"VALIDATION_PENDING","marker":"[[AI-CLI|AUDIT-4|VALIDATION_PENDING|VPS_REQUIRED]]","priority":"P1","executionMode":"VPS_REQUIRED","requiresVps":true,"requiresHumanDecision":false,"nextAction":"PR #104/#115 are documented in the ledger. Execute issue #112 on persistent staging: HTTPS cookie/session, origin/CORS/CSRF, ingress/TLS/headers, rate-limit identity, storage/log redaction, upload/storage, and rollback validation.","entrypoint":"docs/audits/AUDIT-4-SECURITY.md"},
+    {"id":"AUDIT-5","status":"VALIDATION_PENDING","marker":"[[AI-CLI|AUDIT-5|VALIDATION_PENDING|VPS_REQUIRED]]","priority":"P1","executionMode":"VPS_REQUIRED","requiresVps":true,"requiresHumanDecision":false,"nextAction":"PR #71/#74/#75/#81/#82/#83/#85/#87/#92 are documented in the ledger. Use persistent staging to run historical-data preflight, real query-plan capture, cross-tenant negative tests, storage-cleanup recovery drill, and alert/log verification.","entrypoint":"docs/audits/AUDIT-5-DATABASE-TENANT-INTEGRITY.md"},
     {"id":"AUDIT-6","status":"VALIDATION_PENDING","marker":"[[AI-CLI|AUDIT-6|VALIDATION_PENDING|VPS_REQUIRED]]","priority":"P2","executionMode":"VPS_REQUIRED","requiresVps":true,"requiresHumanDecision":false,"nextAction":"PR #118 made the staging probe evidence safe. Execute issue #108 on persistent staging, then implement issue #110 only for stable non-destructive browser journeys.","entrypoint":"docs/audits/AUDIT-6-FRONTEND.md"},
     {"id":"AUDIT-7","status":"EVIDENCE_PARTIAL","marker":"[[AI-CLI|AUDIT-7|EVIDENCE_PARTIAL|VPS_REQUIRED]]","priority":"P1","executionMode":"VPS_REQUIRED","requiresVps":true,"requiresHumanDecision":false,"nextAction":"Document and exercise persistent-environment deployment, rollback, service supervision, observability, secrets, and release evidence.","entrypoint":"docs/audits/AUDIT_MASTER_REGISTER.md#audit-7--devops-dan-delivery"},
     {"id":"AUDIT-8","status":"EVIDENCE_PARTIAL","marker":"[[AI-CLI|AUDIT-8|EVIDENCE_PARTIAL|VPS_REQUIRED]]","priority":"P1","executionMode":"VPS_REQUIRED","requiresVps":true,"requiresHumanDecision":false,"nextAction":"Run and preserve a restore drill for PostgreSQL and object storage on a persistent non-production environment, including RPO/RTO observations.","entrypoint":"docs/audits/AUDIT_MASTER_REGISTER.md#audit-8--backup-dan-recovery"},
