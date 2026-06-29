@@ -3,12 +3,13 @@ import type { Request, Response } from 'express';
 import { parseCredentialedCorsOrigins } from '../../config/cors.config';
 
 export const REFRESH_SESSION_COOKIE = 'sidpro_refresh_session';
-export const REFRESH_SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+export const REFRESH_SESSION_DEFAULT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 export const REFRESH_SESSION_PATH = '/api/v1/auth';
 
 type SessionEnvironment = {
   nodeEnv?: string;
   corsOrigin?: string;
+  refreshExpiresIn?: string;
 };
 
 function decodeCookieValue(value: string): string | null {
@@ -17,6 +18,23 @@ function decodeCookieValue(value: string): string | null {
   } catch {
     return null;
   }
+}
+
+function refreshSessionMaxAgeMs(refreshExpiresIn?: string): number {
+  const match = /^(\d+)([smhdw])$/.exec(refreshExpiresIn?.trim() ?? '');
+  if (!match) return REFRESH_SESSION_DEFAULT_MAX_AGE_MS;
+
+  const amount = Number(match[1]);
+  const multiplier = {
+    s: 1000,
+    m: 60 * 1000,
+    h: 60 * 60 * 1000,
+    d: 24 * 60 * 60 * 1000,
+    w: 7 * 24 * 60 * 60 * 1000,
+  }[match[2] as 's' | 'm' | 'h' | 'd' | 'w'];
+
+  const value = amount * multiplier;
+  return Number.isSafeInteger(value) && value > 0 ? value : REFRESH_SESSION_DEFAULT_MAX_AGE_MS;
 }
 
 export function readRequestCookie(request: Pick<Request, 'headers'>, name: string): string | null {
@@ -50,7 +68,7 @@ function cookieOptions(environment: SessionEnvironment) {
     secure: environment.nodeEnv === 'production',
     sameSite: 'lax' as const,
     path: REFRESH_SESSION_PATH,
-    maxAge: REFRESH_SESSION_MAX_AGE_MS,
+    maxAge: refreshSessionMaxAgeMs(environment.refreshExpiresIn),
   };
 }
 
