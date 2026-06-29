@@ -1,0 +1,79 @@
+name: AUDIT-2 Dependency Resolution Preview
+
+on:
+  push:
+    branches:
+      - codex/audit-2-dependency-remediation
+    paths:
+      - '.github/workflows/audit-2-dependency-resolution-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.18.3
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Install current locked dependencies
+        run: pnpm install --frozen-lockfile --reporter=silent
+      - name: Apply manifest remediation in ephemeral workspace
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const paths = ['package.json', 'apps/api/package.json', 'apps/worker/package.json'];
+          const read = (path) => JSON.parse(fs.readFileSync(path, 'utf8'));
+          const write = (path, value) => fs.writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`);
+
+          const root = read('package.json');
+          delete root.devDependencies['@prisma/client'];
+          root.devDependencies.prisma = '6.19.3';
+          root.dependencies['@prisma/client'] = '6.19.3';
+          root.pnpm = root.pnpm ?? {};
+          root.pnpm.overrides = {
+            ...(root.pnpm.overrides ?? {}),
+            'postcss': '8.5.10',
+            'uuid': '11.1.1',
+            'js-yaml': '4.2.0',
+          };
+          write('package.json', root);
+
+          for (const path of ['apps/api/package.json', 'apps/worker/package.json']) {
+            const pkg = read(path);
+            pkg.dependencies['@prisma/client'] = '6.19.3';
+            write(path, pkg);
+          }
+          NODE
+      - name: Regenerate lockfile with pnpm 10.18.3
+        run: pnpm install --lockfile-only --reporter=silent
+      - name: Verify regenerated lockfile install
+        run: pnpm install --frozen-lockfile --ignore-scripts --reporter=silent
+      - name: Capture audit after remediation
+        run: |
+          set +e
+          pnpm audit --json > audit-remediation-preview.json 2> audit-remediation-preview.stderr.log
+          status=$?
+          set -e
+          printf 'pnpm audit exit code: %s\n' "$status" > audit-remediation-preview.status.txt
+      - name: Upload generated remediation preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-2-dependency-remediation-preview
+          path: |
+            package.json
+            apps/api/package.json
+            apps/worker/package.json
+            pnpm-lock.yaml
+            audit-remediation-preview.json
+            audit-remediation-preview.stderr.log
+            audit-remediation-preview.status.txt
+          retention-days: 2
