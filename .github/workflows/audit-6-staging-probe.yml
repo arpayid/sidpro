@@ -39,6 +39,8 @@ jobs:
           node-version: 20
       - name: Check staging probe syntax
         run: node --check scripts/audit-6-staging-smoke.mjs
+      - name: Verify evidence redaction contract
+        run: AUDIT_6_STAGING_PROBE_SELF_TEST=1 node scripts/audit-6-staging-smoke.mjs
       - name: Verify missing staging URL fails closed
         run: |
           if node scripts/audit-6-staging-smoke.mjs; then
