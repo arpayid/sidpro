@@ -7,9 +7,8 @@ updates:
       day: monday
     open-pull-requests-limit: 3
     groups:
-      routine-npm-updates:
+      routine-npm-patches:
         update-types:
-          - minor
           - patch
     ignore:
       # UUID v12+ is ESM-only; the API and ExcelJS report/export path remain CommonJS.
@@ -39,9 +38,8 @@ updates:
       day: monday
     open-pull-requests-limit: 3
     groups:
-      routine-github-actions-updates:
+      routine-github-actions-patches:
         update-types:
-          - minor
           - patch
     ignore:
       # Major workflow action upgrades can change action runtimes or script APIs.
