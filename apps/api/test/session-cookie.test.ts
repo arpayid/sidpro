@@ -40,7 +40,7 @@ describe('HttpOnly refresh session cookie boundary', () => {
         },
       } as never,
       'raw-refresh-token',
-      { nodeEnv: 'production' },
+      { nodeEnv: 'production', refreshExpiresIn: '12h' },
     );
 
     const [name, value, options] = calls[0] as [string, string, Record<string, unknown>];
@@ -50,6 +50,7 @@ describe('HttpOnly refresh session cookie boundary', () => {
     assert.equal(options.secure, true);
     assert.equal(options.sameSite, 'lax');
     assert.equal(options.path, REFRESH_SESSION_PATH);
+    assert.equal(options.maxAge, 12 * 60 * 60 * 1000);
   });
 
   it('clears the session cookie with the same path and security attributes', () => {
