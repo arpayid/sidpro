@@ -1,0 +1,49 @@
+name: AUDIT-3 API and Domain Logic
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'apps/api/src/**'
+      - 'apps/api/test/api-route-access-policy.test.ts'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/audit-3-api-domain-policy.yml'
+      - 'docs/audits/AUDIT-3-*.md'
+      - 'docs/audits/AUDIT_MASTER_REGISTER.md'
+      - 'docs/audits/AUDIT_CLI_HANDOFF.*'
+      - 'docs/ROADMAP.md'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'apps/api/src/**'
+      - 'apps/api/test/api-route-access-policy.test.ts'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/audit-3-api-domain-policy.yml'
+      - 'docs/audits/AUDIT-3-*.md'
+      - 'docs/audits/AUDIT_MASTER_REGISTER.md'
+      - 'docs/audits/AUDIT_CLI_HANDOFF.*'
+      - 'docs/ROADMAP.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  route-access-policy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.18.3
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts --reporter=silent
+      - name: Verify controller route access inventory
+        run: pnpm audit:api-route-access

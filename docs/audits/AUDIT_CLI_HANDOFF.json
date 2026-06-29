@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "updatedAt": "2026-06-29",
-  "sourceRevision": "5c8b9ea008b350dfa98433efcb8532e765688cd2",
+  "sourceRevision": "d11c629ea68ee9f343a3bd21678801c5bcb7fbff",
   "instructions": {
     "purpose": "Machine-readable execution queue for AI CLI and VPS-assisted audit work.",
     "markerFormat": "[[AI-CLI|<AUDIT-ID>|<STATUS>|<EXECUTION-MODE>]]",
@@ -49,14 +49,14 @@
     },
     {
       "id": "AUDIT-3",
-      "status": "EVIDENCE_PARTIAL",
-      "marker": "[[AI-CLI|AUDIT-3|EVIDENCE_PARTIAL|REPO_CI_READY]]",
+      "status": "VALIDATION_PENDING",
+      "marker": "[[AI-CLI|AUDIT-3|VALIDATION_PENDING|VPS_REQUIRED]]",
       "priority": "P1",
-      "executionMode": "REPO_CI_READY",
-      "requiresVps": false,
+      "executionMode": "VPS_REQUIRED",
+      "requiresVps": true,
       "requiresHumanDecision": false,
-      "nextAction": "Create the controller/endpoint inventory and assess authentication, permissions, tenant scope, validation, error mapping, idempotency, and regression coverage for high-risk workflows.",
-      "entrypoint": "docs/audits/AUDIT_MASTER_REGISTER.md#audit-3--api-dan-domain-logic"
+      "nextAction": "On persistent staging, record authorization-negative, cross-tenant, retry/concurrency, public-route abuse, and reverse-proxy client-IP/rate-limit validation for the versioned AUDIT-3 source controls.",
+      "entrypoint": "docs/audits/AUDIT-3-API-DOMAIN-LOGIC.md"
     },
     {
       "id": "AUDIT-4",
