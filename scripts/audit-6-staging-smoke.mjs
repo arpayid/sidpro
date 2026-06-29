@@ -169,7 +169,38 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.message : String(error));
-  process.exitCode = 1;
-});
+if (process.env.AUDIT_6_STAGING_PROBE_SELF_TEST === '1') {
+  const sample = evidenceHeadersOf({
+    'content-type': 'text/html; charset=utf-8',
+    'x-content-type-options': 'nosniff',
+    'x-frame-options': 'DENY',
+    'referrer-policy': 'no-referrer',
+    'permissions-policy': 'camera=(), microphone=(), geolocation=()',
+    'x-permitted-cross-domain-policies': 'none',
+    'set-cookie': 'session=super-secret',
+    authorization: 'Bearer super-secret',
+    'proxy-authorization': 'Basic super-secret',
+  });
+  const expectedKeys = [...evidenceHeaderNames].sort();
+  const actualKeys = Object.keys(sample).sort();
+  if (JSON.stringify(actualKeys) !== JSON.stringify(expectedKeys)) {
+    throw new Error('Evidence header allowlist self-test failed.');
+  }
+  if (JSON.stringify(sample).match(/set-cookie|authorization|super-secret/i)) {
+    throw new Error('Evidence header redaction self-test failed.');
+  }
+  try {
+    normalizeBaseUrl('https://user:password@staging.example.test', 'STAGING_WEB_URL');
+    throw new Error('Credentialed URL self-test failed.');
+  } catch (error) {
+    if (!(error instanceof Error) || error.message !== 'STAGING_WEB_URL must not include URL credentials.') {
+      throw error;
+    }
+  }
+  console.log('PASS staging evidence self-test');
+} else {
+  main().catch((error) => {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exitCode = 1;
+  });
+}
