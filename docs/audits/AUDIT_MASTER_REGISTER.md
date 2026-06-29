@@ -30,11 +30,11 @@ Setiap perubahan audit juga harus memiliki jejak pada [Audit Change Ledger](AUDI
 | Audit | Status | Evidence and remaining work |
 | --- | --- | --- |
 | AUDIT-0 | `In Progress` | Keep audit evidence, roadmap, handoff marker, provider handoff, and ledger state reconciled. |
-| AUDIT-1 | `Validation Pending` | Source architecture evidence exists; persistent staging topology/runtime validation remains. |
-| AUDIT-2 | `Validation Pending` | Dependency/lint/coverage/critical-path/maintainability controls exist; PR #116 resolved issue #107. Review schema-v2 artifact and one further trend before a ratchet; issue #111 is non-blocking refactor backlog. |
-| AUDIT-3 | `Validation Pending` | Source API/domain controls exist; persistent staging validation remains. |
-| AUDIT-4 | `Validation Pending` | PR #115 resolved source-level HttpOnly session boundary and closed issue #105. Issue #112 is the persistent staging security gate. |
-| AUDIT-5 | `Validation Pending` | Data/tenant controls exist; persistent preflight, query, and recovery validation remain. |
+| AUDIT-1 | `Validation Pending` | PR #93/#95/#96 establish architecture boundaries, core address ownership, and dependency-map reconciliation; persistent staging topology/runtime validation remains. |
+| AUDIT-2 | `Validation Pending` | PR #97/#98/#100/#106/#116 provide dependency/lint/coverage/critical-path/maintainability controls; issue #107 closed. Review schema-v2 artifact and one further trend before a ratchet; #111 is non-blocking. |
+| AUDIT-3 | `Validation Pending` | PR #103 provides API/domain source controls; persistent authorization, tenant, retry, public-route, and proxy validation remains. |
+| AUDIT-4 | `Validation Pending` | PR #104 public security policy and PR #115 HttpOnly session boundary are merged; issue #112 is the persistent staging security gate. |
+| AUDIT-5 | `Validation Pending` | PR #71/#74/#75/#81/#82/#83/#85/#87/#92 provide tenant guard, DB runtime, report/export, history, and observability evidence; persistent preflight, query, recovery, and operational validation remain. |
 | AUDIT-6 | `Validation Pending` | Route inventory, callback policy, admin shell semantics, loading/error fallbacks, focused CI, and sanitized staging probe controls exist. Issues #108 and #110 require persistent staging/browser evidence. |
 | AUDIT-7 | `Evidence Partial` | Delivery source/CI evidence exists; persistent deployment/rollback/observability validation remains. |
 | AUDIT-8 | `Evidence Partial` | Ephemeral backup/restore evidence exists; persistent restore drill and RPO/RTO evidence remain. |
@@ -45,8 +45,12 @@ Setiap perubahan audit juga harus memiliki jejak pada [Audit Change Ledger](AUDI
 
 | Change | Treatment state | Versioned evidence | Remaining action |
 | --- | --- | --- | --- |
+| Architecture boundary and core address ownership | Source controls merged; audit remains validation pending. | PR #93 executable boundary policy; PR #95 core addressing; PR #96 dependency-map reconciliation. | Persistent staging validates web/API/worker topology, queue/storage contract, health/readiness, and runtime configuration. |
+| Dependency, coverage, and maintainability governance | Repository controls merged; audit remains validation pending. | PR #97 baseline, #98 governance, #100 remediation, #106 critical-path/maintainability, #116 triage/email fallback. | Inspect schema-v2 artifact and one subsequent trend; #111 only for scoped test-backed refactor. |
+| API/domain inventory and policy | Source controls merged; audit remains validation pending. | PR #103 controller/access/pagination/authorization/compatibility policy. | Persistent staging authorization-negative, cross-tenant, retry/concurrency, public abuse, and proxy behavior evidence. |
+| Public security controls | Source controls merged. | PR #104 threat model, strict CORS, headers, and public-mutation throttle policy. | Runtime ingress/TLS/proxy/upload and session evidence remain required. |
 | Browser-readable refresh credential storage | Source remediation merged; issue #105 closed. | PR #115, merged commit `474901eb92e8094b2f1b51bd7c0f4068c728d8a0`, focused security/session tests. | Issue #112: validate cookie/session behavior through persistent HTTPS staging and intended proxy/CDN path. |
-| Maintainability triage and production email fallback | Resolved in source; issue #107 closed. | PR #116, merged commit `ee9d13e41bdd6a2f0623ad5c58808b120eca2e9a`, AUDIT-2/CI/Security workflows. | Inspect schema-v2 maintainability artifact and one further trend; issue #111 is optional, scoped refactor work. |
+| Tenant integrity, report/export, and storage cleanup controls | Repository controls merged; audit remains validation pending. | PR #71/#74/#75/#81 tenant guards and DB gate; #82/#83 report/export boundaries; #85/#87 history/soft-delete safeguards; #92 query-plan/observability gate. | Historical preflight, representative data query evidence, worker log/alert verification, outage recovery, and migration-lock validation. |
 | Staging evidence could retain unfiltered response headers | Resolved in source and CI. | PR #118, merged commit `6bc907bc45182049b60d290527b817a5723531d9`, evidence redaction self-test, AUDIT-6 probe, CI, Security Audit. | Run the sanitized probe only against real persistent staging; it does not replace #108/#112 browser validation. |
 | Frontend role, accessibility, responsive, and state journeys | Validation pending; no production claim. | Source policy, runbook, and sanitized probe are versioned. | Issue #108 on persistent staging, followed by issue #110 browser automation. |
 
