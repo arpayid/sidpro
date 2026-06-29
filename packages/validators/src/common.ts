@@ -17,6 +17,11 @@ export const searchQuerySchema = z
   .max(100, 'Kata kunci pencarian maksimal 100 karakter')
   .regex(/^[\p{L}\p{N}\s._@-]+$/u, 'Kata kunci pencarian berisi karakter tidak valid');
 
+export const paginationParameterSchema = z.object({
+  page: z.coerce.number().int().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+});
+
 export const paginationSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(10),
