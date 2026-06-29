@@ -6,10 +6,6 @@ updates:
       interval: weekly
       day: monday
     open-pull-requests-limit: 3
-    groups:
-      routine-npm-patches:
-        update-types:
-          - patch
     ignore:
       - dependency-name: uuid
         update-types:
@@ -39,10 +35,6 @@ updates:
       interval: weekly
       day: monday
     open-pull-requests-limit: 3
-    groups:
-      routine-github-actions-patches:
-        update-types:
-          - patch
     ignore:
       - dependency-name: actions/upload-artifact
         update-types:
