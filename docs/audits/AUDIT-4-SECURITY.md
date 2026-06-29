@@ -2,7 +2,7 @@
 
 **Marker:** `[[AI-CLI|AUDIT-4|VALIDATION_PENDING|VPS_REQUIRED]]`
 
-**Status:** `Validation Pending` — source-level threat model, public-route controls, CORS/headers, upload constraints, and the HttpOnly browser session boundary are versioned. Persistent staging ingress/security validation remains required.
+**Status:** `Validation Pending` — source-level threat model, public-route controls, CORS/headers, upload constraints, and the HttpOnly browser session boundary are versioned. Persistent staging ingress/security validation remains required through issue #112.
 
 ## Scope
 
@@ -36,13 +36,15 @@ Authenticated and public complaint uploads use MIME allowlists, 5 MiB limits, ma
 
 Swagger is disabled in production unless explicitly enabled. Production environment validation requires critical database, JWT, CORS, and object-storage configuration. Actual ingress TLS, trusted proxy settings, logs, and docs exposure cannot be proven from source.
 
-### A4-P6 Resolved in Source — Browser-readable bearer credential storage
+### A4-P6 Resolved in Source; Validation Pending — Browser-readable bearer credential storage
 
 The browser previously stored access and refresh tokens in `localStorage` and wrote a JavaScript-readable route cookie. That made refresh credentials readable by any successful XSS execution.
 
-**Treatment:** issue #105 is implemented by the HttpOnly session boundary documented in [AUDIT-4 Session Boundary](AUDIT-4-SESSION-BOUNDARY.md): refresh token is now a rotating API-issued `HttpOnly` cookie, access token/user profile live only in tab memory, refresh/logout use the cookie without body-token transport, and admin shell restoration is client-side through authenticated API session hydration. Focused tests verify cookie attributes, controller response stripping, and removal of localStorage/JavaScript-cookie transport.
+**Treatment:** PR #115 implemented and closed issue #105 through the HttpOnly session boundary documented in [AUDIT-4 Session Boundary](AUDIT-4-SESSION-BOUNDARY.md): refresh token is now a rotating API-issued `HttpOnly` cookie, access token/user profile live only in tab memory, refresh/logout use the cookie without body-token transport, and admin shell restoration is client-side through authenticated API session hydration. Focused tests verify cookie attributes, controller response stripping, and removal of localStorage/JavaScript-cookie transport.
 
 **Compatibility:** this is an intentional security breaking change to browser auth responses. The migration/rollback contract is documented in the session-boundary record; do not deploy old web assets with the new refresh API.
+
+**Remaining validation:** issue #112 is the persistent staging release gate. It must validate HTTPS cookie scope, session lifecycle, origin/CORS/CSRF behavior, proxy/CDN headers, client-IP rate limiting, absence of token leakage, and rollback against the deployed commit.
 
 ## Controls Observed
 
@@ -64,6 +66,7 @@ The browser previously stored access and refresh tokens in `localStorage` and wr
 4. Test controlled malicious upload corpus, oversized payloads, MinIO policy, signed URL rewriting, and audit logs.
 5. Verify no token appears in localStorage, sessionStorage, JavaScript-readable cookies, DOM, URLs, analytics, or sanitized logs.
 6. Reconcile findings with AUDIT-3, AUDIT-5, AUDIT-6, AUDIT-7, and AUDIT-8.
+7. Record results with a Trace ID in [Audit Change Ledger](AUDIT_CHANGELOG.md).
 
 ## Closure Criteria
 
@@ -78,3 +81,4 @@ AUDIT-4 may move to `Closed` only after source controls remain green and persist
 - [AUDIT-5 Database and Tenant Integrity](AUDIT-5-DATABASE-TENANT-INTEGRITY.md)
 - [Security Audit Automation](../SECURITY_AUDIT.md)
 - [AUDIT CLI Handoff](AUDIT_CLI_HANDOFF.md)
+- [Audit Change Ledger](AUDIT_CHANGELOG.md)
