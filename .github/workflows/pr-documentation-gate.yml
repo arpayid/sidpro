@@ -9,7 +9,9 @@ permissions:
 
 jobs:
   require-roadmap-trace:
-    if: github.event.pull_request.draft == false
+    # Dependabot PR bodies are bot-generated dependency notices, not human/provider handoffs.
+    # They remain subject to the repository's CI, security, and audit workflows.
+    if: github.event.pull_request.draft == false && github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

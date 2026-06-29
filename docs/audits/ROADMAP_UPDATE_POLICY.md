@@ -32,7 +32,7 @@ Bila pull request tidak berdampak pada roadmap, PR tetap harus menyatakan alasan
 
 ## Format Wajib di Pull Request
 
-Setiap PR harus memiliki bagian berikut:
+Setiap PR yang dibuat atau diedit oleh manusia/provider harus memiliki bagian berikut:
 
 ```md
 ## Roadmap Impact
@@ -96,6 +96,12 @@ Perbarui `docs/ROADMAP.md` bila salah satu hal berikut berubah:
 
 Bagian ini wajib diisi meskipun jawabannya `None`. Reviewer harus dapat membedakan perubahan tanpa dampak roadmap dari perubahan yang lupa dicatat.
 
+## Dependabot Exception
+
+PR yang pembuatnya tepat `dependabot[bot]` dikecualikan dari format `Roadmap Impact` dan `Change Trace`, karena body PR tersebut digenerate bot dan bukan handoff manusia/provider. Pengecualian ini sempit: PR Dependabot tetap wajib lolos CI, Security Audit, dan workflow audit yang relevan; major upgrade, perubahan workflow, serta PR gagal tidak boleh di-merge otomatis hanya karena dikecualikan dari format dokumentasi.
+
+Perubahan manual untuk dependency yang dibuat melalui branch manusia/provider tetap tunduk pada format dan gate ini.
+
 ## Aturan Status
 
 - `Evidence Partial` tidak boleh dipromosikan ke `Closed` tanpa scope dan closure evidence penuh.
@@ -107,7 +113,7 @@ Bagian ini wajib diisi meskipun jawabannya `None`. Reviewer harus dapat membedak
 
 ## Automation dan Batasannya
 
-PR documentation gate memeriksa keberadaan heading `Roadmap Impact` dan `Change Trace`. Gate ini mencegah handoff kosong, tetapi tidak dapat membuktikan ketepatan semantik status atau kualitas evidence. Reviewer tetap harus memeriksa:
+PR documentation gate memeriksa heading dan nilai `Roadmap Impact` serta `Change Trace` pada PR manusia/provider. Gate menolak field kosong atau placeholder dan memvalidasi execution mode, tetapi tidak dapat membuktikan ketepatan semantik status atau kualitas evidence. PR Dependabot dikecualikan berdasarkan author yang terverifikasi dan tetap dilindungi CI/security/audit workflows. Reviewer tetap harus memeriksa:
 
 - audit yang dipilih sesuai scope;
 - status sebelum/sesudah tidak bertentangan dengan register;
