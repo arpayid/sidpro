@@ -9,7 +9,8 @@ Dokumen ini adalah sumber ringkasan status audit, evidence, dan urutan hardening
 - Repository: `arpayid/sidpro`.
 - AUDIT-1 source review: PR #95 merge `df36623615148124b7e52972712496b1f9bb0786`.
 - AUDIT-2 baseline/remediation: PR #97, #98, dan #100.
-- AUDIT-3 source review: PR #103 menambah inventory 26 controller, access policy, bounded pagination, service-authorization register, dan compatibility/idempotency policy. Issue #102 ditutup hanya sesudah gate PR #103 hijau.
+- AUDIT-3 source review: PR #103 menambah inventory 26 controller, access policy, bounded pagination, service-authorization register, dan compatibility/idempotency policy.
+- AUDIT-4 source review: current PR adds threat model, public endpoint inventory, strict credentialed CORS validation, API response headers, and a public-mutation throttle policy.
 - Semua audit yang belum `Closed` memiliki marker dan next action di [AUDIT CLI Handoff](audits/AUDIT_CLI_HANDOFF.md) dan [manifest JSON](audits/AUDIT_CLI_HANDOFF.json).
 - Tanggal pembaruan: 29 Juni 2026.
 
@@ -21,7 +22,7 @@ Dokumen ini adalah sumber ringkasan status audit, evidence, dan urutan hardening
 | AUDIT-1 | `Validation Pending` | Static architecture controls selesai; butuh topology/runtime validation pada staging persisten. |
 | AUDIT-2 | `In Progress` | Dependency/lint/coverage baseline tersedia; lanjut coverage ratchet dan maintainability assessment. |
 | AUDIT-3 | `Validation Pending` | Source inventory, access posture, pagination, authorization exception, dan compatibility policy sudah dicatat; butuh staging API/domain validation. |
-| AUDIT-4 | `Evidence Partial` | Security Audit dan hardening ada; threat model/public endpoint inventory belum formal. |
+| AUDIT-4 | `Validation Pending` | Threat model, public inventory, credentialed CORS policy, response headers, and public mutation throttle gate are versioned; ingress/runtime security validation remains required. |
 | AUDIT-5 | `Validation Pending` | Tenant/database/query-plan source evidence ada; butuh preflight dan recovery/query validation pada staging persisten. |
 | AUDIT-6 | `Not Formally Assessed` | Frontend inventory/accessibility/responsive audit belum formal. |
 | AUDIT-7 | `Evidence Partial` | CI/release controls ada; deployment/rollback/observability staging belum dibuktikan. |
@@ -32,11 +33,10 @@ Dokumen ini adalah sumber ringkasan status audit, evidence, dan urutan hardening
 ## Prioritas
 
 1. **AUDIT-2 `REPO_CI_READY`:** coverage baseline kedua, critical-path expectation, lalu duplication/dead-code/complexity assessment.
-2. **AUDIT-4 `REPO_CI_READY`:** gunakan AUDIT-3 inventory untuk threat model, public endpoint inventory, rate limit, upload, secrets, dan secure configuration review.
-3. **AUDIT-1, AUDIT-3, AUDIT-5 `VPS_REQUIRED`:** ketika staging persisten tersedia, validasi topology, health, queue/storage, API authorization/tenant/retry behavior, historical-data preflight, query plan, cross-tenant test, serta recovery drill.
+2. **AUDIT-6 `REPO_CI_READY`:** frontend inventory, route protection, loading/error/empty states, accessibility, and responsive baseline.
+3. **AUDIT-1, AUDIT-3, AUDIT-4, dan AUDIT-5 `VPS_REQUIRED`:** ketika staging persisten tersedia, validasi topology, API authorization/tenant/retry behavior, ingress CORS/TLS/header/abuse/upload behavior, historical-data preflight, query plan, cross-tenant test, serta recovery drill.
 4. **AUDIT-7 dan AUDIT-8 `VPS_REQUIRED`:** deployment/rollback/observability dan restore drill PostgreSQL/MinIO.
-5. **AUDIT-6 `REPO_CI_READY`:** frontend inventory sesudah scope AUDIT-4 cukup stabil.
-6. **AUDIT-9 dan AUDIT-10:** memerlukan workload/UAT criteria dan staging yang memadai.
+5. **AUDIT-9 dan AUDIT-10:** memerlukan workload/UAT criteria dan staging yang memadai.
 
 ## Update Rules
 
@@ -49,8 +49,9 @@ Setiap PR audit harus memperbarui dokumen audit spesifik, register bila status b
 - [AUDIT-1 Repository and Architecture](audits/AUDIT-1-REPOSITORY-ARCHITECTURE.md)
 - [AUDIT-2 Dependency and Code Quality](audits/AUDIT-2-DEPENDENCY-CODE-QUALITY.md)
 - [AUDIT-3 API and Domain Logic](audits/AUDIT-3-API-DOMAIN-LOGIC.md)
-- [AUDIT-3 Authorization Exceptions](audits/AUDIT-3-AUTHORIZATION-EXCEPTIONS.md)
-- [AUDIT-3 Compatibility and Idempotency](audits/AUDIT-3-API-COMPATIBILITY-IDEMPOTENCY.md)
+- [AUDIT-4 Security](audits/AUDIT-4-SECURITY.md)
+- [AUDIT-4 Threat Model](audits/AUDIT-4-THREAT-MODEL.md)
+- [AUDIT-4 Public Endpoint Inventory](audits/AUDIT-4-PUBLIC-ENDPOINT-INVENTORY.md)
 - [AUDIT-5 Database and Tenant Integrity](audits/AUDIT-5-DATABASE-TENANT-INTEGRITY.md)
 - [CI Merge Gate](CI_MERGE_GATE.md)
 - [Security Audit Automation](SECURITY_AUDIT.md)
