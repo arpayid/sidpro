@@ -1,27 +1,25 @@
 # SIDPRO Audit Master Register
 
-Dokumen ini mencatat status audit berdasarkan bukti yang versioned di repository. Ketiadaan bukti bukan bukti bahwa area aman atau selesai.
+Dokumen ini mencatat status audit berdasarkan bukti versioned. Ketiadaan bukti bukan bukti area aman atau selesai.
 
 ## Aturan Bukti dan Closure
 
-Klaim audit harus ditautkan ke dokumen scope/temuan, PR merged dengan validasi, workflow CI, bukti staging/production versioned, atau keputusan risiko yang disetujui.
-
-Audit hanya boleh `Closed` ketika scope, temuan, tindakan, evidence, residual risk, dan kebutuhan environment nyata telah direkonsiliasi. CI, Docker Compose, dan production-smoke ephemeral tidak menggantikan staging atau production persisten.
+Klaim audit harus ditautkan ke dokumen scope/temuan, PR merged dengan validasi, workflow CI, bukti staging/production versioned, atau keputusan risiko yang disetujui. Audit hanya dapat `Closed` setelah scope, temuan, tindakan, evidence, residual risk, dan kebutuhan environment nyata direkonsiliasi. CI/Docker production-smoke ephemeral bukan staging atau production persisten.
 
 ## Evidence Lintas-Audit
 
 | Bukti | Relevansi |
 | --- | --- |
 | [Architecture](../ARCHITECTURE.md) | Modular monolith, batas modul, dan aturan desain. |
-| [AUDIT-1 Repository and Architecture](AUDIT-1-REPOSITORY-ARCHITECTURE.md) | Inventory, graph, ADR, exception, dan batas runtime AUDIT-1. |
-| [AUDIT-2 Dependency and Code Quality](AUDIT-2-DEPENDENCY-CODE-QUALITY.md) | Coverage/lint/dependency evidence dan quality controls. |
-| [AUDIT-3 API and Domain Logic](AUDIT-3-API-DOMAIN-LOGIC.md) | Controller inventory, access posture, pagination, domain evidence, dan staging plan. |
-| [AUDIT-3 Authorization Exceptions](AUDIT-3-AUTHORIZATION-EXCEPTIONS.md) | Kontrak service-level authorization tenant management/provisioning. |
-| [AUDIT-3 Compatibility and Idempotency](AUDIT-3-API-COMPATIBILITY-IDEMPOTENCY.md) | Policy API `/api/v1`, contract change, dan retry semantics. |
-| [AUDIT-5 Database and Tenant Integrity](AUDIT-5-DATABASE-TENANT-INTEGRITY.md) | Tenant/database, query plan, storage cleanup, dan environment validation. |
-| [CI Merge Gate](../CI_MERGE_GATE.md) | CI, production smoke, dan required checks. |
-| [Security Audit](../SECURITY_AUDIT.md) | Dependency audit, Gitleaks, dan security automation. |
-| [AI CLI Handoff](AUDIT_CLI_HANDOFF.md) | Queue machine-readable dan mode `REPO_CI_READY`/`VPS_REQUIRED`. |
+| [AUDIT-1 Repository and Architecture](AUDIT-1-REPOSITORY-ARCHITECTURE.md) | Inventory, graph, ADR, exception, dan runtime boundary. |
+| [AUDIT-2 Dependency and Code Quality](AUDIT-2-DEPENDENCY-CODE-QUALITY.md) | Coverage/lint/dependency and maintainability controls. |
+| [AUDIT-3 API and Domain Logic](AUDIT-3-API-DOMAIN-LOGIC.md) | Controller inventory, access posture, pagination, domain evidence. |
+| [AUDIT-4 Security](AUDIT-4-SECURITY.md) | Security findings, treatment, and staging validation requirements. |
+| [AUDIT-4 Threat Model](AUDIT-4-THREAT-MODEL.md) | Assets, trust boundaries, threats, and explicit non-decisions. |
+| [AUDIT-4 Public Endpoint Inventory](AUDIT-4-PUBLIC-ENDPOINT-INVENTORY.md) | Explicit public route classes and abuse-control policy. |
+| [AUDIT-5 Database and Tenant Integrity](AUDIT-5-DATABASE-TENANT-INTEGRITY.md) | Tenant/database, query plan, storage cleanup, environment validation. |
+| [Security Audit](../SECURITY_AUDIT.md) | Dependency audit, Gitleaks, and security automation. |
+| [AI CLI Handoff](AUDIT_CLI_HANDOFF.md) | Machine-readable queue and execution modes. |
 
 ---
 
@@ -29,11 +27,7 @@ Audit hanya boleh `Closed` ketika scope, temuan, tindakan, evidence, residual ri
 
 **Status:** `In Progress`
 
-**Scope:** status audit, evidence links, roadmap update, handoff markers, dan closure discipline.
-
-**Evidence:** master register, roadmap update policy, roadmap, dan AI CLI handoff manifest telah versioned.
-
-**Remaining:** jaga konsistensi seluruh status/marker saat audit baru membuka, menyelesaikan, atau memindahkan pekerjaan ke staging.
+**Remaining:** keep audit documents, roadmap, handoff markers, and closure criteria consistent in every audit-related PR.
 
 ---
 
@@ -41,13 +35,9 @@ Audit hanya boleh `Closed` ketika scope, temuan, tindakan, evidence, residual ri
 
 **Status:** `Validation Pending`
 
-**Scope:** monorepo, dependency direction, module boundaries, shared packages, dan runtime architecture.
+**Source evidence:** inventory/dependency graph, ADR, boundary scanner, and shared `core/addressing` ownership were reconciled through PR #95 and #96.
 
-**Source evidence:** inventory/dependency graph, ADR, boundary scanner, and shared `core/addressing` ownership were reconciled through PR #95 and PR #96. The focused boundary workflow runs when relevant source or AUDIT-1 evidence changes.
-
-**Validation pending:** persistent staging must record web/API/worker topology, health/readiness, queue/storage contracts, runtime configuration, and deployed module behavior.
-
-**Non-claim:** static import scanning does not prove runtime DI, variable imports, queues, network/storage, or deployed topology.
+**Validation pending:** persistent staging must record topology, health/readiness, queue/storage contracts, runtime configuration, and deployed module behavior.
 
 ---
 
@@ -55,16 +45,9 @@ Audit hanya boleh `Closed` ketika scope, temuan, tindakan, evidence, residual ri
 
 **Status:** `In Progress`
 
-**Scope:** dependency hygiene, vulnerability exceptions, lockfile/manifest policy, lint/type/test/build, coverage, maintainability, duplication/dead code/complexity.
+**Source evidence:** PR #97 coverage artifacts; PR #98 exception/lint governance; PR #100 dependency remediation, Prisma alignment, and pnpm-generated lockfile.
 
-**Source evidence:**
-
-- PR #97 added reproducible coverage evidence.
-- PR #98 added dependency-exception governance, lint inventory, and a clean warning baseline.
-- PR #100 remediated the three recorded moderate transitive advisory paths, aligned Prisma declarations, and regenerated the lockfile through pnpm.
-- AUDIT-2 workflow retains coverage, lint, and unignored dependency-audit artifacts.
-
-**Remaining:** comparable coverage baseline, critical-path coverage/rachet decision, and documented duplication/dead-code/complexity assessment with triage policy.
+**Remaining:** comparable coverage baseline, critical-path threshold/ratchet decision, and duplication/dead-code/complexity assessment with false-positive/triage policy.
 
 ---
 
@@ -72,37 +55,34 @@ Audit hanya boleh `Closed` ketika scope, temuan, tindakan, evidence, residual ri
 
 **Status:** `Validation Pending`
 
-**Scope:** endpoint/controller contract, auth/RBAC, tenant scope, DTO/Zod/query validation, error semantics, domain invariants, audit events, compatibility, idempotency, and high-risk regression evidence.
+**Source evidence:** 26-controller inventory, route access policy, bounded pagination, service-level tenant authorization register, compatibility/idempotency policy, and high-risk regression evidence.
 
-**Repository-level completion in current PR:**
-
-1. The source inventory contains 26 API controllers grouped by platform/identity, population, village operations, finance/report/letters, and public interaction.
-2. `api-route-access-policy.test.ts` requires each inventoried controller to declare a JWT or `@Public()` access marker; the focused AUDIT-3 workflow runs it for relevant changes.
-3. `PaginationQueryValidationMiddleware` validates any supplied `page`/`limit` before controller execution while preserving endpoint defaults when absent; negative tests cover zero, negative, non-numeric, and oversized values.
-4. Tenant management/provisioning service-level authorization exceptions are registered with OR-based authority rules and regression tests.
-5. API compatibility and operation-specific idempotency/retry policy are versioned; generic idempotency middleware is explicitly disallowed until domain contracts are defined.
-6. Existing high-risk source evidence includes refresh replay hardening, tenant-scoped reports/export, finance ledger invariants, letter validation/transition controls, storage cleanup, and related audit logs.
-
-**Validation pending outside repository:**
-
-1. Run authorization-negative and cross-tenant tests through persistent staging with real JWT issuance and reverse proxy.
-2. Exercise finance, tenant provisioning, letters, public tracking, and refresh retry/concurrency behavior.
-3. Validate client-IP/rate-limit identity, public payload limits, upload behavior, and error redaction at deployed ingress.
-4. Reconcile results with AUDIT-4, AUDIT-5, AUDIT-7, and AUDIT-9.
-
-**Non-claim:** source/CI evidence does not prove deployed routing, proxy trust, rate-limit identity, queue execution, storage behavior, or client compatibility in production.
+**Validation pending:** persistent staging negative authorization/tenant checks, retry/concurrency behavior, public abuse controls, and ingress/client-IP evidence.
 
 ---
 
 ## AUDIT-4 — Security
 
-**Status:** `Evidence Partial`
+**Status:** `Validation Pending`
 
-**Scope:** authentication, authorization, session lifecycle, secrets, public endpoints, rate limiting, uploads, dependency/secret scanning, secure configuration, and dynamic testing.
+**Scope:** authentication, authorization, session lifecycle, secrets/configuration, public endpoints, rate limiting, uploads, response headers, dependency/secret scans, and dynamic testing.
 
-**Evidence:** refresh hardening, Security Audit, dependency audit, Gitleaks, Dependabot, permission guard, and selected route throttles exist.
+**Repository-level completion in current PR:**
 
-**Remaining:** formal threat model, public endpoint inventory, upload/security control reconciliation, secret/configuration review, and dynamic validation for high-risk findings.
+1. Threat model and public endpoint inventory are versioned.
+2. Credentialed CORS normalizes only valid HTTP/HTTPS origins, rejects wildcard origins, and requires production configuration.
+3. API response-header baseline prevents MIME sniffing, framing, referrer leakage, unnecessary browser permissions, and cross-domain policy exposure.
+4. Public mutations must declare route-specific throttles; focused AUDIT-4 CI enforces this source policy.
+5. Existing file flows retain MIME/size/magic-byte, tenant scope, signed URL, checksum, audit-log, and cleanup controls.
+
+**Validation pending outside repository:**
+
+1. Test client IP/rate-limit identity, CORS/TLS/headers, Swagger exposure, and proxy trust at ingress.
+2. Run auth replay/brute-force, public complaint/assistant/letter abuse, and cross-tenant IDOR negative scenarios.
+3. Test upload body limits, malicious corpus, bucket policy, signed URL routing, and runtime log/secret redaction.
+4. Reconcile with AUDIT-3, AUDIT-5, AUDIT-7, and AUDIT-8 staging evidence.
+
+**Non-claim:** source/CI does not prove WAF, proxy, TLS, secret rotation, malware scanning, bucket ACL, or production incident response.
 
 ---
 
@@ -110,11 +90,9 @@ Audit hanya boleh `Closed` ketika scope, temuan, tindakan, evidence, residual ri
 
 **Status:** `Validation Pending`
 
-**Scope:** tenant isolation, database integrity, lifecycle, financial auditability, storage metadata, report/export query plans, cleanup recovery, and database performance evidence.
+**Repository evidence:** tenant-link guards, finance ledger, query-plan workflow, composite-FK decision record, report/export isolation, cleanup retry/observability.
 
-**Repository evidence:** tenant-link guards, finance ledger, PostgreSQL query-plan workflow, composite-FK decision record, report/export tenant isolation, and cleanup worker observability/retry controls are versioned.
-
-**Validation pending:** historical dataset preflight, real query plans, persistent storage-cleanup recovery, log/alert forwarding, outage recovery drill, and migration/index behavior on staging.
+**Validation pending:** historical preflight, real query plans, persistent storage recovery, log/alert forwarding, outage recovery, migration/index behavior.
 
 ---
 
@@ -122,9 +100,9 @@ Audit hanya boleh `Closed` ketika scope, temuan, tindakan, evidence, residual ri
 
 **Status:** `Not Formally Assessed`
 
-**Scope:** route protection, tenant/permission presentation, data states, forms, accessibility, responsive behavior, and security-sensitive rendering.
+**Scope:** route protection, tenant/permission presentation, state handling, forms, accessibility, responsive behavior, and security-sensitive rendering.
 
-**Remaining:** screen inventory, role journeys, loading/error/empty states, responsive coverage, accessibility baseline, and frontend policy evidence.
+**Remaining:** frontend inventory, role journeys, route policy, loading/error/empty states, accessibility baseline, and responsive evidence.
 
 ---
 
@@ -132,11 +110,9 @@ Audit hanya boleh `Closed` ketika scope, temuan, tindakan, evidence, residual ri
 
 **Status:** `Evidence Partial`
 
-**Scope:** CI/CD, branch protection, container build, deployment, service supervision, configuration, observability, rollback, and operational documentation.
+**Evidence:** CI validate, production smoke, Security Audit, and guarded release workflows.
 
-**Evidence:** CI validate, production smoke, Security Audit, and guarded release workflows are documented.
-
-**Remaining:** persistent staging deployment/runbook, active branch ruleset evidence, long-running services, alerting/incident path, and rollback drill.
+**Remaining:** persistent staging deployment/runbook, active branch ruleset evidence, long-running supervision, alerting/incident path, rollback drill.
 
 ---
 
@@ -144,11 +120,9 @@ Audit hanya boleh `Closed` ketika scope, temuan, tindakan, evidence, residual ri
 
 **Status:** `Evidence Partial`
 
-**Scope:** PostgreSQL/object storage backup, integrity, restore, retention, access control, RPO/RTO, and restore drill.
-
 **Evidence:** CI release controls create/check backup and restore into ephemeral targets.
 
-**Remaining:** persistent backup location/retention/access evidence, defined RPO/RTO, and periodic end-to-end restore drill on non-production staging.
+**Remaining:** persistent backup retention/access, RPO/RTO, end-to-end restore drill.
 
 ---
 
@@ -156,11 +130,7 @@ Audit hanya boleh `Closed` ketika scope, temuan, tindakan, evidence, residual ri
 
 **Status:** `Not Formally Assessed`
 
-**Scope:** workload/SLA, query/API latency, export memory, queue throughput, storage behavior, capacity, and bottlenecks.
-
-**Evidence:** AUDIT-5 has limited PostgreSQL query-plan fixture evidence.
-
-**Remaining:** agreed workload/data volume/SLA plus staging benchmarks and capacity evidence.
+**Remaining:** workload/data volume/SLA, benchmarks, capacity evidence, bottleneck remediation.
 
 ---
 
@@ -168,14 +138,10 @@ Audit hanya boleh `Closed` ketika scope, temuan, tindakan, evidence, residual ri
 
 **Status:** `Evidence Partial`
 
-**Scope:** role journeys, acceptance criteria, privacy/data readiness, operator documentation, cutover, training, handover, and sign-off.
-
-**Evidence:** production readiness and handover documents exist.
-
-**Remaining:** UAT scenarios/results, defect triage, training evidence, cutover plan, and go/no-go sign-off.
+**Remaining:** UAT scenarios/results, defect triage, training, cutover, go/no-go sign-off.
 
 ---
 
 ## Register Update Rule
 
-For any audit-related PR, update the relevant audit document, this register when status/evidence changes, `docs/ROADMAP.md` when priority changes, and `AUDIT_CLI_HANDOFF.*` when marker/execution mode/next action changes. Do not remove historical findings; update their state and link their treatment.
+For any audit PR, update the relevant audit document, this register when status/evidence changes, `docs/ROADMAP.md` when priority changes, and `AUDIT_CLI_HANDOFF.*` when marker/execution mode/next action changes. Do not remove historical findings; update treatment state and link evidence.
