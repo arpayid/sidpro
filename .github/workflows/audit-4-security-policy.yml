@@ -7,6 +7,9 @@ on:
       - 'apps/api/src/**'
       - 'apps/api/test/public-route-security-policy.test.ts'
       - 'apps/api/test/security-http-config.test.ts'
+      - 'apps/web/next.config.mjs'
+      - 'apps/web/package.json'
+      - 'apps/web/test/security-headers.test.ts'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - '.github/workflows/audit-4-security-policy.yml'
@@ -20,6 +23,9 @@ on:
       - 'apps/api/src/**'
       - 'apps/api/test/public-route-security-policy.test.ts'
       - 'apps/api/test/security-http-config.test.ts'
+      - 'apps/web/next.config.mjs'
+      - 'apps/web/package.json'
+      - 'apps/web/test/security-headers.test.ts'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - '.github/workflows/audit-4-security-policy.yml'
@@ -49,5 +55,7 @@ jobs:
         run: pnpm install --frozen-lockfile --ignore-scripts --reporter=silent
       - name: Verify public route throttle policy
         run: pnpm audit:public-route-security
-      - name: Verify HTTP configuration security policy
+      - name: Verify API HTTP configuration security policy
         run: pnpm --filter @sidpro/api exec tsx --test test/security-http-config.test.ts
+      - name: Verify web response header policy
+        run: pnpm --filter @sidpro/web exec tsx --test test/security-headers.test.ts
