@@ -41,14 +41,6 @@
   "pnpm": {
     "overrides": {
       "multer": ">=2.2.0"
-    },
-    "auditConfig": {
-      "ignoreCves": [
-        "GHSA-4r6h-8v6p-xvw6",
-        "GHSA-5pgg-2g8v-p4x9",
-        "CVE-2023-30533",
-        "CVE-2024-22363"
-      ]
     }
   },
   "dependencies": {
