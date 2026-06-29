@@ -30,10 +30,10 @@
     "@sidpro/config": "workspace:*",
     "@types/bcrypt": "^5.0.2",
     "bcrypt": "^6.0.0",
-    "prettier": "^3.5.3",
+    "prettier": "^3.9.3",
     "prisma": "6.19.3",
     "tsx": "^4.19.4",
-    "turbo": "^2.5.4",
+    "turbo": "^2.10.0",
     "typescript": "^5.8.3"
   },
   "packageManager": "pnpm@10.18.3",
