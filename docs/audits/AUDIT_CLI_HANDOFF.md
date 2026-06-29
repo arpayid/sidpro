@@ -31,11 +31,11 @@ Setiap audit yang belum `Closed` memiliki marker:
 | --- | --- | --- |
 | `[[AI-CLI|AUDIT-0|IN_PROGRESS|REPO_DOCS]]` | P3 | Konsistensi evidence, roadmap, dan marker. |
 | `[[AI-CLI|AUDIT-1|VALIDATION_PENDING|VPS_REQUIRED]]` | P1 | Topology web/API/worker, health, queue, storage, config. |
-| `[[AI-CLI|AUDIT-2|VALIDATION_PENDING|REPO_CI_READY]]` | P2 | Inspeksi artefak maintainability pertama dan trend berikutnya sebelum ratchet. |
+| `[[AI-CLI|AUDIT-2|VALIDATION_PENDING|REPO_CI_READY]]` | P2 | Inspeksi artefak maintainability dan trend berikutnya sebelum ratchet. |
 | `[[AI-CLI|AUDIT-3|VALIDATION_PENDING|VPS_REQUIRED]]` | P1 | Authorization, tenant, retry/concurrency, abuse, proxy rate-limit. |
-| `[[AI-CLI|AUDIT-4|IN_PROGRESS|REPO_CI_READY]]` | P1 | Pilih dan implementasikan HttpOnly session boundary pada #105; kemudian validasi ingress security di staging. |
+| `[[AI-CLI|AUDIT-4|IN_PROGRESS|REPO_CI_READY]]` | P1 | Implementasikan HttpOnly session boundary pada #105; kemudian validasi ingress security. |
 | `[[AI-CLI|AUDIT-5|VALIDATION_PENDING|VPS_REQUIRED]]` | P1 | Query plan, historical preflight, cross-tenant, recovery drill. |
-| `[[AI-CLI|AUDIT-6|NOT_FORMALLY_ASSESSED|REPO_CI_READY]]` | P2 | Frontend route/state/accessibility/responsive audit. |
+| `[[AI-CLI|AUDIT-6|VALIDATION_PENDING|VPS_REQUIRED]]` | P2 | Jalankan #108: role journey, keyboard/screen reader, responsive, state/error, browser storage. |
 | `[[AI-CLI|AUDIT-7|EVIDENCE_PARTIAL|VPS_REQUIRED]]` | P1 | Deploy, rollback, supervision, secrets, observability. |
 | `[[AI-CLI|AUDIT-8|EVIDENCE_PARTIAL|VPS_REQUIRED]]` | P1 | Restore PostgreSQL/object storage dan RPO/RTO evidence. |
 | `[[AI-CLI|AUDIT-9|NOT_FORMALLY_ASSESSED|VPS_REQUIRED]]` | P2 | Workload lalu benchmark API/export/queue/capacity. |
@@ -45,9 +45,8 @@ Setiap audit yang belum `Closed` memiliki marker:
 
 ### Dapat dikerjakan sekarang tanpa VPS
 
-1. `[[AI-CLI|AUDIT-4|IN_PROGRESS|REPO_CI_READY]]` — resolve architecture decision issue #105.
-2. `[[AI-CLI|AUDIT-6|NOT_FORMALLY_ASSESSED|REPO_CI_READY]]` — inventory dan audit frontend.
-3. `[[AI-CLI|AUDIT-2|VALIDATION_PENDING|REPO_CI_READY]]` — follow-up trend/triage, bukan threshold mekanis.
+1. `[[AI-CLI|AUDIT-4|IN_PROGRESS|REPO_CI_READY]]` — implement issue #105.
+2. `[[AI-CLI|AUDIT-2|VALIDATION_PENDING|REPO_CI_READY]]` — trend/triage evidence, bukan threshold mekanis.
 
 ### Dikerjakan setelah VPS/staging tersedia
 
@@ -55,9 +54,10 @@ Setiap audit yang belum `Closed` memiliki marker:
 2. `[[AI-CLI|AUDIT-3|VALIDATION_PENDING|VPS_REQUIRED]]`
 3. `[[AI-CLI|AUDIT-4|IN_PROGRESS|REPO_CI_READY]]` setelah #105 siap diuji.
 4. `[[AI-CLI|AUDIT-5|VALIDATION_PENDING|VPS_REQUIRED]]`
-5. `[[AI-CLI|AUDIT-7|EVIDENCE_PARTIAL|VPS_REQUIRED]]`
-6. `[[AI-CLI|AUDIT-8|EVIDENCE_PARTIAL|VPS_REQUIRED]]`
-7. `[[AI-CLI|AUDIT-9|NOT_FORMALLY_ASSESSED|VPS_REQUIRED]]`
+5. `[[AI-CLI|AUDIT-6|VALIDATION_PENDING|VPS_REQUIRED]]` melalui #108.
+6. `[[AI-CLI|AUDIT-7|EVIDENCE_PARTIAL|VPS_REQUIRED]]`
+7. `[[AI-CLI|AUDIT-8|EVIDENCE_PARTIAL|VPS_REQUIRED]]`
+8. `[[AI-CLI|AUDIT-9|NOT_FORMALLY_ASSESSED|VPS_REQUIRED]]`
 
 ## VPS Preflight Minimum
 
