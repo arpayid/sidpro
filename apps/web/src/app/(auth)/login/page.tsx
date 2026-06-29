@@ -7,6 +7,7 @@ import { Shield } from 'lucide-react';
 import { Button, Card, CardContent, CardHeader, CardTitle, Input } from '@sidpro/ui';
 import { setAuthSession } from '@/lib/auth';
 import { apiClient } from '@/lib/api-client';
+import { sanitizeAdminCallback } from '@/lib/route-policy';
 import type { LoginResponse, LoginResult } from '@sidpro/types';
 import {
   useCompleteEnrollLogin,
@@ -28,7 +29,7 @@ function isTwoFactorEnrollment(
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get('callbackUrl') ?? '/admin/dashboard';
+  const callbackUrl = sanitizeAdminCallback(searchParams.get('callbackUrl'));
   const setupEnrollMutation = useSetupEnrollLogin();
   const completeEnrollMutation = useCompleteEnrollLogin();
   const enrollSetupStarted = useRef(false);
@@ -57,7 +58,7 @@ function LoginForm() {
 
   async function completeLogin(data: LoginResponse) {
     setAuthSession(data.accessToken, data.refreshToken, data.user);
-    router.push(callbackUrl.startsWith('/admin') ? callbackUrl : '/admin/dashboard');
+    router.push(callbackUrl);
   }
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
