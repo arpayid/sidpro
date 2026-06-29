@@ -2,7 +2,7 @@
 
 **Marker:** `[[AI-CLI|AUDIT-3|IN_PROGRESS|REPO_CI_READY]]`
 
-**Status:** `In Progress` — inventory source API sudah dibuat, kontrol akses dan validasi utama telah direview, dan regression gate controller access ditambahkan. Audit belum `Closed`: pagination/query policy perlu diremediasi, contract per-endpoint belum seluruhnya dimodelkan, dan validasi integration pada environment persisten belum ada.
+**Status:** `In Progress` — inventory source API, controller-access regression gate, dan bounded pagination validation sudah ditambahkan. Audit belum `Closed`: contract per-endpoint belum seluruhnya dimodelkan, service-level authorization exception belum diregister, dan validasi integration pada environment persisten belum ada.
 
 ## Scope
 
@@ -29,6 +29,7 @@ Audit ini tidak mengklaim latency, production routing/proxy trust, deployed iden
 | Explicit auth guard | `JwtAuthGuard` honors `@Public()` and otherwise requires the Passport JWT strategy. | Controllers must opt in because the JWT guard is not registered globally. |
 | Permission guard | `PermissionsGuard` supports any-of and all-of permission decorators. | Guard returns true without permission metadata; route/service conventions are therefore security-critical. |
 | Domain validation | High-risk services use `parseWithZod` schemas for users, tenants, CMS, finance, letters, population/family, assets, territories, social assistance, civil events, BUMDes, files, and settings. | Strong but not yet exhaustively mapped per endpoint. |
+| Global pagination boundary | `PaginationQueryValidationMiddleware` validates any supplied `page`/`limit` against shared bounded schema without changing absent controller defaults. | Remediation for A3-P2, pending final CI. |
 | Tenant enforcement | High-risk services resolve `user.tenantId`, query tenant-scoped records, and return not-found/forbidden outcomes on cross-tenant access. | Confirmed in reviewed CMS, finance, tenant, report/export, and letter workflows; AUDIT-5 remains source of database/runtime tenant-integrity closure. |
 
 ## Controller Inventory
@@ -62,7 +63,7 @@ The public source surface is intentionally limited to health, authentication/ref
 - Domain services use Zod parsing for business payloads and normalize validation errors with `parseWithZod`.
 - UUID and report query parameters are validated in reviewed core/report controllers.
 - Public letter tracking and QR verification have regression tests that reject malformed inputs before database access.
-- Several controllers still call `parseInt(page, 10)` directly before pagination reaches a service. That bypasses shared bounded pagination schemas and is the primary open AUDIT-3 source finding.
+- Supplied `page` or `limit` query parameters are now validated globally through `paginationParameterSchema` (`page >= 1`, `1 <= limit <= 100`) before controllers execute. The middleware normalizes accepted values to decimal strings while leaving missing values untouched, so existing controller defaults remain intact.
 
 ### Tenant scope and audit trail
 
@@ -81,13 +82,13 @@ JWT is not a global Nest guard. A controller or route added without `@Public()` 
 
 **Limit:** the gate verifies controller-level posture and inventory; it does not replace route-by-route human review, permission semantics, or integration authorization tests.
 
-### A3-P2 Open — Unbounded raw pagination parsing is still used by multiple controllers
+### A3-P2 Remediation applied — Inconsistent raw pagination parsing
 
-The shared validator package already exposes a bounded `paginationSchema` (`page >= 1`, `1 <= limit <= 100`). Yet 13 controllers still directly call `parseInt(page, 10)` / `parseInt(limit, 10)` for pagination, including CMS, assets, audit logs, civil events, finance, development, families, complaints, territories, population, letters, social assistance, and BUMDes.
+The source review found 13 controllers directly calling `parseInt(page, 10)` / `parseInt(limit, 10)` instead of shared bounded validation. The shared validator package now exposes `paginationParameterSchema`, and `PaginationQueryValidationMiddleware` runs for every HTTP route only when `page` or `limit` is supplied.
 
-**Risk:** malformed, zero, negative, or excessive query values can produce inconsistent controller behavior, database errors, or oversized list/export work instead of the standardized validation response.
+**Behavior:** missing query values are left unchanged, preserving endpoint-specific defaults. Supplied values must be integers with `page >= 1` and `1 <= limit <= 100`; accepted values are normalized, while invalid values raise the standard `VALIDATION_ERROR` response before controller/service execution.
 
-**Treatment:** tracked as a dedicated remediation item. Replace raw parsing with shared bounded schemas, preserve documented defaults, and add negative tests for `page=0`, negative page/limit, `limit>100`, and non-numeric values.
+**Regression evidence:** `pagination-query-validation.middleware.test.ts` rejects zero, negative, non-numeric, and `limit=101` queries. Issue #102 may be closed only after final required gates pass for this PR.
 
 ### A3-P3 Evidence Partial — Authorization is partly service-enforced rather than declarative
 
@@ -106,16 +107,17 @@ Critical invariants have targeted tests (refresh replay, finance ledger, letter 
 | Evidence | Purpose |
 | --- | --- |
 | `apps/api/test/api-route-access-policy.test.ts` | Keeps controller inventory explicit and rejects a controller without a JWT or `@Public()` access marker. |
+| `apps/api/test/pagination-query-validation.middleware.test.ts` | Verifies bounded global pagination query validation and unchanged absent-default behavior. |
+| `PaginationQueryValidationMiddleware` | Rejects invalid supplied pagination parameters before controller/service execution. |
 | Root `audit:api-route-access` command | Runs the focused AUDIT-3 access-inventory policy. |
 | `AUDIT-3 API and Domain Logic` workflow | Runs the focused policy for API source, test, audit-doc, roadmap, and handoff changes. |
 
 ## Required Next Steps
 
-1. Remediate A3-P2 using shared pagination schemas and regression tests; do not change default page/limit behavior silently.
-2. Create a route-to-permission exception register for service-level authorization cases such as tenant provisioning/management.
-3. Define API compatibility/error-envelope policy and operation-specific idempotency expectations.
-4. Run high-risk integration scenarios on persistent staging when available: authorization negative cases, tenant isolation, concurrent finance/letter operations, public tracking abuse limits, and reverse-proxy client-IP/rate-limit behavior.
-5. Reconcile AUDIT-3 results with AUDIT-4 threat model and AUDIT-5 database tenant-integrity evidence.
+1. Create a route-to-permission exception register for service-level authorization cases such as tenant provisioning/management.
+2. Define API compatibility/error-envelope policy and operation-specific idempotency expectations.
+3. Run high-risk integration scenarios on persistent staging when available: authorization negative cases, tenant isolation, concurrent finance/letter operations, public tracking abuse limits, and reverse-proxy client-IP/rate-limit behavior.
+4. Reconcile AUDIT-3 results with AUDIT-4 threat model and AUDIT-5 database tenant-integrity evidence.
 
 ## Closure Criteria
 
