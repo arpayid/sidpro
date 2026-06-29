@@ -1,6 +1,6 @@
 # AUDIT AI CLI Handoff Queue
 
-Dokumen ini adalah panduan handoff untuk AI CLI, operator, dan VPS persisten. Sumber machine-readable adalah [`AUDIT_CLI_HANDOFF.json`](AUDIT_CLI_HANDOFF.json).
+Dokumen ini adalah panduan handoff untuk AI CLI, provider AI lain, operator, dan VPS persisten. Sumber machine-readable adalah [`AUDIT_CLI_HANDOFF.json`](AUDIT_CLI_HANDOFF.json); riwayat keputusan material ada pada [`AUDIT_CHANGELOG.md`](AUDIT_CHANGELOG.md).
 
 ## Marker Standard
 
@@ -17,25 +17,36 @@ Setiap audit yang belum `Closed` memiliki marker:
 | `VPS_REQUIRED` | Memerlukan VPS/staging persisten; CI/Docker bukan pengganti bukti ini. |
 | `HUMAN_UAT_REQUIRED` | Memerlukan acceptance criteria atau sign-off manusia. |
 
+## Kontrak Lintas Provider
+
+Sebelum bekerja, setiap provider wajib membaca `docs/ROADMAP.md`, `AUDIT_MASTER_REGISTER.md`, manifest JSON ini, entry ledger yang relevan, lalu `entrypoint` audit yang dipilih. Gunakan [AI Provider Handoff Protocol](AI_PROVIDER_HANDOFF_PROTOCOL.md) untuk Trace ID, state machine, bukti, dan aturan sanitasi.
+
+Provider tidak boleh:
+
+- mengulang source remediation yang telah `Resolved in Source` atau `Closed` tanpa bukti regresi baru;
+- mengubah `Validation Pending` menjadi `Closed` hanya dari CI atau Docker smoke;
+- menulis credential, cookie, token, PII, atau URL bercredential pada repository evidence;
+- mengganti status/next action tanpa memperbarui roadmap, register, manifest, dan ledger sesuai scope.
+
 ## Cara Pakai oleh AI CLI
 
 1. Baca manifest JSON dan `docs/ROADMAP.md` sebelum memulai.
 2. Pilih marker P1 yang cocok dengan environment tersedia.
-3. Baca `entrypoint` sebelum mengubah source, database, atau infrastruktur.
+3. Baca `entrypoint` dan ledger sebelum mengubah source, database, atau infrastruktur.
 4. Untuk `VPS_REQUIRED`, version-kan environment target, commit/deploy, perintah, hasil healthcheck, sanitized log, rollback/result, dan keterbatasan.
-5. Jangan menutup audit tanpa memenuhi kriteria closure serta memperbarui register/roadmap/handoff dalam PR sama.
+5. Jangan menutup audit tanpa memenuhi kriteria closure serta memperbarui register/roadmap/handoff/ledger dalam PR sama.
 
 ## Queue Saat Ini
 
 | Marker | Prioritas | Next action singkat |
 | --- | --- | --- |
-| `[[AI-CLI|AUDIT-0|IN_PROGRESS|REPO_DOCS]]` | P3 | Konsistensi evidence, roadmap, dan marker. |
+| `[[AI-CLI|AUDIT-0|IN_PROGRESS|REPO_DOCS]]` | P3 | Konsistensi evidence, roadmap, marker, ledger, dan handoff lintas provider. |
 | `[[AI-CLI|AUDIT-1|VALIDATION_PENDING|VPS_REQUIRED]]` | P1 | Topology web/API/worker, health, queue, storage, config. |
-| `[[AI-CLI|AUDIT-2|VALIDATION_PENDING|REPO_CI_READY]]` | P2 | Inspeksi artefak maintainability dan trend berikutnya sebelum ratchet. |
+| `[[AI-CLI|AUDIT-2|VALIDATION_PENDING|REPO_CI_READY]]` | P2 | Issue #107 closed; inspeksi artifact schema-v2 dan trend berikutnya sebelum ratchet. |
 | `[[AI-CLI|AUDIT-3|VALIDATION_PENDING|VPS_REQUIRED]]` | P1 | Authorization, tenant, retry/concurrency, abuse, proxy rate-limit. |
-| `[[AI-CLI|AUDIT-4|IN_PROGRESS|REPO_CI_READY]]` | P1 | Implementasikan HttpOnly session boundary pada #105; kemudian validasi ingress security. |
+| `[[AI-CLI|AUDIT-4|VALIDATION_PENDING|VPS_REQUIRED]]` | P1 | Issue #112: HttpOnly session/cookie, CORS/CSRF, ingress/TLS, rate-limit, storage/log, rollback. |
 | `[[AI-CLI|AUDIT-5|VALIDATION_PENDING|VPS_REQUIRED]]` | P1 | Query plan, historical preflight, cross-tenant, recovery drill. |
-| `[[AI-CLI|AUDIT-6|VALIDATION_PENDING|VPS_REQUIRED]]` | P2 | Jalankan #108: role journey, keyboard/screen reader, responsive, state/error, browser storage. |
+| `[[AI-CLI|AUDIT-6|VALIDATION_PENDING|VPS_REQUIRED]]` | P2 | #108 browser/staging matrix, lalu #110 automation pada journey yang stabil. |
 | `[[AI-CLI|AUDIT-7|EVIDENCE_PARTIAL|VPS_REQUIRED]]` | P1 | Deploy, rollback, supervision, secrets, observability. |
 | `[[AI-CLI|AUDIT-8|EVIDENCE_PARTIAL|VPS_REQUIRED]]` | P1 | Restore PostgreSQL/object storage dan RPO/RTO evidence. |
 | `[[AI-CLI|AUDIT-9|NOT_FORMALLY_ASSESSED|VPS_REQUIRED]]` | P2 | Workload lalu benchmark API/export/queue/capacity. |
@@ -45,25 +56,27 @@ Setiap audit yang belum `Closed` memiliki marker:
 
 ### Dapat dikerjakan sekarang tanpa VPS
 
-1. `[[AI-CLI|AUDIT-4|IN_PROGRESS|REPO_CI_READY]]` — implement issue #105.
-2. `[[AI-CLI|AUDIT-2|VALIDATION_PENDING|REPO_CI_READY]]` — trend/triage evidence, bukan threshold mekanis.
+1. `[[AI-CLI|AUDIT-0|IN_PROGRESS|REPO_DOCS]]` — rekonsiliasi ledger dan dokumen pada setiap perubahan material.
+2. `[[AI-CLI|AUDIT-2|VALIDATION_PENDING|REPO_CI_READY]]` — review trend maintainability; #111 bukan blocker dan hanya untuk refactor sempit yang test-backed.
 
 ### Dikerjakan setelah VPS/staging tersedia
 
-1. `[[AI-CLI|AUDIT-1|VALIDATION_PENDING|VPS_REQUIRED]]`
-2. `[[AI-CLI|AUDIT-3|VALIDATION_PENDING|VPS_REQUIRED]]`
-3. `[[AI-CLI|AUDIT-4|IN_PROGRESS|REPO_CI_READY]]` setelah #105 siap diuji.
-4. `[[AI-CLI|AUDIT-5|VALIDATION_PENDING|VPS_REQUIRED]]`
-5. `[[AI-CLI|AUDIT-6|VALIDATION_PENDING|VPS_REQUIRED]]` melalui #108.
-6. `[[AI-CLI|AUDIT-7|EVIDENCE_PARTIAL|VPS_REQUIRED]]`
-7. `[[AI-CLI|AUDIT-8|EVIDENCE_PARTIAL|VPS_REQUIRED]]`
-8. `[[AI-CLI|AUDIT-9|NOT_FORMALLY_ASSESSED|VPS_REQUIRED]]`
+1. `[[AI-CLI|AUDIT-4|VALIDATION_PENDING|VPS_REQUIRED]]` melalui issue #112.
+2. `[[AI-CLI|AUDIT-6|VALIDATION_PENDING|VPS_REQUIRED]]` melalui issue #108.
+3. `[[AI-CLI|AUDIT-6|VALIDATION_PENDING|VPS_REQUIRED]]` issue #110 setelah kontrak manual stabil.
+4. `[[AI-CLI|AUDIT-1|VALIDATION_PENDING|VPS_REQUIRED]]`.
+5. `[[AI-CLI|AUDIT-3|VALIDATION_PENDING|VPS_REQUIRED]]`.
+6. `[[AI-CLI|AUDIT-5|VALIDATION_PENDING|VPS_REQUIRED]]`.
+7. `[[AI-CLI|AUDIT-7|EVIDENCE_PARTIAL|VPS_REQUIRED]]`.
+8. `[[AI-CLI|AUDIT-8|EVIDENCE_PARTIAL|VPS_REQUIRED]]`.
+9. `[[AI-CLI|AUDIT-9|NOT_FORMALLY_ASSESSED|VPS_REQUIRED]]`.
 
 ## VPS Preflight Minimum
 
 - branch/commit target;
 - staging terpisah dari production;
 - backup database/object storage terverifikasi;
+- fixture akun/tenant non-production tersedia;
 - secrets tidak tercetak ke log;
 - akses healthcheck;
 - rollback plan/service manager;
