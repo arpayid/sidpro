@@ -1,0 +1,53 @@
+name: AUDIT-4 Security Policy
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'apps/api/src/**'
+      - 'apps/api/test/public-route-security-policy.test.ts'
+      - 'apps/api/test/security-http-config.test.ts'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/audit-4-security-policy.yml'
+      - 'docs/audits/AUDIT-4-*.md'
+      - 'docs/audits/AUDIT_MASTER_REGISTER.md'
+      - 'docs/audits/AUDIT_CLI_HANDOFF.*'
+      - 'docs/ROADMAP.md'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'apps/api/src/**'
+      - 'apps/api/test/public-route-security-policy.test.ts'
+      - 'apps/api/test/security-http-config.test.ts'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/audit-4-security-policy.yml'
+      - 'docs/audits/AUDIT-4-*.md'
+      - 'docs/audits/AUDIT_MASTER_REGISTER.md'
+      - 'docs/audits/AUDIT_CLI_HANDOFF.*'
+      - 'docs/ROADMAP.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  security-policy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.18.3
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts --reporter=silent
+      - name: Verify public route throttle policy
+        run: pnpm audit:public-route-security
+      - name: Verify HTTP configuration security policy
+        run: pnpm --filter @sidpro/api exec tsx --test test/security-http-config.test.ts
