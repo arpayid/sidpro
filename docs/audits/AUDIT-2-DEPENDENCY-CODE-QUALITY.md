@@ -2,7 +2,7 @@
 
 **Marker:** `[[AI-CLI|AUDIT-2|VALIDATION_PENDING|REPO_CI_READY]]`
 
-**Status:** `Validation Pending` — dependency remediation, lint inventory, two coverage baselines, critical-path regression expectations, and maintainability triage are versioned. Final CI for this PR must pass; closure still requires trend review and no remaining in-scope remediation.
+**Status:** `Validation Pending` — dependency remediation, lint inventory, two coverage baselines, critical-path regression expectations, maintainability baseline, and first-pass triage are versioned. Closure still requires trend review and no remaining in-scope remediation.
 
 ## Scope
 
@@ -54,9 +54,11 @@ PR #100 aligned direct Prisma declarations to `6.19.3`, removed the duplicate ro
 
 The lint baseline captures per-workspace ESLint JSON. It records 0 errors and 0 warnings. This is not a blanket zero-warning requirement: new logging, `any`, or suppression use must follow the maintainability triage policy.
 
-### A2-P6 Resolved as Baseline — Maintainability had no repeatable evidence
+### A2-P6 Resolved as Baseline and Triaged — Maintainability signals
 
-`audit-2-maintainability-baseline.mjs` now captures a reproducible inventory and writes JSON/Markdown artifacts. Its first artifact scanned **292 source files / 28,307 code lines** and found **0 explicit `any`, 0 TypeScript/ESLint suppressions, 0 debugger statements, 0 TODO/FIXME markers, and 0 exact duplicate-file groups**. It recorded 22 console calls for classification and identified letters/auth/complaints/tenant/population services plus several admin pages as review candidates; issue #107 owns that triage.
+`audit-2-maintainability-baseline.mjs` produces reproducible JSON/Markdown artifacts. Its first artifact scanned **292 source files / 28,307 code lines** and found **0 explicit `any`, 0 TypeScript/ESLint suppressions, 0 debugger statements, 0 TODO/FIXME markers, and 0 exact duplicate-file groups**. It recorded 22 console calls and identified service/page review candidates.
+
+Issue #107 is resolved by [Maintainability Triage Record](AUDIT-2-MAINTAINABILITY-TRIAGE.md): each hotspot has an accepted-orchestration or extraction-candidate decision, per-file console reporting is added to the artifact, and console email transport is disabled in production unless SMTP is configured. Behavior-preserving refactors are deliberately isolated in #111 rather than mechanically splitting files.
 
 The baseline intentionally reports rather than fails on size, lexical control-flow signals, exact duplicate files, typed debt, suppressions, console usage, and TODO markers. The triage/rachet prerequisites are documented in [Maintainability Policy](AUDIT-2-MAINTAINABILITY-POLICY.md).
 
@@ -77,9 +79,9 @@ The AUDIT-2 workflow runs on relevant PRs/pushes, weekly, and manually. It retai
 
 ## Validation Pending
 
-1. Confirm this PR's expanded workflow passes on the final head.
+1. Confirm final CI for this PR and inspect the first schema-v2 maintainability artifact.
 2. Review at least one further coverage and maintainability trend before proposing a ratchet.
-3. Triage issue #107 and classify any new `any`, suppression, console, large-file, or lexical-hotspot changes using the documented policy.
+3. Resolve only scoped, regression-backed decomposition candidates in #111; do not mechanically optimize metrics.
 4. Continue source evidence reconciliation when dependencies or runtime-critical workflows change.
 
 ## Closure Criteria
@@ -90,6 +92,7 @@ AUDIT-2 may move to `Closed` only when dependency risks, coverage/critical-path 
 
 - [Critical-Path Test Expectations](AUDIT-2-CRITICAL-PATH-TEST-EXPECTATIONS.md)
 - [Maintainability Baseline and Triage Policy](AUDIT-2-MAINTAINABILITY-POLICY.md)
+- [Maintainability Triage Record](AUDIT-2-MAINTAINABILITY-TRIAGE.md)
 - [Dependency Exception Register](AUDIT-2-DEPENDENCY-EXCEPTIONS.md)
 - [Dependency Versioning Policy](AUDIT-2-DEPENDENCY-VERSIONING-POLICY.md)
 - [Audit Master Register](AUDIT_MASTER_REGISTER.md)
