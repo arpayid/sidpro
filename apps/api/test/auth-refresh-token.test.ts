@@ -54,7 +54,7 @@ function makeService(options: {
 
   const transaction = {
     refreshToken: {
-      updateMany: async (args: unknown) => transactionResult,
+      updateMany: async (_args: unknown) => transactionResult,
       create: async (args: unknown) => {
         createdTokens.push(args);
         return args;
