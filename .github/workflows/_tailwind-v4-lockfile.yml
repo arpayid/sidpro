@@ -1,20 +1,21 @@
 name: Refresh Tailwind v4 lockfile
 
 on:
-  pull_request:
-    types: [opened, synchronize]
+  push:
+    branches:
+      - codex/tailwind-v4-compat-migration
 
 permissions:
   contents: write
 
 jobs:
   refresh-lockfile:
-    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'codex/tailwind-v4-compat-migration'
+    if: github.ref == 'refs/heads/codex/tailwind-v4-compat-migration'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ github.head_ref }}
+          ref: ${{ github.ref_name }}
 
       - uses: pnpm/action-setup@v6
         with:
