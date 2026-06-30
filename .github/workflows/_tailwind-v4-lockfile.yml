@@ -1,0 +1,44 @@
+name: Refresh Tailwind v4 lockfile
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  contents: write
+
+jobs:
+  refresh-lockfile:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'codex/tailwind-v4-compat-migration'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.head_ref }}
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.18.3
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Refresh manifest and lockfile without lifecycle scripts
+        run: |
+          set -euo pipefail
+          pnpm --filter @sidpro/web add -D @tailwindcss/postcss@^4.3.2 --lockfile-only --ignore-scripts
+          pnpm install --lockfile-only --ignore-scripts
+
+      - name: Commit generated lockfile
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- apps/web/package.json pnpm-lock.yaml; then
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add apps/web/package.json pnpm-lock.yaml
+          git commit -m 'chore(deps): refresh Tailwind v4 lockfile'
+          git push
