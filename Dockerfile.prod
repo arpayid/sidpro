@@ -1,6 +1,6 @@
 # SIDPRO production image for monorepo services.
 # Build with SERVICE=@sidpro/web, @sidpro/api, or @sidpro/worker.
-FROM node:20-alpine AS base
+FROM node:24-alpine AS base
 WORKDIR /app
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
@@ -28,7 +28,7 @@ RUN pnpm deploy --legacy --filter="${SERVICE}" --prod /prod/app
 COPY docker/copy-prisma-runtime.cjs /tmp/copy-prisma-runtime.cjs
 RUN node /tmp/copy-prisma-runtime.cjs
 
-FROM node:20-alpine AS runtime
+FROM node:24-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 ENV ENABLE_SWAGGER=false
