@@ -1,0 +1,50 @@
+name: Refresh Node 24 type lockfile
+
+on:
+  push:
+    branches:
+      - codex/node24-types
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    if: github.actor == 'arpayid'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: codex/node24-types
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.18.3
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Align Node 24 type packages and lockfile
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          for (const file of ['apps/api/package.json', 'apps/web/package.json', 'apps/worker/package.json']) {
+            const pkg = JSON.parse(fs.readFileSync(file, 'utf8'));
+            pkg.devDependencies['@types/node'] = '^24.0.0';
+            fs.writeFileSync(file, `${JSON.stringify(pkg, null, 2)}\n`);
+          }
+          NODE
+          pnpm install --lockfile-only --ignore-scripts
+
+      - name: Remove helper and commit generated files
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/_node24-types-lockfile.yml
+          git add apps/api/package.json apps/web/package.json apps/worker/package.json pnpm-lock.yaml
+          git commit -m 'chore(node): align type packages with Node 24'
+          git push origin HEAD:codex/node24-types
