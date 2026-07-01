@@ -24,6 +24,10 @@ Setiap perubahan audit juga harus memiliki jejak pada [Audit Change Ledger](AUDI
 | [AUDIT-5 Database and Tenant Integrity](AUDIT-5-DATABASE-TENANT-INTEGRITY.md) | Data/tenant integrity evidence. |
 | [AUDIT-6 Frontend](AUDIT-6-FRONTEND.md) | Frontend route, shell, and state evidence. |
 | [AUDIT-6 Route and UI Inventory](AUDIT-6-ROUTE-UI-INVENTORY.md) | Frontend route and UI inventory. |
+| [AUDIT-7 DevOps and Delivery](AUDIT-7-DEVOPS-DELIVERY.md) | Release, supervision, observability, and rollback evidence. |
+| [AUDIT-8 Backup and Recovery](AUDIT-8-BACKUP-RECOVERY.md) | Restore drill, RPO/RTO, and recovery evidence. |
+| [AUDIT-9 Performance and Scale](AUDIT-9-PERFORMANCE-SCALE.md) | Workload, benchmark, capacity, and degradation evidence. |
+| [AUDIT-10 UAT and Cutover Readiness](AUDIT-10-UAT-CUTOVER-READINESS.md) | UAT, handover, cutover, and owner sign-off evidence. |
 | [AI CLI Handoff](AUDIT_CLI_HANDOFF.md) | Machine-readable queue and execution modes. |
 
 ## Audit Status Summary
@@ -54,6 +58,7 @@ Setiap perubahan audit juga harus memiliki jejak pada [Audit Change Ledger](AUDI
 | Tenant integrity, report/export, and storage cleanup controls | Repository controls merged; audit remains validation pending. | PR #71/#74/#75/#81 tenant guards and DB gate; #82/#83 report/export boundaries; #85/#87 history/soft-delete safeguards; #92 query-plan/observability gate. | Historical preflight, representative data query evidence, worker log/alert verification, outage recovery, and migration-lock validation. |
 | Staging evidence could retain unfiltered response headers | Resolved in source and CI. | PR #118, merged commit `6bc907bc45182049b60d290527b817a5723531d9`, evidence redaction self-test, AUDIT-6 probe, CI, Security Audit. | Run the sanitized probe only against real persistent staging; it does not replace #108/#112 browser validation. |
 | Frontend role, accessibility, responsive, and state journeys | Validation pending; no production claim. | Source policy, runbook, and sanitized probe are versioned. | Issue #108 on persistent staging, followed by issue #110 browser automation. |
+| DevOps, recovery, performance, and UAT execution contracts | Entry points are versioned; status is unchanged. | AUDIT-7 through AUDIT-10 runbooks define environment evidence, restore, benchmark, UAT, and cutover records. | Execute only on persistent staging with approved workload and human sign-off where required. |
 
 ## AUDIT-6 — Frontend
 
@@ -71,6 +76,30 @@ Setiap perubahan audit juga harus memiliki jejak pada [Audit Change Ledger](AUDI
 **Validation pending:** issue #108 covers browser viewport, keyboard, assistive technology, role/session, loading/error/empty, and storage validation on persistent staging. Issue #110 may automate only stable, non-destructive portions after the manual contract is proven.
 
 **Non-claim:** source checks and the network probe do not prove WCAG conformance, focus order, contrast, touch targets, responsive rendering, or deployed authentication behavior.
+
+## AUDIT-7 — DevOps and Delivery
+
+**Status:** `Evidence Partial`
+
+Release, service supervision, secrets, health, and rollback source guidance are documented. Closure requires persistent staging evidence for deployment provenance, restart/recovery, log collection/redaction, and an approved rollback decision path.
+
+## AUDIT-8 — Backup and Recovery
+
+**Status:** `Evidence Partial`
+
+Backup/checksum and database restore verification controls exist in repository guidance. Closure requires an isolated persistent restore drill for PostgreSQL and object storage with observed RPO/RTO and restored-service smoke evidence.
+
+## AUDIT-9 — Performance and Scale
+
+**Status:** `Not Formally Assessed`
+
+No workload, service-level objective, data profile, or repeatable capacity benchmark has been approved. The audit must begin with those decisions before any performance claim.
+
+## AUDIT-10 — UAT and Cutover Readiness
+
+**Status:** `Evidence Partial`
+
+Module handover notes and release checklists exist. Closure requires role-based UAT, operator handover/cutover rehearsal, accepted residual risks, and project-owner sign-off.
 
 ## Register Update Rule
 
