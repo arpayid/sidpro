@@ -2,7 +2,7 @@
 
 **Marker:** `[[AI-CLI|AUDIT-8|EVIDENCE_PARTIAL|VPS_REQUIRED]]`
 
-**Status:** `Evidence Partial` — repository release controls create database and object-storage backups, verify checksums, and document a database restore verification path. A persistent restore drill with measured recovery objectives is still required.
+**Status:** `Evidence Partial` — the production release path creates database and object-storage backups, verifies checksums, and documents a database restore verification path. A persistent restore drill with measured recovery objectives is still required.
 
 ## Scope
 
@@ -20,20 +20,20 @@ It does not claim disaster-recovery readiness, off-site replication, or complian
 
 | Area | Versioned control | Limit |
 | --- | --- | --- |
-| Pre-release backup | Production release guidance creates database and upload/object-storage archives before migration. | Must be validated on the actual persistent storage path. |
-| Integrity | Backup artifacts include SHA-256 checksums and release manifest references. | Checksums do not prove a usable application restore. |
-| Database restore verification | Release guidance restores database dump into an isolated temporary database before migration. | Restore must be repeated against target version and representative data. |
-| Restore guardrails | Development restore commands refuse `NODE_ENV=production`; production recovery requires explicit operator decision. | Host access controls and operator procedure need validation. |
-| Operations | Staging backup schedule and artifact locations are documented. | Scheduler execution, retention, and off-host copy need evidence. |
+| Pre-release backup | `production-release.sh` invokes the production backup and verification path before migration. | Must be validated on the actual persistent storage path. |
+| Integrity | The production backup path writes SHA-256 checksums and release manifest references for database and object-storage artifacts. | Checksums do not prove a usable application restore. The current staging backup cron does not record an object-storage checksum, so it is insufficient by itself as AUDIT-8 drill evidence. |
+| Database restore verification | Release guidance restores a database dump into an isolated temporary database before migration. | Restore must be repeated against target version and representative data. |
+| Restore guardrails | `scripts/restore-db.sh` requires explicit confirmation and refuses `NODE_ENV=production`. `scripts/restore.sh` only prompts interactively and is not a production safety control. | Do not use the interactive prompt as a production guard; recovery requires an approved operator procedure and isolated restore target. |
+| Operations | Staging backup schedule and artifact locations are documented. | Scheduler execution, retention, off-host copy, and checksum coverage need evidence. |
 
 ## Persistent Staging Restore Drill
 
 Run only in an isolated non-production environment. Do not restore into the active production database, bucket, or tenant.
 
 1. Record Trace ID, target commit, environment, backup creation time, and intended restore target.
-2. Produce database and object-storage/upload backups using the documented release or operations path.
+2. Use the production release backup path, or another explicitly approved path that produces and verifies SHA-256 checksums for both the database and object-storage/upload artifacts. Do not use the current staging backup cron as the sole evidence path because its object archive has no checksum.
 3. Verify every checksum before restoration. Stop on a mismatch.
-4. Restore PostgreSQL into an isolated database name and restore uploads/object storage into an isolated bucket or prefix.
+4. Restore PostgreSQL into an isolated database name using the guarded non-production restore path, and restore uploads/object storage into an isolated bucket or prefix. Do not rely on the interactive `scripts/restore.sh` prompt as a safety control.
 5. Run migration-status validation against the restored database without applying destructive changes.
 6. Start an isolated API/web/worker configuration pointing only at restored services.
 7. Run read-only and non-destructive smoke checks: health, authorized login with fixture account, public tracking lookup using fixture data, file metadata access policy, and representative report read.
