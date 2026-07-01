@@ -18,6 +18,8 @@ services:
   redis:
     image: redis:7-alpine
     command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-replace-with-bunnyshell-secret}
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-replace-with-bunnyshell-secret}
     volumes:
       - redis_data:/data
     healthcheck:
@@ -39,8 +41,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.staging
+      target: api
     command: >
-      sh -c "pnpm prisma migrate deploy --schema=prisma/schema.prisma &&
+      sh -c "node -e \"const net=require('net');const host='postgres';const port=5432;let left=60;function check(){const socket=net.createConnection(port,host);socket.setTimeout(2000);socket.on('connect',()=>{console.log('postgres is reachable');socket.destroy();process.exit(0)});socket.on('error',retry);socket.on('timeout',()=>{socket.destroy();retry()});function retry(){if(--left<=0){console.error('postgres is not reachable');process.exit(1)};setTimeout(check,2000)}}check();\" &&
+      pnpm prisma migrate deploy --schema=prisma/schema.prisma &&
       pnpm --filter @sidpro/api start:prod"
     environment:
       NODE_ENV: production
@@ -71,6 +75,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.staging
+      target: worker
     command: pnpm --filter @sidpro/worker start
     environment:
       NODE_ENV: production
@@ -92,6 +97,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.staging
+      target: web
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api/v1}
     command: pnpm --filter @sidpro/web start
     environment:
       NODE_ENV: production
