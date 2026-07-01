@@ -42,7 +42,7 @@ Provider tidak boleh:
 | --- | --- | --- |
 | `[[AI-CLI|AUDIT-0|IN_PROGRESS|REPO_DOCS]]` | P3 | Konsistensi evidence, roadmap, marker, ledger, dan handoff lintas provider. |
 | `[[AI-CLI|AUDIT-1|VALIDATION_PENDING|VPS_REQUIRED]]` | P1 | Topology web/API/worker, health, queue, storage, config. |
-| `[[AI-CLI|AUDIT-2|VALIDATION_PENDING|REPO_CI_READY]]` | P2 | Issue #107 closed; inspeksi artifact schema-v2 dan trend berikutnya sebelum ratchet. |
+| `[[AI-CLI|AUDIT-2|VALIDATION_PENDING|REPO_CI_READY]]` | P2 | Artifact schema-v2 30 Juni 2026 sudah direview; kumpulkan satu trend comparable lagi sebelum ratchet. |
 | `[[AI-CLI|AUDIT-3|VALIDATION_PENDING|VPS_REQUIRED]]` | P1 | Authorization, tenant, retry/concurrency, abuse, proxy rate-limit. |
 | `[[AI-CLI|AUDIT-4|VALIDATION_PENDING|VPS_REQUIRED]]` | P1 | Issue #112: HttpOnly session/cookie, CORS/CSRF, ingress/TLS, rate-limit, storage/log, rollback. |
 | `[[AI-CLI|AUDIT-5|VALIDATION_PENDING|VPS_REQUIRED]]` | P1 | Query plan, historical preflight, cross-tenant, recovery drill. |
@@ -57,7 +57,7 @@ Provider tidak boleh:
 ### Dapat dikerjakan sekarang tanpa VPS
 
 1. `[[AI-CLI|AUDIT-0|IN_PROGRESS|REPO_DOCS]]` — rekonsiliasi ledger dan dokumen pada setiap perubahan material.
-2. `[[AI-CLI|AUDIT-2|VALIDATION_PENDING|REPO_CI_READY]]` — review trend maintainability; #111 bukan blocker dan hanya untuk refactor sempit yang test-backed.
+2. `[[AI-CLI|AUDIT-2|VALIDATION_PENDING|REPO_CI_READY]]` — kumpulkan satu trend coverage dan maintainability schema-v2 yang comparable lagi sebelum mengusulkan ratchet; #111 bukan blocker dan hanya untuk refactor sempit yang test-backed.
 
 ### Dikerjakan setelah VPS/staging tersedia
 
