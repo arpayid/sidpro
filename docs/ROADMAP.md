@@ -8,7 +8,7 @@ Dokumen ini adalah sumber ringkasan status audit, evidence, dan urutan hardening
 
 - Repository: `arpayid/sidpro`.
 - **AUDIT-1 — architecture:** PR #93 menetapkan boundary policy/ADR/exception register; PR #95 memindahkan shared address resolution ke `core/addressing`; PR #96 merekonsiliasi dependency map dan status menjadi `Validation Pending`. Persistent staging topology tetap diperlukan.
-- **AUDIT-2 — quality:** PR #97 baseline dependency/coverage, #98 governance exception/lint, #100 transitive advisory remediation, #106 critical-path/maintainability baseline, dan #116 maintainability triage/email fallback. Issue #107 closed; #111 adalah backlog refactor non-blocking.
+- **AUDIT-2 — quality:** PR #97 baseline dependency/coverage, #98 governance exception/lint, #100 transitive advisory remediation, #106 critical-path/maintainability baseline, #116 maintainability triage/email fallback, serta trend schema-v2 30 Juni 2026 sudah versioned. Satu trend comparable lagi diperlukan sebelum ratchet; issue #107 closed dan #111 non-blocking.
 - **AUDIT-3 — API/domain:** PR #103 menambah inventory 26 controller, access policy, bounded pagination, service-authorization register, serta compatibility/idempotency policy. Persistent authorization/tenant/retry/proxy validation masih wajib.
 - **AUDIT-4 — security:** PR #104 menambah threat model, strict credentialed CORS, header baseline, dan public-mutation throttle policy. PR #115 merge `474901eb92e8094b2f1b51bd7c0f4068c728d8a0` mengganti refresh credential browser-readable dengan sesi refresh `HttpOnly`; issue #105 closed. Issue #112 adalah security release gate pada persistent staging.
 - **AUDIT-5 — database/tenant integrity:** PR #71, #74, #75, #81, #82, #83, #85, #87, dan #92 menambahkan database tenant-link guard, PostgreSQL integration gate, report/export isolation and query validation, BUMDes history retention, soft-delete reconciliation, query-plan evidence, serta storage-cleanup observability. Historical-data preflight dan persistent staging/recovery evidence masih wajib.
@@ -23,7 +23,7 @@ Dokumen ini adalah sumber ringkasan status audit, evidence, dan urutan hardening
 | --- | --- | --- |
 | AUDIT-0 | `In Progress` | Tata kelola evidence, roadmap, handoff marker, dan change ledger lintas provider. |
 | AUDIT-1 | `Validation Pending` | Architecture boundary, core addressing, dependency map, dan exception register telah versioned; butuh topology/runtime staging validation. |
-| AUDIT-2 | `Validation Pending` | Dependency/coverage/lint/critical-path/maintainability controls dan triage telah versioned; review schema-v2 trend sebelum ratchet. |
+| AUDIT-2 | `Validation Pending` | Dependency/coverage/lint/critical-path/maintainability controls, triage, dan satu trend schema-v2 telah versioned; kumpulkan satu trend comparable lagi sebelum ratchet. |
 | AUDIT-3 | `Validation Pending` | Controller inventory, access posture, pagination, authorization exception, dan compatibility policy telah dicatat; butuh staging API/domain validation. |
 | AUDIT-4 | `Validation Pending` | CORS/header/public policy dan HttpOnly source boundary telah merged; issue #112 membutuhkan staging session/security evidence. |
 | AUDIT-5 | `Validation Pending` | Tenant guard, PostgreSQL runtime gate, report/export evidence, accounting/history protection, dan observability controls telah versioned; butuh preflight/recovery/query staging validation. |
@@ -40,7 +40,7 @@ Dokumen ini adalah sumber ringkasan status audit, evidence, dan urutan hardening
 3. **AUDIT-6 / issue #108 `VPS_REQUIRED`:** validasi role/tenant, direct route, keyboard/screen reader, 320px/768px/desktop, loading/error/upload/tracking/export, dan browser storage.
 4. **AUDIT-6 / issue #110 `VPS_REQUIRED`:** setelah #112 dan #108 menghasilkan kontrak stabil, tambahkan browser journey automation dengan secrets/fixtures staging yang tidak pernah di-commit.
 5. **AUDIT-1, AUDIT-3, AUDIT-5, AUDIT-7, dan AUDIT-8 `VPS_REQUIRED`:** topology, API authorization/tenant/retry behavior, historical-data preflight, query plan, recovery drill, deployment/rollback/observability, dan restore evidence.
-6. **AUDIT-2 `VALIDATION_PENDING`:** bandingkan artifact maintainability schema-v2 dengan satu trend berikutnya; #111 hanya dikerjakan sebagai refactor kecil yang test-backed dan bukan blocker release.
+6. **AUDIT-2 `VALIDATION_PENDING`:** kumpulkan satu artifact maintainability schema-v2 dan coverage comparable lagi sebelum mengusulkan ratchet; #111 hanya dikerjakan sebagai refactor kecil yang test-backed dan bukan blocker release.
 7. **AUDIT-9 dan AUDIT-10:** gunakan workload benchmark contract serta UAT/cutover contract setelah staging dan owner approval tersedia.
 
 ## Update Rules
@@ -57,6 +57,7 @@ Setiap provider AI atau operator harus memulai dari [AI Provider Handoff Protoco
 - [AUDIT CLI Handoff](audits/AUDIT_CLI_HANDOFF.md)
 - [AUDIT-1 Repository and Architecture](audits/AUDIT-1-REPOSITORY-ARCHITECTURE.md)
 - [AUDIT-2 Dependency and Code Quality](audits/AUDIT-2-DEPENDENCY-CODE-QUALITY.md)
+- [AUDIT-2 Trend Record 30 June 2026](audits/AUDIT-2-TREND-2026-06-30.md)
 - [AUDIT-2 Critical-Path Expectations](audits/AUDIT-2-CRITICAL-PATH-TEST-EXPECTATIONS.md)
 - [AUDIT-2 Maintainability Policy](audits/AUDIT-2-MAINTAINABILITY-POLICY.md)
 - [AUDIT-3 API and Domain Logic](audits/AUDIT-3-API-DOMAIN-LOGIC.md)

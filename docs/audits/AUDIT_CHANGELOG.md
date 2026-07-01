@@ -50,3 +50,14 @@ Ledger ini adalah riwayat material audit. Git history tetap sumber detail peruba
 - Execution mode: `REPO_DOCS`
 - Provider / operator: `Repository reconciliation`
 - Secrets/PII: `None recorded`
+
+### 2026-07-01 — AUDIT-2-TREND-2026-06-30 — First comparable schema-v2 trend
+
+- Status: `Validation Pending` → `Validation Pending`.
+- Scope: AUDIT-2 dependency, code-quality, coverage, and maintainability evidence.
+- Change: Recorded the 30 June 2026 artifact comparison. No coverage ratchet, maintainability threshold, or mechanical refactor was introduced.
+- Evidence: PR #155 and `AUDIT-2-TREND-2026-06-30.md`.
+- Remaining / next action: Collect one further comparable schema-v2 maintainability and coverage trend before proposing a package-specific ratchet; keep #111 limited to scoped test-backed refactors.
+- Execution mode: `REPO_CI_READY`
+- Provider / operator: `Repository reconciliation`
+- Secrets/PII: `None recorded`

@@ -2,7 +2,7 @@
 
 **Marker:** `[[AI-CLI|AUDIT-2|VALIDATION_PENDING|REPO_CI_READY]]`
 
-**Status:** `Validation Pending` — dependency remediation, lint inventory, two coverage baselines, critical-path regression expectations, maintainability baseline, and first-pass triage are versioned. Closure still requires trend review and no remaining in-scope remediation.
+**Status:** `Validation Pending` — dependency remediation, lint inventory, two coverage baselines, critical-path regression expectations, maintainability baseline, first-pass triage, and one subsequent artifact trend are versioned. Closure still requires one further comparable trend review and no remaining in-scope remediation.
 
 ## Scope
 
@@ -60,9 +60,13 @@ The lint baseline captures per-workspace ESLint JSON. It records 0 errors and 0 
 
 Issue #107 is resolved by [Maintainability Triage Record](AUDIT-2-MAINTAINABILITY-TRIAGE.md): each hotspot has an accepted-orchestration or extraction-candidate decision, per-file console reporting is added to the artifact, and console email transport is disabled in production unless SMTP is configured. Behavior-preserving refactors are deliberately isolated in #111 rather than mechanically splitting files.
 
-The baseline intentionally reports rather than fails on size, lexical control-flow signals, exact duplicate files, typed debt, suppressions, console usage, and TODO markers. The triage/rachet prerequisites are documented in [Maintainability Policy](AUDIT-2-MAINTAINABILITY-POLICY.md).
+The baseline intentionally reports rather than fails on size, lexical control-flow signals, exact duplicate files, typed debt, suppressions, console usage, and TODO markers. The triage/ratchet prerequisites are documented in [Maintainability Policy](AUDIT-2-MAINTAINABILITY-POLICY.md).
 
 **Limit:** lexical control-flow signals are not cognitive/cyclomatic complexity, and exact-file hashes are not semantic duplicate detection. A third-party scanner will not become a required gate until its false-positive process and ownership model are accepted.
+
+### A2-P7 Evidence Recorded — First schema-v2 trend comparison
+
+The 30 June 2026 workflow artifact scanned **296 source files / 28,517 code lines** with **0 explicit `any`, 0 TypeScript/ESLint suppressions, 0 debugger statements, 0 TODO/FIXME markers, and 0 exact duplicate-file groups**. Console calls increased from 22 to 24 and require per-file classification, not automatic remediation. Coverage moved within expected test-inventory variation; no package-specific ratchet is justified yet. See [Trend Record 30 June 2026](AUDIT-2-TREND-2026-06-30.md).
 
 ## Override Register
 
@@ -79,10 +83,9 @@ The AUDIT-2 workflow runs on relevant PRs/pushes, weekly, and manually. It retai
 
 ## Validation Pending
 
-1. Confirm final CI for this PR and inspect the first schema-v2 maintainability artifact.
-2. Review at least one further coverage and maintainability trend before proposing a ratchet.
-3. Resolve only scoped, regression-backed decomposition candidates in #111; do not mechanically optimize metrics.
-4. Continue source evidence reconciliation when dependencies or runtime-critical workflows change.
+1. Review at least one further coverage and maintainability trend after the 30 June 2026 record before proposing a ratchet.
+2. Resolve only scoped, regression-backed decomposition candidates in #111; do not mechanically optimize metrics.
+3. Continue source evidence reconciliation when dependencies or runtime-critical workflows change.
 
 ## Closure Criteria
 
@@ -90,6 +93,7 @@ AUDIT-2 may move to `Closed` only when dependency risks, coverage/critical-path 
 
 ## Related Documents
 
+- [Trend Record 30 June 2026](AUDIT-2-TREND-2026-06-30.md)
 - [Critical-Path Test Expectations](AUDIT-2-CRITICAL-PATH-TEST-EXPECTATIONS.md)
 - [Maintainability Baseline and Triage Policy](AUDIT-2-MAINTAINABILITY-POLICY.md)
 - [Maintainability Triage Record](AUDIT-2-MAINTAINABILITY-TRIAGE.md)
