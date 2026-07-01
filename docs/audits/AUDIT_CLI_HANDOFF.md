@@ -47,10 +47,19 @@ Provider tidak boleh:
 | `[[AI-CLI|AUDIT-4|VALIDATION_PENDING|VPS_REQUIRED]]` | P1 | Issue #112: HttpOnly session/cookie, CORS/CSRF, ingress/TLS, rate-limit, storage/log, rollback. |
 | `[[AI-CLI|AUDIT-5|VALIDATION_PENDING|VPS_REQUIRED]]` | P1 | Query plan, historical preflight, cross-tenant, recovery drill. |
 | `[[AI-CLI|AUDIT-6|VALIDATION_PENDING|VPS_REQUIRED]]` | P2 | #108 browser/staging matrix, lalu #110 automation pada journey yang stabil. |
-| `[[AI-CLI|AUDIT-7|EVIDENCE_PARTIAL|VPS_REQUIRED]]` | P1 | Deploy, rollback, supervision, secrets, observability. |
-| `[[AI-CLI|AUDIT-8|EVIDENCE_PARTIAL|VPS_REQUIRED]]` | P1 | Restore PostgreSQL/object storage dan RPO/RTO evidence. |
-| `[[AI-CLI|AUDIT-9|NOT_FORMALLY_ASSESSED|VPS_REQUIRED]]` | P2 | Workload lalu benchmark API/export/queue/capacity. |
-| `[[AI-CLI|AUDIT-10|EVIDENCE_PARTIAL|HUMAN_UAT_REQUIRED]]` | P2 | UAT, cutover, training, sign-off. |
+| `[[AI-CLI|AUDIT-7|EVIDENCE_PARTIAL|VPS_REQUIRED]]` | P1 | Jalankan [delivery runbook](AUDIT-7-DEVOPS-DELIVERY.md): deploy, rollback, supervision, secrets, observability. |
+| `[[AI-CLI|AUDIT-8|EVIDENCE_PARTIAL|VPS_REQUIRED]]` | P1 | Jalankan [recovery runbook](AUDIT-8-BACKUP-RECOVERY.md): restore PostgreSQL/object storage dan RPO/RTO evidence. |
+| `[[AI-CLI|AUDIT-9|NOT_FORMALLY_ASSESSED|VPS_REQUIRED]]` | P2 | Gunakan [workload contract](AUDIT-9-PERFORMANCE-SCALE.md), lalu benchmark API/export/queue/capacity. |
+| `[[AI-CLI|AUDIT-10|EVIDENCE_PARTIAL|HUMAN_UAT_REQUIRED]]` | P2 | Gunakan [UAT/cutover runbook](AUDIT-10-UAT-CUTOVER-READINESS.md): UAT, training, sign-off. |
+
+## Audit 7–10 Entry Points
+
+| Audit | Document | Status boundary |
+| --- | --- | --- |
+| AUDIT-7 | [DevOps and Delivery](AUDIT-7-DEVOPS-DELIVERY.md) | Requires persistent staging delivery, observability, and rollback evidence. |
+| AUDIT-8 | [Backup and Recovery](AUDIT-8-BACKUP-RECOVERY.md) | Requires isolated restore drill and observed RPO/RTO. |
+| AUDIT-9 | [Performance and Scale](AUDIT-9-PERFORMANCE-SCALE.md) | Requires approved workload and capacity targets before a benchmark claim. |
+| AUDIT-10 | [UAT and Cutover Readiness](AUDIT-10-UAT-CUTOVER-READINESS.md) | Requires human acceptance and owner sign-off. |
 
 ## Urutan Rekomendasi
 
@@ -67,9 +76,10 @@ Provider tidak boleh:
 4. `[[AI-CLI|AUDIT-1|VALIDATION_PENDING|VPS_REQUIRED]]`.
 5. `[[AI-CLI|AUDIT-3|VALIDATION_PENDING|VPS_REQUIRED]]`.
 6. `[[AI-CLI|AUDIT-5|VALIDATION_PENDING|VPS_REQUIRED]]`.
-7. `[[AI-CLI|AUDIT-7|EVIDENCE_PARTIAL|VPS_REQUIRED]]`.
-8. `[[AI-CLI|AUDIT-8|EVIDENCE_PARTIAL|VPS_REQUIRED]]`.
-9. `[[AI-CLI|AUDIT-9|NOT_FORMALLY_ASSESSED|VPS_REQUIRED]]`.
+7. `[[AI-CLI|AUDIT-7|EVIDENCE_PARTIAL|VPS_REQUIRED]]` melalui delivery runbook.
+8. `[[AI-CLI|AUDIT-8|EVIDENCE_PARTIAL|VPS_REQUIRED]]` melalui restore-drill runbook.
+9. `[[AI-CLI|AUDIT-9|NOT_FORMALLY_ASSESSED|VPS_REQUIRED]]` setelah workload disetujui.
+10. `[[AI-CLI|AUDIT-10|EVIDENCE_PARTIAL|HUMAN_UAT_REQUIRED]]` setelah staging dan peran UAT tersedia.
 
 ## VPS Preflight Minimum
 
