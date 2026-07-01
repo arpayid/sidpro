@@ -1,6 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  createOpaqueLogReference,
+  createStorageCleanupCompletedEvent,
   createStorageCleanupFailureEvent,
   createStorageCleanupQueueHealthEvent,
   getStorageCleanupQueueCounts,
@@ -45,28 +47,46 @@ describe('storage cleanup queue observability', () => {
     assert.equal(event.status, 'ok');
   });
 
-  it('records retry versus permanent storage cleanup failures safely', () => {
+  it('uses opaque references for cleanup completion events', () => {
+    const event = createStorageCleanupCompletedEvent({
+      jobId: 'storage-cleanup-file-1',
+      attemptsMade: 2,
+      maxAttempts: 8,
+    });
+
+    assert.deepEqual(event, {
+      event: 'storage_cleanup_job_completed',
+      jobReference: createOpaqueLogReference('storage-cleanup-file-1'),
+      attempt: 2,
+      maxAttempts: 8,
+    });
+    assert.doesNotMatch(JSON.stringify(event), /file-1/);
+  });
+
+  it('records retry versus permanent storage cleanup failures without raw storage metadata', () => {
     const retry = createStorageCleanupFailureEvent({
-      jobId: 'job-1',
+      jobId: 'storage-cleanup-file-1',
       data: { fileId: 'file-1', tenantId: 'tenant-1', path: 'tenant-1/uploads/a.pdf' },
       attemptsMade: 2,
       maxAttempts: 8,
-      error: new Error('MinIO temporarily unavailable'),
+      error: new Error(
+        'Could not delete tenant-1/uploads/a.pdf through https://access:secret@example.test/bucket',
+      ),
     });
     assert.equal(retry.finalAttempt, false);
     assert.equal(retry.attempt, 2);
-    assert.equal(retry.error, 'MinIO temporarily unavailable');
+    assert.equal(retry.jobReference, createOpaqueLogReference('storage-cleanup-file-1'));
+    assert.doesNotMatch(JSON.stringify(retry), /file-1|tenant-1|uploads\/a\.pdf|access:secret/);
+    assert.match(retry.error, /\[redacted\]|\[redacted-url\]/);
 
     const permanent = createStorageCleanupFailureEvent({
-      jobId: 'job-2',
-      data: { fileId: 'file-2' },
+      jobId: 'storage-cleanup-file-2',
       attemptsMade: 8,
       maxAttempts: 8,
       error: 'access denied',
     });
     assert.equal(permanent.finalAttempt, true);
-    assert.equal(permanent.tenantId, null);
-    assert.equal(permanent.path, null);
+    assert.equal(permanent.jobReference, createOpaqueLogReference('storage-cleanup-file-2'));
   });
 
   it('uses safe positive environment values with a fallback', () => {
