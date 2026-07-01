@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "updatedAt": "2026-07-01",
-  "baselineRevision": "6bc907bc45182049b60d290527b817a5723531d9",
+  "baselineRevision": "02e1880fb8ea9e170ca1cd88d1b4cfd30ffa9b2e",
   "revisionPolicy": "Git commit history is canonical. This manifest records the last reconciled product revision; any documentation PR creates a newer document revision.",
   "instructions": {
     "purpose": "Machine-readable execution queue for AI CLI, AI providers, and VPS-assisted audit work.",
@@ -57,7 +57,7 @@
     {
       "traceId": "AUDIT-5-TENANT-INTEGRITY-HISTORY",
       "state": "VALIDATION_PENDING",
-      "evidence": "PR #71/#74/#75/#81 guards and PostgreSQL gate; #82/#83 report/export; #85/#87 history lifecycle; #92 query-plan and observability",
+      "evidence": "PR #71/#74/#75/#81/#82/#83/#85/#87/#92 guards and PostgreSQL gate; report/export and storage-cleanup observability evidence",
       "nextAction": "Historical preflight, representative-data query capture, worker alerts, recovery drill, and staging migration-lock validation"
     },
     {
@@ -65,6 +65,30 @@
       "state": "VALIDATION_PENDING",
       "evidence": "PR #118 merge 6bc907bc45182049b60d290527b817a5723531d9",
       "nextAction": "Run sanitized probe and required browser/staging evidence for #108/#112 before #110 automation"
+    },
+    {
+      "traceId": "AUDIT-7-DEVOPS-DELIVERY",
+      "state": "EVIDENCE_PARTIAL",
+      "evidence": "Versioned release, operations, and delivery evidence contract",
+      "nextAction": "Persistent staging deployment, restart/recovery, observability, rollback, and sanitized release evidence"
+    },
+    {
+      "traceId": "AUDIT-8-BACKUP-RECOVERY",
+      "state": "EVIDENCE_PARTIAL",
+      "evidence": "Versioned backup, checksum, restore-verification, and recovery-drill contract",
+      "nextAction": "Persistent isolated restore drill for PostgreSQL and object storage with observed RPO/RTO"
+    },
+    {
+      "traceId": "AUDIT-9-PERFORMANCE-SCALE",
+      "state": "NOT_FORMALLY_ASSESSED",
+      "evidence": "Versioned workload and benchmark evidence contract",
+      "nextAction": "Agree workload/SLO/data profile, then benchmark API, export, worker, and capacity on staging"
+    },
+    {
+      "traceId": "AUDIT-10-UAT-CUTOVER",
+      "state": "EVIDENCE_PARTIAL",
+      "evidence": "Versioned UAT, cutover, handover, and sign-off contract",
+      "nextAction": "Execute role-based UAT, operator handover, cutover rehearsal, and owner sign-off"
     }
   ],
   "audits": [
@@ -75,9 +99,9 @@
     {"id":"AUDIT-4","status":"VALIDATION_PENDING","marker":"[[AI-CLI|AUDIT-4|VALIDATION_PENDING|VPS_REQUIRED]]","priority":"P1","executionMode":"VPS_REQUIRED","requiresVps":true,"requiresHumanDecision":false,"nextAction":"PR #104/#115 are documented in the ledger. Execute issue #112 on persistent staging: HTTPS cookie/session, origin/CORS/CSRF, ingress/TLS/headers, rate-limit identity, storage/log redaction, upload/storage, and rollback validation.","entrypoint":"docs/audits/AUDIT-4-SECURITY.md"},
     {"id":"AUDIT-5","status":"VALIDATION_PENDING","marker":"[[AI-CLI|AUDIT-5|VALIDATION_PENDING|VPS_REQUIRED]]","priority":"P1","executionMode":"VPS_REQUIRED","requiresVps":true,"requiresHumanDecision":false,"nextAction":"PR #71/#74/#75/#81/#82/#83/#85/#87/#92 are documented in the ledger. Use persistent staging to run historical-data preflight, real query-plan capture, cross-tenant negative tests, storage-cleanup recovery drill, and alert/log verification.","entrypoint":"docs/audits/AUDIT-5-DATABASE-TENANT-INTEGRITY.md"},
     {"id":"AUDIT-6","status":"VALIDATION_PENDING","marker":"[[AI-CLI|AUDIT-6|VALIDATION_PENDING|VPS_REQUIRED]]","priority":"P2","executionMode":"VPS_REQUIRED","requiresVps":true,"requiresHumanDecision":false,"nextAction":"PR #118 made the staging probe evidence safe. Execute issue #108 on persistent staging, then implement issue #110 only for stable non-destructive browser journeys.","entrypoint":"docs/audits/AUDIT-6-FRONTEND.md"},
-    {"id":"AUDIT-7","status":"EVIDENCE_PARTIAL","marker":"[[AI-CLI|AUDIT-7|EVIDENCE_PARTIAL|VPS_REQUIRED]]","priority":"P1","executionMode":"VPS_REQUIRED","requiresVps":true,"requiresHumanDecision":false,"nextAction":"Document and exercise persistent-environment deployment, rollback, service supervision, observability, secrets, and release evidence.","entrypoint":"docs/audits/AUDIT_MASTER_REGISTER.md#audit-7--devops-dan-delivery"},
-    {"id":"AUDIT-8","status":"EVIDENCE_PARTIAL","marker":"[[AI-CLI|AUDIT-8|EVIDENCE_PARTIAL|VPS_REQUIRED]]","priority":"P1","executionMode":"VPS_REQUIRED","requiresVps":true,"requiresHumanDecision":false,"nextAction":"Run and preserve a restore drill for PostgreSQL and object storage on a persistent non-production environment, including RPO/RTO observations.","entrypoint":"docs/audits/AUDIT_MASTER_REGISTER.md#audit-8--backup-dan-recovery"},
-    {"id":"AUDIT-9","status":"NOT_FORMALLY_ASSESSED","marker":"[[AI-CLI|AUDIT-9|NOT_FORMALLY_ASSESSED|VPS_REQUIRED]]","priority":"P2","executionMode":"VPS_REQUIRED","requiresVps":true,"requiresHumanDecision":true,"nextAction":"Agree workload, latency, concurrency, and data-volume targets; then benchmark API, reports/exports, worker queues, and capacity on staging infrastructure.","entrypoint":"docs/audits/AUDIT_MASTER_REGISTER.md#audit-9--performance-dan-scale"},
-    {"id":"AUDIT-10","status":"EVIDENCE_PARTIAL","marker":"[[AI-CLI|AUDIT-10|EVIDENCE_PARTIAL|HUMAN_UAT_REQUIRED]]","priority":"P2","executionMode":"HUMAN_UAT_REQUIRED","requiresVps":true,"requiresHumanDecision":true,"nextAction":"Prepare UAT roles, acceptance scenarios, migration/cutover checklist, operator training evidence, and sign-off record in a staging-like environment.","entrypoint":"docs/audits/AUDIT_MASTER_REGISTER.md#audit-10--uat-dan-commercial-readiness"}
+    {"id":"AUDIT-7","status":"EVIDENCE_PARTIAL","marker":"[[AI-CLI|AUDIT-7|EVIDENCE_PARTIAL|VPS_REQUIRED]]","priority":"P1","executionMode":"VPS_REQUIRED","requiresVps":true,"requiresHumanDecision":false,"nextAction":"Documented runbook is ready. Exercise persistent-environment deployment, rollback, service supervision, observability, secrets, and release evidence.","entrypoint":"docs/audits/AUDIT-7-DEVOPS-DELIVERY.md"},
+    {"id":"AUDIT-8","status":"EVIDENCE_PARTIAL","marker":"[[AI-CLI|AUDIT-8|EVIDENCE_PARTIAL|VPS_REQUIRED]]","priority":"P1","executionMode":"VPS_REQUIRED","requiresVps":true,"requiresHumanDecision":false,"nextAction":"Documented runbook is ready. Run and preserve a restore drill for PostgreSQL and object storage on a persistent non-production environment, including RPO/RTO observations.","entrypoint":"docs/audits/AUDIT-8-BACKUP-RECOVERY.md"},
+    {"id":"AUDIT-9","status":"NOT_FORMALLY_ASSESSED","marker":"[[AI-CLI|AUDIT-9|NOT_FORMALLY_ASSESSED|VPS_REQUIRED]]","priority":"P2","executionMode":"VPS_REQUIRED","requiresVps":true,"requiresHumanDecision":true,"nextAction":"Documented workload contract is ready. Agree workload, latency, concurrency, and data-volume targets; then benchmark API, reports/exports, worker queues, and capacity on staging infrastructure.","entrypoint":"docs/audits/AUDIT-9-PERFORMANCE-SCALE.md"},
+    {"id":"AUDIT-10","status":"EVIDENCE_PARTIAL","marker":"[[AI-CLI|AUDIT-10|EVIDENCE_PARTIAL|HUMAN_UAT_REQUIRED]]","priority":"P2","executionMode":"HUMAN_UAT_REQUIRED","requiresVps":true,"requiresHumanDecision":true,"nextAction":"Documented UAT/cutover contract is ready. Prepare UAT roles, acceptance scenarios, migration/cutover checklist, operator training evidence, and sign-off record in a staging-like environment.","entrypoint":"docs/audits/AUDIT-10-UAT-CUTOVER-READINESS.md"}
   ]
 }
