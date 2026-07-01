@@ -80,18 +80,3 @@ Provider tidak boleh:
 8. `[[AI-CLI|AUDIT-8|EVIDENCE_PARTIAL|VPS_REQUIRED]]` melalui restore-drill runbook.
 9. `[[AI-CLI|AUDIT-9|NOT_FORMALLY_ASSESSED|VPS_REQUIRED]]` setelah workload disetujui.
 10. `[[AI-CLI|AUDIT-10|EVIDENCE_PARTIAL|HUMAN_UAT_REQUIRED]]` setelah staging dan peran UAT tersedia.
-
-## VPS Preflight Minimum
-
-- branch/commit target;
-- staging terpisah dari production;
-- backup database/object storage terverifikasi;
-- fixture akun/tenant non-production tersedia;
-- secrets tidak tercetak ke log;
-- akses healthcheck;
-- rollback plan/service manager;
-- lokasi evidence yang dapat di-commit atau ditautkan ke PR.
-
-## Non-Claims
-
-Marker memudahkan urutan dan handoff; ia tidak menggantikan validasi teknis, reviewer, atau bukti staging/production.
