@@ -10,6 +10,7 @@ import { processComplaintStatusEmail } from './jobs/complaint-status-email';
 import { createLetterPdfProcessor } from './jobs/letter-pdf';
 import { createStorageCleanupProcessor } from './jobs/storage-cleanup';
 import {
+  createStorageCleanupCompletedEvent,
   createStorageCleanupFailureEvent,
   createStorageCleanupQueueHealthEvent,
   getStorageCleanupQueueCounts,
@@ -143,15 +144,13 @@ notificationWorker.on('completed', (job) =>
 pdfWorker?.on('completed', (job) => console.log(`[pdf-generation] Job ${job.id} completed`));
 storageCleanupWorker?.on('completed', (job) =>
   console.log(
-    JSON.stringify({
-      event: 'storage_cleanup_job_completed',
-      jobId: job.id ?? null,
-      fileId: typeof job.data?.fileId === 'string' ? job.data.fileId : null,
-      tenantId: typeof job.data?.tenantId === 'string' ? job.data.tenantId : null,
-      path: typeof job.data?.path === 'string' ? job.data.path : null,
-      attempt: job.attemptsMade,
-      maxAttempts: job.opts.attempts ?? 1,
-    }),
+    JSON.stringify(
+      createStorageCleanupCompletedEvent({
+        jobId: job.id,
+        attemptsMade: job.attemptsMade,
+        maxAttempts: job.opts.attempts ?? 1,
+      }),
+    ),
   ),
 );
 storageCleanupWorker?.on('failed', (job, error) => {

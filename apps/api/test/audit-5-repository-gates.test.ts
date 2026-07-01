@@ -49,16 +49,24 @@ describe('AUDIT-5 repository gates', () => {
     assert.match(planWorkflow, /test-complaint-export-query-plan\.sh/);
   });
 
-  it('preserves cleanup retry evidence and structured queue health logs', () => {
+  it('preserves cleanup retry evidence, structured queue health logs, and metadata redaction', () => {
     assert.match(queueService, /attempts: 8/);
     assert.match(queueService, /removeOnComplete: \{ age: 86_400, count: 1000 \}/);
     assert.match(queueService, /removeOnFail: \{ age: 604_800, count: 500 \}/);
     assert.match(worker, /storage_cleanup_queue_health/);
+    assert.match(worker, /createStorageCleanupCompletedEvent/);
     assert.match(worker, /createStorageCleanupFailureEvent/);
     assert.match(worker, /STORAGE_CLEANUP_HEALTH_LOG_INTERVAL_MS/);
     assert.match(worker, /STORAGE_CLEANUP_FAILED_THRESHOLD/);
     assert.match(observability, /storage_cleanup_job_failed/);
     assert.match(observability, /finalAttempt/);
+    assert.match(observability, /createOpaqueLogReference/);
+    assert.doesNotMatch(observability, /fileId: string \| null/);
+    assert.doesNotMatch(observability, /tenantId: string \| null/);
+    assert.doesNotMatch(observability, /path: string \| null/);
+    assert.doesNotMatch(worker, /fileId: typeof job\.data/);
+    assert.doesNotMatch(worker, /tenantId: typeof job\.data/);
+    assert.doesNotMatch(worker, /path: typeof job\.data/);
   });
 
   it('records the composite FK decision and pending environment validation explicitly', () => {
