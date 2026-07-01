@@ -2,7 +2,7 @@
 
 **Marker:** `[[AI-CLI|AUDIT-4|VALIDATION_PENDING|VPS_REQUIRED]]`
 
-**Status:** `Validation Pending` — source-level threat model, public-route controls, CORS/headers, upload constraints, and the HttpOnly browser session boundary are versioned. Persistent staging ingress/security validation remains required through issue #112.
+**Status:** `Validation Pending` — source-level threat model, public-route controls, CORS/headers, upload constraints, worker-log redaction, and the HttpOnly browser session boundary are versioned. Persistent staging ingress/security validation remains required through issue #112.
 
 ## Scope
 
@@ -46,6 +46,12 @@ The browser previously stored access and refresh tokens in `localStorage` and wr
 
 **Remaining validation:** issue #112 is the persistent staging release gate. It must validate HTTPS cookie scope, session lifecycle, origin/CORS/CSRF behavior, proxy/CDN headers, client-IP rate limiting, absence of token leakage, and rollback against the deployed commit.
 
+### A4-P7 Resolved in Source — Storage cleanup worker logs exposed raw metadata
+
+Storage cleanup completion and failure events now use an opaque, truncated SHA-256 `jobReference` rather than raw job IDs, file IDs, tenant IDs, or object paths. Known job metadata embedded in failure text and URL-like values are redacted before the structured event is emitted. Focused worker and AUDIT-5 repository tests reject regression to raw metadata fields.
+
+**Limit:** this source control does not prove a deployed log collector, reverse proxy, or platform integration cannot add request metadata independently. Persistent staging must still inspect the final collected event stream.
+
 ## Controls Observed
 
 | Area | Source-level controls | Remaining boundary |
@@ -53,7 +59,7 @@ The browser previously stored access and refresh tokens in `localStorage` and wr
 | Authentication | Route throttles, JWT guard, refresh rotation/replay tests, HttpOnly refresh boundary. | Brute force/replay/session restoration through deployed ingress. |
 | Authorization | JWT/permission guards and AUDIT-3 service-level exception register. | Negative authorization/tenant tests on staging. |
 | Public endpoints | Explicit `@Public()`; public mutations require throttle. | Client-IP/rate-limit identity and anti-automation validation. |
-| Upload/storage | MIME/size/magic-byte validation, signed URLs, audit/cleanup controls. | Ingress/body limits, bucket policy, malware posture, URL routing. |
+| Upload/storage | MIME/size/magic-byte validation, signed URLs, audit/cleanup controls, and metadata-redacted cleanup JSON events. | Ingress/body limits, bucket policy, malware posture, URL routing, and deployed log-collector validation. |
 | Configuration | Production validation and strict credentialed CORS parser. | Secret source/rotation, TLS/proxy config. |
 | Browser session | In-memory access state, HttpOnly rotating refresh cookie, origin validation on cookie-backed refresh/logout. | HTTPS cookie scope, CSRF/origin, reverse proxy, and browser behavior validation. |
 | Supply chain | Dependency audit, Security Audit, Gitleaks, governed exceptions. | Continue AUDIT-2 lifecycle/image policy. |
@@ -62,7 +68,7 @@ The browser previously stored access and refresh tokens in `localStorage` and wr
 
 1. Test HTTPS login, 2FA, tab reload, browser restart, refresh rotation, expired refresh, logout, and replay handling.
 2. Verify cookie host/path/Secure/SameSite behavior, allowed/disallowed origin behavior, CORS preflight, TLS, headers, Swagger exposure, and proxy trust.
-3. Test auth/public route abuse, cross-tenant IDOR negative cases, client IP/rate-limit identity, and error redaction.
+3. Test auth/public route abuse, cross-tenant IDOR negative cases, client IP/rate-limit identity, error redaction, and collected worker events for absence of raw file/tenant/object-path metadata.
 4. Test controlled malicious upload corpus, oversized payloads, MinIO policy, signed URL rewriting, and audit logs.
 5. Verify no token appears in localStorage, sessionStorage, JavaScript-readable cookies, DOM, URLs, analytics, or sanitized logs.
 6. Reconcile findings with AUDIT-3, AUDIT-5, AUDIT-6, AUDIT-7, and AUDIT-8.
